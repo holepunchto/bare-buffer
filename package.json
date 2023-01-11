@@ -1,5 +1,5 @@
 {
-  "name": "tiny-buffers",
+  "name": "@pearjs/buffer",
   "version": "0.0.0",
   "description": "Buffer backed by Int8Array",
   "main": "index.js",
@@ -8,14 +8,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/holepunchto/tiny-buffers.git"
+    "url": "https://github.com/holepunchto/pearjs-buffer.git"
   },
   "author": "Mathias Buus (@mafintosh)",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/holepunchto/tiny-buffers/issues"
+    "url": "https://github.com/holepunchto/pearjs-buffer/issues"
   },
-  "homepage": "https://github.com/holepunchto/tiny-buffers",
+  "homepage": "https://github.com/holepunchto/pearjs-buffer",
   "devDependencies": {
     "brittle": "^3.1.1",
     "standard": "^17.0.0"

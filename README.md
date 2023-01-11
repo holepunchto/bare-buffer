@@ -1,14 +1,14 @@
-# tiny-buffers
+# @pearjs/buffer
 
 Buffer backed by Int8Array
 
 ```
-npm i tiny-buffers
+npm i @pearjs/buffer
 ```
 
 ## Usage
 ```javascript
-const Buffer = require('tiny-buffers')
+const Buffer = require('@pearjs/buffer')
 
 const message = Buffer.from('hello')
 const empty = Buffer.alloc(16)
