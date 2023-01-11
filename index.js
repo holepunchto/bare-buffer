@@ -2,6 +2,8 @@
 
 const Buffer = module.exports = {}
 
+Buffer._tinyBuffers = true // temp
+
 Buffer.from = function from (str, enc) {
   if (enc && enc !== 'utf-8') throw new Error('Only Buffer.from utf-8 supported currently')
   const arr = str.split('').map(c => c.charCodeAt(0)) // pear.stringToBuffer(str)
