@@ -1,11 +1,15 @@
+console.log(__dirname)
+const binding = process.addon(__dirname)
+console.log(binding)
+
 // TODO: can we easily extend Uint8Arrays like in node?
 
 const Buffer = module.exports = {}
 
 Buffer.from = function from (str, enc) {
   if (enc && enc !== 'utf-8') throw new Error('Only Buffer.from utf-8 supported currently')
-  const arr = str.split('').map(c => c.charCodeAt(0)) // pear.stringToBuffer(str)
-  return new Uint8Array(arr) // Uint8Array(arr, 0, arr.byteLength - 1)
+  const arr = pear.stringToBuffer(str)
+  return new Uint8Array(arr, 0, arr.byteLength - 1)
 }
 
 Buffer.allocUnsafe = function allocUnsafe (n) {
