@@ -8,7 +8,7 @@ const Buffer = module.exports = {}
 
 Buffer.from = function from (str, enc) {
   if (enc && enc !== 'utf-8') throw new Error('Only Buffer.from utf-8 supported currently')
-  const arr = pear.stringToBuffer(str)
+  const arr = binding.stringToBuffer(str)
   return new Uint8Array(arr, 0, arr.byteLength - 1)
 }
 
