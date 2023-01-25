@@ -1,6 +1,4 @@
-console.log(__dirname)
 const binding = process.addon(__dirname)
-console.log(binding)
 
 // TODO: can we easily extend Uint8Arrays like in node?
 
