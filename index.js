@@ -3,6 +3,7 @@ const base64 = require('./lib/base64')
 const hex = require('./lib/hex')
 const utf8 = require('./lib/utf8')
 const utf16le = require('./lib/utf16le')
+const binding = require('./binding')
 
 const Buffer = module.exports = exports = class Buffer extends Uint8Array {
   [Symbol.species] () {
