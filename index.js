@@ -63,6 +63,10 @@ const Buffer = module.exports = exports = class Buffer extends Uint8Array {
     return true
   }
 
+  compare (other) {
+    return Buffer.compare(this, other)
+  }
+
   fill (value, offset, end, encoding) {
     if (typeof value === 'string') {
     // fill(buffer, string, encoding)
@@ -288,7 +292,7 @@ function codecFor (encoding) {
 }
 
 exports.isBuffer = function isBuffer (value) {
-  return value instanceof Uint8Array
+  return value instanceof Buffer
 }
 
 exports.isEncoding = function isEncoding (encoding) {
@@ -302,7 +306,7 @@ exports.isEncoding = function isEncoding (encoding) {
 
 exports.alloc = function alloc (size, fill, encoding) {
   const buffer = new Buffer(size)
-  if (fill !== undefined) exports.fill(buffer, fill, 0, buffer.byteLength, encoding)
+  if (fill !== undefined) buffer.fill(fill, 0, buffer.byteLength, encoding)
   return buffer
 }
 
