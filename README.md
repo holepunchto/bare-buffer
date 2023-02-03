@@ -1,6 +1,6 @@
 # @pearjs/buffer
 
-Buffer backed by Int8Array
+Native buffers for JavaScript.
 
 ```
 npm i @pearjs/buffer

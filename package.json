@@ -1,8 +1,15 @@
 {
   "name": "@pearjs/buffer",
   "version": "1.0.0",
-  "description": "Buffer backed by Int8Array",
+  "description": "Native buffers for JavaScript",
   "main": "index.js",
+  "files": [
+    "index.js",
+    "binding.c",
+    "binding.js",
+    "CMakeLists.txt",
+    "prebuilds"
+  ],
   "scripts": {
     "test": "standard && pear test.js",
     "install": "pear-dev rebuild",
