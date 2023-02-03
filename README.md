@@ -7,7 +7,8 @@ npm i @pearjs/buffer
 ```
 
 ## Usage
-```javascript
+
+```js
 const Buffer = require('@pearjs/buffer')
 
 const message = Buffer.from('hello')
@@ -17,4 +18,5 @@ const combined = Buffer.concat([buffer, buffer])
 ```
 
 ## License
+
 MIT

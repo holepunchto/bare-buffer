@@ -265,8 +265,6 @@ const Buffer = module.exports = exports = class Buffer extends Uint8Array {
   }
 }
 
-const LE = new Uint8Array(Uint16Array.of(0xff).buffer)[0] === 0xff
-
 function codecFor (encoding) {
   switch (encoding) {
     case 'ascii':
