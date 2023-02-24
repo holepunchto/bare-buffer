@@ -1,35 +1,40 @@
+#include <assert.h>
 #include <js.h>
 #include <js/ffi.h>
 #include <pear.h>
 
 static void
 pear_buffer_set_zero_fill_enabled_fast (js_ffi_receiver_t *receiver, uint32_t enabled) {
-  js_set_arraybuffer_zero_fill_enabled(enabled);
+  js_set_arraybuffer_zero_fill_enabled(enabled != 0);
 }
 
 static js_value_t *
 pear_buffer_set_zero_fill_enabled (js_env_t *env, js_callback_info_t *info) {
-  js_value_t *argv[1];
-  size_t argc = 1;
+  int err;
 
-  js_get_callback_info(env, info, &argc, argv, NULL, NULL);
+  size_t argc = 1;
+  js_value_t *argv[1];
+
+  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
+  assert(err == 0);
+
+  assert(argc == 1);
 
   uint32_t enabled;
-  js_get_value_uint32(env, argv[0], &enabled);
+  err = js_get_value_uint32(env, argv[0], &enabled);
+  assert(err == 0);
 
-  js_set_arraybuffer_zero_fill_enabled(enabled);
+  js_set_arraybuffer_zero_fill_enabled(enabled != 0);
 
   return NULL;
 }
 
 static uint32_t
 pear_buffer_byte_length_fast (js_ffi_receiver_t *receiver, js_ffi_string_t *str) {
-  int n = str->len;
   uint32_t bytes = 0;
 
-  for (int i = 0; i < n; i++) {
-    uint8_t code = str->data[i];
-    bytes += code <= 0x7f ? 1 : 2;
+  for (int i = 0, n = str->len; i < n; i++) {
+    bytes += str->data[i] <= 0x7f ? 1 : 2;
   }
 
   return bytes;
@@ -37,37 +42,51 @@ pear_buffer_byte_length_fast (js_ffi_receiver_t *receiver, js_ffi_string_t *str)
 
 static js_value_t *
 pear_buffer_byte_length (js_env_t *env, js_callback_info_t *info) {
-  js_value_t *argv[1];
-  size_t argc = 1;
+  int err;
 
-  js_get_callback_info(env, info, &argc, argv, NULL, NULL);
+  size_t argc = 1;
+  js_value_t *argv[1];
+
+  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
+  assert(err == 0);
+
+  assert(argc == 1);
 
   size_t str_len;
-  js_get_value_string_utf8(env, argv[0], NULL, -1, &str_len);
+  err = js_get_value_string_utf8(env, argv[0], NULL, -1, &str_len);
+  assert(err == 0);
 
   js_value_t *result;
-  js_create_uint32(env, (uint32_t) str_len, &result);
+  err = js_create_uint32(env, (uint32_t) str_len, &result);
+  assert(err == 0);
 
   return result;
 }
 
 static js_value_t *
 pear_buffer_write (js_env_t *env, js_callback_info_t *info) {
-  js_value_t *argv[2];
-  size_t argc = 2;
+  int err;
 
-  js_get_callback_info(env, info, &argc, argv, NULL, NULL);
+  size_t argc = 2;
+  js_value_t *argv[2];
+
+  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
+  assert(err == 0);
+
+  assert(argc == 1);
 
   size_t buf_len;
   char *buf;
-
-  js_get_typedarray_info(env, argv[0], NULL, (void **) &buf, &buf_len, NULL, NULL);
+  err = js_get_typedarray_info(env, argv[0], NULL, (void **) &buf, &buf_len, NULL, NULL);
+  assert(err == 0);
 
   size_t str_len;
-  js_get_value_string_utf8(env, argv[1], buf, buf_len, &str_len);
+  err = js_get_value_string_utf8(env, argv[1], buf, buf_len, &str_len);
+  assert(err == 0);
 
   js_value_t *result;
-  js_create_uint32(env, (uint32_t) str_len, &result);
+  err = js_create_uint32(env, (uint32_t) str_len, &result);
+  assert(err == 0);
 
   return result;
 }
@@ -82,11 +101,7 @@ compare_buffers (size_t a_len, char *a, size_t b_len, char *b) {
     return 0;
   }
 
-  if (r < 0) {
-    return -1;
-  }
-
-  return 1;
+  return r < 0 ? -1 : 1;
 }
 
 static int32_t
@@ -96,22 +111,29 @@ pear_buffer_compare_fast (js_ffi_receiver_t *recv, js_ffi_typedarray_t *a, js_ff
 
 static js_value_t *
 pear_buffer_compare (js_env_t *env, js_callback_info_t *info) {
-  js_value_t *argv[2];
-  size_t argc = 2;
+  int err;
 
-  js_get_callback_info(env, info, &argc, argv, NULL, NULL);
+  size_t argc = 2;
+  js_value_t *argv[2];
+
+  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
+  assert(err == 0);
+
+  assert(argc == 2);
 
   size_t a_len;
   char *a;
+  err = js_get_typedarray_info(env, argv[0], NULL, (void **) &a, &a_len, NULL, NULL);
+  assert(err == 0);
 
   size_t b_len;
   char *b;
-
-  js_get_typedarray_info(env, argv[0], NULL, (void **) &a, &a_len, NULL, NULL);
-  js_get_typedarray_info(env, argv[1], NULL, (void **) &b, &b_len, NULL, NULL);
+  err = js_get_typedarray_info(env, argv[1], NULL, (void **) &b, &b_len, NULL, NULL);
+  assert(err == 0);
 
   js_value_t *result;
-  js_create_int32(env, compare_buffers(a_len, a, b_len, b), &result);
+  err = js_create_int32(env, compare_buffers(a_len, a, b_len, b), &result);
+  assert(err == 0);
 
   return result;
 }
@@ -136,7 +158,6 @@ init (js_env_t *env, js_value_t *exports) {
     js_create_function(env, "setZeroFillEnabled", -1, pear_buffer_set_zero_fill_enabled, ffi, &val);
     js_set_named_property(env, exports, "setZeroFillEnabled", val);
   }
-
   {
     js_ffi_type_info_t *return_info;
     js_ffi_create_type_info(js_ffi_int32, &return_info);
@@ -155,13 +176,11 @@ init (js_env_t *env, js_value_t *exports) {
     js_create_function_with_ffi(env, "byteLength", -1, pear_buffer_byte_length, NULL, ffi, &val);
     js_set_named_property(env, exports, "byteLength", val);
   }
-
   {
     js_value_t *val;
     js_create_function(env, "write", -1, pear_buffer_write, NULL, &val);
     js_set_named_property(env, exports, "write", val);
   }
-
   {
     js_ffi_type_info_t *return_info;
     js_ffi_create_type_info(js_ffi_int32, &return_info);
