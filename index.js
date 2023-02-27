@@ -10,8 +10,6 @@ const Buffer = module.exports = exports = class Buffer extends Uint8Array {
     return Buffer
   }
 
-  static Buffer = Buffer // For Node.js compatibility
-
   copy (target, targetStart = 0, start = 0, end = this.byteLength) {
     const source = this
 
