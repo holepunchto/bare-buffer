@@ -24,7 +24,7 @@ const Buffer = module.exports = exports = class Buffer extends Uint8Array {
     if (targetStart >= target.byteLength) targetStart = target.byteLength
     if (end > source.byteLength) end = source.byteLength
     if (target.byteLength - targetStart < end - start) {
-      end = target.length - targetStart + start
+      end = target.byteLength - targetStart + start
     }
 
     const len = end - start
@@ -116,11 +116,19 @@ const Buffer = module.exports = exports = class Buffer extends Uint8Array {
     return this.indexOf(value, byteOffset, encoding) !== -1
   }
 
-  indexOf (value, byteOffset, encoding) {
+  indexOf (value, byteOffset = 0, encoding) {
+    if (typeof value === 'number') {
+      return super.indexOf(value & 0xff, byteOffset)
+    }
+
     return bidirectionalIndexOf(this, value, byteOffset, encoding, true /* first */)
   }
 
-  lastIndexOf (value, byteOffset, encoding) {
+  lastIndexOf (value, byteOffset = this.byteLength - 1, encoding) {
+    if (typeof value === 'number') {
+      return super.lastIndexOf(value & 0xff, byteOffset)
+    }
+
     return bidirectionalIndexOf(this, value, byteOffset, encoding, false /* last */)
   }
 
@@ -386,7 +394,7 @@ function bidirectionalIndexOf (buffer, value, byteOffset, encoding, first) {
     encoding = byteOffset
     byteOffset = 0
   } else if (byteOffset === undefined) {
-    byteOffset = first ? 0 : (buffer.length - 1)
+    byteOffset = first ? 0 : (buffer.byteLength - 1)
   } else if (byteOffset < 0) {
     byteOffset += buffer.byteLength
   }
@@ -401,14 +409,6 @@ function bidirectionalIndexOf (buffer, value, byteOffset, encoding, first) {
 
   if (typeof value === 'string') {
     value = Buffer.from(value, encoding)
-  } else if (typeof value === 'number') {
-    value = value & 0xff
-
-    if (first) {
-      return buffer.indexOf(value, byteOffset)
-    } else {
-      return buffer.lastIndexOf(value, byteOffset)
-    }
   }
 
   if (value.byteLength === 0) return -1

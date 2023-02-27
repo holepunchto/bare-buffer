@@ -30,7 +30,7 @@ pear_buffer_set_zero_fill_enabled (js_env_t *env, js_callback_info_t *info) {
 }
 
 static uint32_t
-pear_buffer_byte_length_fast (js_ffi_receiver_t *receiver, js_ffi_string_t *str) {
+pear_buffer_byte_length_utf8_fast (js_ffi_receiver_t *receiver, js_ffi_string_t *str) {
   uint32_t bytes = 0;
 
   for (int i = 0, n = str->len; i < n; i++) {
@@ -41,7 +41,7 @@ pear_buffer_byte_length_fast (js_ffi_receiver_t *receiver, js_ffi_string_t *str)
 }
 
 static js_value_t *
-pear_buffer_byte_length (js_env_t *env, js_callback_info_t *info) {
+pear_buffer_byte_length_utf8 (js_env_t *env, js_callback_info_t *info) {
   int err;
 
   size_t argc = 1;
@@ -64,7 +64,31 @@ pear_buffer_byte_length (js_env_t *env, js_callback_info_t *info) {
 }
 
 static js_value_t *
-pear_buffer_write (js_env_t *env, js_callback_info_t *info) {
+pear_buffer_to_string_utf8 (js_env_t *env, js_callback_info_t *info) {
+  int err;
+
+  size_t argc = 1;
+  js_value_t *argv[1];
+
+  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
+  assert(err == 0);
+
+  assert(argc == 1);
+
+  size_t str_len;
+  char *str;
+  err = js_get_typedarray_info(env, argv[0], NULL, (void **) &str, &str_len, NULL, NULL);
+  assert(err == 0);
+
+  js_value_t *result;
+  err = js_create_string_utf8(env, str, str_len, &result);
+  assert(err == 0);
+
+  return result;
+}
+
+static js_value_t *
+pear_buffer_write_utf8 (js_env_t *env, js_callback_info_t *info) {
   int err;
 
   size_t argc = 2;
@@ -73,7 +97,7 @@ pear_buffer_write (js_env_t *env, js_callback_info_t *info) {
   err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
   assert(err == 0);
 
-  assert(argc == 1);
+  assert(argc == 2);
 
   size_t buf_len;
   char *buf;
@@ -170,16 +194,21 @@ init (js_env_t *env, js_value_t *exports) {
     js_ffi_create_function_info(return_info, arg_info, 2, &function_info);
 
     js_ffi_function_t *ffi;
-    js_ffi_create_function(pear_buffer_byte_length_fast, function_info, &ffi);
+    js_ffi_create_function(pear_buffer_byte_length_utf8_fast, function_info, &ffi);
 
     js_value_t *val;
-    js_create_function_with_ffi(env, "byteLength", -1, pear_buffer_byte_length, NULL, ffi, &val);
-    js_set_named_property(env, exports, "byteLength", val);
+    js_create_function_with_ffi(env, "byteLengthUTF8", -1, pear_buffer_byte_length_utf8, NULL, ffi, &val);
+    js_set_named_property(env, exports, "byteLengthUTF8", val);
   }
   {
     js_value_t *val;
-    js_create_function(env, "write", -1, pear_buffer_write, NULL, &val);
-    js_set_named_property(env, exports, "write", val);
+    js_create_function(env, "toStringUTF8", -1, pear_buffer_to_string_utf8, NULL, &val);
+    js_set_named_property(env, exports, "toStringUTF8", val);
+  }
+  {
+    js_value_t *val;
+    js_create_function(env, "writeUTF8", -1, pear_buffer_write_utf8, NULL, &val);
+    js_set_named_property(env, exports, "writeUTF8", val);
   }
   {
     js_ffi_type_info_t *return_info;
