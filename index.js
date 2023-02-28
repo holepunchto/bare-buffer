@@ -100,7 +100,7 @@ const Buffer = module.exports = exports = class Buffer extends Uint8Array {
         this[i] = value
       }
     } else {
-      value = Buffer.isBuffer(value) ? value : Buffer.from(value, encoding)
+      value = exports.isBuffer(value) ? value : exports.from(value, encoding)
 
       const len = value.byteLength
 
@@ -186,87 +186,85 @@ const Buffer = module.exports = exports = class Buffer extends Uint8Array {
   }
 
   write (string, offset, length, encoding) {
-  // write(buffer, string)
+    // write(string)
     if (offset === undefined) {
       encoding = 'utf8'
 
-      // write(buffer, string, encoding)
+    // write(string, encoding)
     } else if (length === undefined && typeof offset === 'string') {
       encoding = offset
       offset = undefined
 
-      // write(buffer, string, offset, encoding)
+    // write(string, offset, encoding)
     } else if (encoding === undefined && typeof length === 'string') {
       encoding = length
       length = undefined
     }
 
-    return codecFor(encoding).write(this, string, offset, length)
+    const len = Math.min(length, this.byteLength - offset)
+
+    let start = offset
+    if (start >= len) return 0
+    if (start < 0) start = 0
+
+    let end = offset + len
+    if (end <= start) return 0
+    if (end > len) end = len
+
+    let buffer = this
+
+    if (start !== 0 || end < len) buffer = buffer.subarray(start, end)
+
+    return codecFor(encoding).write(buffer, string)
   }
 
-  writeDoubleLE (value, offset) {
-    if (offset === undefined) offset = 0
-
+  writeDoubleLE (value, offset = 0) {
     const view = new DataView(this.buffer, this.byteOffset, this.byteLength)
     view.setFloat64(offset, value, true)
 
     return offset + 8
   }
 
-  writeFloatLE (value, offset) {
-    if (offset === undefined) offset = 0
-
+  writeFloatLE (value, offset = 0) {
     const view = new DataView(this.buffer, this.byteOffset, this.byteLength)
     view.setFloat32(offset, value, true)
 
     return offset + 4
   }
 
-  writeUInt32LE (value, offset) {
-    if (offset === undefined) offset = 0
-
+  writeUInt32LE (value, offset = 0) {
     const view = new DataView(this.buffer, this.byteOffset, this.byteLength)
     view.setUint32(offset, value, true)
 
     return offset + 4
   }
 
-  writeInt32LE (value, offset) {
-    if (offset === undefined) offset = 0
-
+  writeInt32LE (value, offset = 0) {
     const view = new DataView(this.buffer, this.byteOffset, this.byteLength)
     view.setInt32(offset, value, true)
 
     return offset + 4
   }
 
-  readDoubleLE (offset) {
-    if (offset === undefined) offset = 0
-
+  readDoubleLE (offset = 0) {
     const view = new DataView(this.buffer, this.byteOffset, this.byteLength)
 
     return view.getFloat64(offset, true)
   }
 
-  readFloatLE (offset) {
-    if (offset === undefined) offset = 0
-
+  readFloatLE (offset = 0) {
     const view = new DataView(this.buffer, this.byteOffset, this.byteLength)
 
     return view.getFloat32(offset, true)
   }
 
-  readUInt32LE (offset) {
-    if (offset === undefined) offset = 0
-
+  readUInt32LE (offset = 0) {
     const view = new DataView(this.buffer, this.byteOffset, this.byteLength)
 
     return view.getUint32(offset, true)
   }
 
-  readInt32LE (offset) {
-    if (offset === undefined) offset = 0
-
+  readInt32LE (offset = 0) {
     const view = new DataView(this.buffer, this.byteOffset, this.byteLength)
 
     return view.getInt32(offset, true)
@@ -274,6 +272,8 @@ const Buffer = module.exports = exports = class Buffer extends Uint8Array {
 }
 
 function codecFor (encoding) {
+  if (encoding) encoding = encoding.toLowerCase()
+
   switch (encoding) {
     case 'ascii':
       return ascii
@@ -350,6 +350,11 @@ exports.concat = function concat (buffers, totalLength) {
   return result
 }
 
+exports.coerce = function coerce (buffer) {
+  if (exports.isBuffer(buffer)) return buffer
+  return new Buffer(buffer.buffer, buffer.byteOffset, buffer.byteLength)
+}
+
 exports.from = function from (value, encodingOrOffset, length) {
   // from(string, encoding)
   if (typeof value === 'string') return fromString(value, encodingOrOffset)
@@ -408,7 +413,7 @@ function bidirectionalIndexOf (buffer, value, byteOffset, encoding, first) {
   }
 
   if (typeof value === 'string') {
-    value = Buffer.from(value, encoding)
+    value = exports.from(value, encoding)
   }
 
   if (value.byteLength === 0) return -1
