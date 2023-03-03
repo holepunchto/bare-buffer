@@ -19,4 +19,4 @@ const combined = Buffer.concat([buffer, buffer])
 
 ## License
 
-MIT
+Apache-2.0
