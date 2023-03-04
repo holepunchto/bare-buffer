@@ -2,6 +2,7 @@
 #include <js.h>
 #include <js/ffi.h>
 #include <pear.h>
+#include <string.h>
 
 static void
 pear_buffer_set_zero_fill_enabled_fast (js_ffi_receiver_t *receiver, uint32_t enabled) {
