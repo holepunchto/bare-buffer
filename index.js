@@ -168,16 +168,14 @@ const Buffer = module.exports = exports = class Buffer extends Uint8Array {
   }
 
   toString (encoding, start = 0, end = this.byteLength) {
-    const len = this.byteLength
-
-    if (start >= len) return ''
+    if (start >= this.byteLength) return ''
     if (end <= start) return ''
     if (start < 0) start = 0
-    if (end > len) end = len
+    if (end > this.byteLength) end = this.byteLength
 
     let buffer = this
 
-    if (start !== 0 || end < len) buffer = buffer.subarray(start, end)
+    if (start !== 0 || end < this.byteLength) buffer = buffer.subarray(start, end)
 
     return codecFor(encoding).toString(buffer)
   }
@@ -195,19 +193,19 @@ const Buffer = module.exports = exports = class Buffer extends Uint8Array {
       length = this.byteLength - offset
     }
 
-    const len = Math.min(length, this.byteLength - offset)
+    length = Math.min(length, exports.byteLength(string, encoding))
 
     let start = offset
-    if (start >= len) return 0
+    if (start >= this.byteLength) return 0
     if (start < 0) start = 0
 
-    let end = offset + len
+    let end = offset + length
     if (end <= start) return 0
-    if (end > len) end = len
+    if (end > this.byteLength) end = this.byteLength
 
     let buffer = this
 
-    if (start !== 0 || end < len) buffer = buffer.subarray(start, end)
+    if (start !== 0 || end < this.byteLength) buffer = buffer.subarray(start, end)
 
     return codecFor(encoding).write(buffer, string)
   }
