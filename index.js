@@ -65,15 +65,15 @@ const Buffer = module.exports = exports = class Buffer extends Uint8Array {
     return binding.compare(a, b)
   }
 
-  fill (value, offset, end, encoding) {
+  fill (value, offset = 0, end = this.byteLength, encoding = 'utf8') {
     if (typeof value === 'string') {
-    // fill(buffer, string, encoding)
+      // fill(buffer, string, encoding)
       if (typeof offset === 'string') {
         encoding = offset
         offset = 0
         end = this.byteLength
 
-        // fill(buffer, string, offset, encoding)
+      // fill(buffer, string, offset, encoding)
       } else if (typeof end === 'string') {
         encoding = end
         end = this.byteLength
@@ -87,9 +87,6 @@ const Buffer = module.exports = exports = class Buffer extends Uint8Array {
     if (offset < 0 || this.byteLength < offset || this.byteLength < end) {
       throw new RangeError('Out of range index')
     }
-
-    if (offset === undefined) offset = 0
-    if (end === undefined) end = this.byteLength
 
     if (end <= offset) return this
 
@@ -185,20 +182,17 @@ const Buffer = module.exports = exports = class Buffer extends Uint8Array {
     return codecFor(encoding).toString(buffer)
   }
 
-  write (string, offset, length, encoding) {
-    // write(string)
-    if (offset === undefined) {
-      encoding = 'utf8'
-
+  write (string, offset = 0, length = this.byteLength - offset, encoding = 'utf8') {
     // write(string, encoding)
-    } else if (length === undefined && typeof offset === 'string') {
+    if (typeof offset === 'string') {
       encoding = offset
-      offset = undefined
+      offset = 0
+      length = this.byteLength
 
     // write(string, offset, encoding)
-    } else if (encoding === undefined && typeof length === 'string') {
+    } else if (typeof length === 'string') {
       encoding = length
-      length = undefined
+      length = this.byteLength - offset
     }
 
     const len = Math.min(length, this.byteLength - offset)

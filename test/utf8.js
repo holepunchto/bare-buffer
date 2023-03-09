@@ -8,3 +8,11 @@ test('byteLength', (t) => {
 test('toString', (t) => {
   t.is(Buffer.from('hello world').toString(), 'hello world')
 })
+
+test('write', (t) => {
+  const buffer = Buffer.alloc(Buffer.byteLength('hello world'))
+
+  buffer.write('hello world')
+
+  t.alike(buffer, Buffer.from('hello world'))
+})
