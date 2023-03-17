@@ -1,6 +1,6 @@
 {
   "name": "@pearjs/buffer",
-  "version": "1.1.4",
+  "version": "1.1.5",
   "description": "Native buffers for JavaScript",
   "main": "index.js",
   "files": [
