@@ -117,7 +117,7 @@ pear_buffer_write_utf8 (js_env_t *env, js_callback_info_t *info) {
 }
 
 static inline int
-compare_buffers (size_t a_len, char *a, size_t b_len, char *b) {
+compare_buffers (void *a, size_t a_len, void *b, size_t b_len) {
   int r = memcmp(a, b, a_len < b_len ? a_len : b_len);
 
   if (r == 0) {
@@ -131,7 +131,7 @@ compare_buffers (size_t a_len, char *a, size_t b_len, char *b) {
 
 static int32_t
 pear_buffer_compare_fast (js_ffi_receiver_t *recv, js_ffi_typedarray_t *a, js_ffi_typedarray_t *b) {
-  return compare_buffers(a->len, (char *) a->data.u8, b->len, (char *) b->data.u8);
+  return compare_buffers(a->data.u8, a->len, b->data.u8, b->len);
 }
 
 static js_value_t *
@@ -147,17 +147,17 @@ pear_buffer_compare (js_env_t *env, js_callback_info_t *info) {
   assert(argc == 2);
 
   size_t a_len;
-  char *a;
-  err = js_get_typedarray_info(env, argv[0], NULL, (void **) &a, &a_len, NULL, NULL);
+  void *a;
+  err = js_get_typedarray_info(env, argv[0], NULL, &a, &a_len, NULL, NULL);
   assert(err == 0);
 
   size_t b_len;
-  char *b;
-  err = js_get_typedarray_info(env, argv[1], NULL, (void **) &b, &b_len, NULL, NULL);
+  void *b;
+  err = js_get_typedarray_info(env, argv[1], NULL, &b, &b_len, NULL, NULL);
   assert(err == 0);
 
   js_value_t *result;
-  err = js_create_int32(env, compare_buffers(a_len, a, b_len, b), &result);
+  err = js_create_int32(env, compare_buffers(a, a_len, b, b_len), &result);
   assert(err == 0);
 
   return result;

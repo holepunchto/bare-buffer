@@ -45,7 +45,7 @@ const Buffer = module.exports = exports = class Buffer extends Uint8Array {
     if (a === b) return true
     if (a.byteLength !== b.byteLength) return false
 
-    return a.compare(b) === 0
+    return binding.compare(a, b) === 0
   }
 
   compare (target, targetStart = 0, targetEnd = target.byteLength, sourceStart = 0, sourceEnd = this.byteLength) {
@@ -54,12 +54,14 @@ const Buffer = module.exports = exports = class Buffer extends Uint8Array {
 
     if (a === b) return 0
 
-    if (targetStart !== 0 || targetEnd !== target.byteLength) {
-      b = b.subarray(targetStart, targetEnd)
+    if (arguments.length === 1) return binding.compare(a, b)
+
+    if (sourceStart !== 0 || sourceEnd !== a.byteLength) {
+      a = a.subarray(sourceStart, sourceEnd)
     }
 
-    if (sourceStart !== 0 || targetEnd !== target.byteLength) {
-      a = a.subarray(sourceStart, sourceEnd)
+    if (targetStart !== 0 || targetEnd !== b.byteLength) {
+      b = b.subarray(targetStart, targetEnd)
     }
 
     return binding.compare(a, b)
@@ -324,7 +326,7 @@ exports.byteLength = function byteLength (string, encoding) {
 }
 
 exports.compare = function compare (a, b) {
-  return a.compare(b)
+  return binding.compare(a, b)
 }
 
 exports.concat = function concat (buffers, totalLength) {
