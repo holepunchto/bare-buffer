@@ -77,20 +77,20 @@ const Buffer = module.exports = exports = class Buffer extends Uint8Array {
 
   fill (value, offset = 0, end = this.byteLength, encoding = 'utf8') {
     if (typeof value === 'string') {
-      // fill(buffer, string, encoding)
+      // fill(string, encoding)
       if (typeof offset === 'string') {
         encoding = offset
         offset = 0
         end = this.byteLength
 
-      // fill(buffer, string, offset, encoding)
+      // fill(string, offset, encoding)
       } else if (typeof end === 'string') {
         encoding = end
         end = this.byteLength
       }
-    } else if (typeof val === 'number') {
+    } else if (typeof value === 'number') {
       value = value & 0xff
-    } else if (typeof val === 'boolean') {
+    } else if (typeof value === 'boolean') {
       value = +value
     }
 
@@ -100,20 +100,14 @@ const Buffer = module.exports = exports = class Buffer extends Uint8Array {
     if (end <= offset) return this
     if (end > this.byteLength) end = this.byteLength
 
-    if (!value) value = 0
+    if (typeof value === 'number') return super.fill(value, offset, end)
 
-    if (typeof value === 'number') {
-      for (let i = offset, n = end; i < n; ++i) {
-        this[i] = value
-      }
-    } else {
-      value = exports.isBuffer(value) ? value : exports.from(value, encoding)
+    value = exports.isBuffer(value) ? value : exports.from(value, encoding)
 
-      const length = value.byteLength
+    const length = value.byteLength
 
-      for (let i = 0, n = end - offset; i < n; ++i) {
-        this[i + offset] = value[i % length]
-      }
+    for (let i = 0, n = end - offset; i < n; ++i) {
+      this[i + offset] = value[i % length]
     }
 
     return this
