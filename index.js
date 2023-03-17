@@ -10,61 +10,69 @@ const Buffer = module.exports = exports = class Buffer extends Uint8Array {
     return Buffer
   }
 
-  copy (target, targetStart = 0, start = 0, end = this.byteLength) {
-    const source = this
+  copy (target, targetStart = 0, sourceStart = 0, sourceEnd = this.byteLength) {
+    let source = this
 
-    if (end > 0 && end < start) return 0
-    if (end === start) return 0
-    if (source.byteLength === 0 || target.byteLength === 0) return 0
+    if (targetStart < 0) targetStart = 0
+    if (targetStart >= target.byteLength) return 0
 
-    if (targetStart < 0) throw new RangeError('targetStart is out of range')
-    if (start < 0 || start >= source.byteLength) throw new RangeError('sourceStart is out of range')
-    if (end < 0) throw new RangeError('sourceEnd is out of range')
+    const targetLength = target.byteLength - targetStart
 
-    if (targetStart >= target.byteLength) targetStart = target.byteLength
-    if (end > source.byteLength) end = source.byteLength
-    if (target.byteLength - targetStart < end - start) {
-      end = target.byteLength - targetStart + start
-    }
+    if (sourceStart < 0) sourceStart = 0
+    if (sourceStart >= source.byteLength) return 0
 
-    const len = end - start
+    if (sourceEnd <= sourceStart) return 0
+    if (sourceEnd > source.byteLength) sourceEnd = source.byteLength
+
+    if (sourceEnd - sourceStart > targetLength) sourceEnd = sourceStart + targetLength
+
+    const sourceLength = sourceEnd - sourceStart
 
     if (source === target) {
-      target.copyWithin(targetStart, start, end)
+      target.copyWithin(targetStart, sourceStart, sourceEnd)
     } else {
-      target.set(source.subarray(start, end), targetStart)
+      if (sourceStart !== 0 || sourceEnd !== source.byteLength) source = source.subarray(sourceStart, sourceEnd)
+
+      target.set(source, targetStart)
     }
 
-    return len
+    return sourceLength
   }
 
   equals (target) {
-    const a = this
-    const b = target
+    const source = this
 
-    if (a === b) return true
-    if (a.byteLength !== b.byteLength) return false
+    if (source === target) return true
 
-    return binding.compare(a, b) === 0
+    if (source.byteLength !== target.byteLength) return false
+
+    return binding.compare(source, target) === 0
   }
 
   compare (target, targetStart = 0, targetEnd = target.byteLength, sourceStart = 0, sourceEnd = this.byteLength) {
-    let a = this
-    let b = target
+    let source = this
 
-    if (a === b) return 0
+    if (source === target) return 0
 
-    if (arguments.length === 1) return binding.compare(a, b)
+    if (arguments.length === 1) return binding.compare(source, target)
 
-    if (sourceStart !== 0 || sourceEnd !== a.byteLength) {
-      a = a.subarray(sourceStart, sourceEnd)
-    }
+    if (targetStart < 0) targetStart = 0
+    if (targetStart > target.byteLength) targetStart = target.byteLength
 
-    if (targetStart !== 0 || targetEnd !== b.byteLength) {
-      b = b.subarray(targetStart, targetEnd)
-    }
+    if (targetEnd < targetStart) targetEnd = targetStart
+    if (targetEnd > target.byteLength) targetEnd = target.byteLength
 
-    return binding.compare(a, b)
+    if (sourceStart < 0) sourceStart = 0
+    if (sourceStart > source.byteLength) sourceStart = source.byteLength
+
+    if (sourceEnd < sourceStart) sourceEnd = sourceStart
+    if (sourceEnd > source.byteLength) sourceEnd = source.byteLength
+
+    if (sourceStart !== 0 || sourceEnd !== source.byteLength) source = source.subarray(sourceStart, sourceEnd)
+
+    if (targetStart !== 0 || targetEnd !== target.byteLength) target = target.subarray(targetStart, targetEnd)
+
+    return binding.compare(source, target)
   }
 
   fill (value, offset = 0, end = this.byteLength, encoding = 'utf8') {
@@ -86,67 +94,67 @@ const Buffer = module.exports = exports = class Buffer extends Uint8Array {
       value = +value
     }
 
-    if (offset < 0 || this.byteLength < offset || this.byteLength < end) {
-      throw new RangeError('Out of range index')
-    }
+    if (offset < 0) offset = 0
+    if (offset >= this.byteLength) return this
 
     if (end <= offset) return this
+    if (end > this.byteLength) end = this.byteLength
 
     if (!value) value = 0
 
     if (typeof value === 'number') {
-      for (let i = offset; i < end; ++i) {
+      for (let i = offset, n = end; i < n; ++i) {
         this[i] = value
       }
     } else {
       value = exports.isBuffer(value) ? value : exports.from(value, encoding)
 
-      const len = value.byteLength
+      const length = value.byteLength
 
-      for (let i = 0; i < end - offset; ++i) {
-        this[i + offset] = value[i % len]
+      for (let i = 0, n = end - offset; i < n; ++i) {
+        this[i + offset] = value[i % length]
       }
     }
 
     return this
   }
 
-  includes (value, byteOffset, encoding) {
-    return this.indexOf(value, byteOffset, encoding) !== -1
+  includes (value, offset, encoding) {
+    return this.indexOf(value, offset, encoding) !== -1
   }
 
-  indexOf (value, byteOffset = 0, encoding) {
+  indexOf (value, offset = 0, encoding) {
     if (typeof value === 'number') {
-      return super.indexOf(value & 0xff, byteOffset)
+      return super.indexOf(value & 0xff, offset)
     }
 
-    return bidirectionalIndexOf(this, value, byteOffset, encoding, true /* first */)
+    return bidirectionalIndexOf(this, value, offset, encoding, true /* first */)
   }
 
-  lastIndexOf (value, byteOffset = this.byteLength - 1, encoding) {
+  lastIndexOf (value, offset = this.byteLength - 1, encoding) {
     if (typeof value === 'number') {
-      return super.lastIndexOf(value & 0xff, byteOffset)
+      return super.lastIndexOf(value & 0xff, offset)
     }
 
-    return bidirectionalIndexOf(this, value, byteOffset, encoding, false /* last */)
+    return bidirectionalIndexOf(this, value, offset, encoding, false /* last */)
   }
 
   swap16 () {
-    const len = this.byteLength
+    const length = this.byteLength
 
-    if (len % 2 !== 0) throw new RangeError('Buffer size must be a multiple of 16-bits')
+    if (length % 2 !== 0) throw new RangeError('Buffer size must be a multiple of 16-bits')
 
-    for (let i = 0; i < len; i += 2) swap(this, i, i + 1)
+    for (let i = 0; i < length; i += 2) swap(this, i, i + 1)
 
     return this
   }
 
   swap32 () {
-    const len = this.byteLength
+    const length = this.byteLength
 
-    if (len % 4 !== 0) throw new RangeError('Buffer size must be a multiple of 32-bits')
+    if (length % 4 !== 0) throw new RangeError('Buffer size must be a multiple of 32-bits')
 
-    for (let i = 0; i < len; i += 4) {
+    for (let i = 0; i < length; i += 4) {
       swap(this, i, i + 3)
       swap(this, i + 1, i + 2)
     }
@@ -155,11 +163,11 @@ const Buffer = module.exports = exports = class Buffer extends Uint8Array {
   }
 
   swap64 () {
-    const len = this.byteLength
+    const length = this.byteLength
 
-    if (len % 8 !== 0) throw new RangeError('Buffer size must be a multiple of 64-bits')
+    if (length % 8 !== 0) throw new RangeError('Buffer size must be a multiple of 64-bits')
 
-    for (let i = 0; i < len; i += 8) {
+    for (let i = 0; i < length; i += 8) {
       swap(this, i, i + 7)
       swap(this, i + 1, i + 6)
       swap(this, i + 2, i + 5)
@@ -170,14 +178,15 @@ const Buffer = module.exports = exports = class Buffer extends Uint8Array {
   }
 
   toString (encoding, start = 0, end = this.byteLength) {
-    if (start >= this.byteLength) return ''
-    if (end <= start) return ''
     if (start < 0) start = 0
+    if (start >= this.byteLength) return ''
+
+    if (end <= start) return ''
     if (end > this.byteLength) end = this.byteLength
 
     let buffer = this
 
-    if (start !== 0 || end < this.byteLength) buffer = buffer.subarray(start, end)
+    if (start !== 0 || end !== this.byteLength) buffer = buffer.subarray(start, end)
 
     return codecFor(encoding).toString(buffer)
   }
@@ -198,8 +207,8 @@ const Buffer = module.exports = exports = class Buffer extends Uint8Array {
     length = Math.min(length, exports.byteLength(string, encoding))
 
     let start = offset
-    if (start >= this.byteLength) return 0
     if (start < 0) start = 0
+    if (start >= this.byteLength) return 0
 
     let end = offset + length
     if (end <= start) return 0
@@ -207,7 +216,7 @@ const Buffer = module.exports = exports = class Buffer extends Uint8Array {
 
     let buffer = this
 
-    if (start !== 0 || end < this.byteLength) buffer = buffer.subarray(start, end)
+    if (start !== 0 || end !== this.byteLength) buffer = buffer.subarray(start, end)
 
     return codecFor(encoding).write(buffer, string)
   }
@@ -359,7 +368,7 @@ exports.from = function from (value, encodingOrOffset, length) {
   // from(buffer)
   if (ArrayBuffer.isView(value)) return fromBuffer(value)
 
-  // from(arrayBuffer[, byteOffset[, length]])
+  // from(arrayBuffer[, offset[, length]])
   return fromArrayBuffer(value, encodingOrOffset, length)
 }
 
@@ -382,27 +391,27 @@ function fromBuffer (buffer) {
   return copy
 }
 
-function fromArrayBuffer (arrayBuffer, byteOffset, length) {
-  return new Buffer(arrayBuffer, byteOffset, length)
+function fromArrayBuffer (arrayBuffer, offset, length) {
+  return new Buffer(arrayBuffer, offset, length)
 }
 
-function bidirectionalIndexOf (buffer, value, byteOffset, encoding, first) {
+function bidirectionalIndexOf (buffer, value, offset, encoding, first) {
   if (buffer.byteLength === 0) return -1
 
-  if (typeof byteOffset === 'string') {
-    encoding = byteOffset
-    byteOffset = 0
-  } else if (byteOffset === undefined) {
-    byteOffset = first ? 0 : (buffer.byteLength - 1)
-  } else if (byteOffset < 0) {
-    byteOffset += buffer.byteLength
+  if (typeof offset === 'string') {
+    encoding = offset
+    offset = 0
+  } else if (offset === undefined) {
+    offset = first ? 0 : (buffer.byteLength - 1)
+  } else if (offset < 0) {
+    offset += buffer.byteLength
   }
 
-  if (byteOffset >= buffer.byteLength) {
+  if (offset >= buffer.byteLength) {
     if (first) return -1
-    else byteOffset = buffer.byteLength - 1
-  } else if (byteOffset < 0) {
-    if (first) byteOffset = 0
+    else offset = buffer.byteLength - 1
+  } else if (offset < 0) {
+    if (first) offset = 0
     else return -1
   }
 
@@ -415,7 +424,7 @@ function bidirectionalIndexOf (buffer, value, byteOffset, encoding, first) {
   if (first) {
     let foundIndex = -1
 
-    for (let i = byteOffset; i < buffer.byteLength; i++) {
+    for (let i = offset; i < buffer.byteLength; i++) {
       if (buffer[i] === value[foundIndex === -1 ? 0 : i - foundIndex]) {
         if (foundIndex === -1) foundIndex = i
         if (i - foundIndex + 1 === value.byteLength) return foundIndex
@@ -425,11 +434,11 @@ function bidirectionalIndexOf (buffer, value, byteOffset, encoding, first) {
       }
     }
   } else {
-    if (byteOffset + value.byteLength > buffer.byteLength) {
-      byteOffset = buffer.byteLength - value.byteLength
+    if (offset + value.byteLength > buffer.byteLength) {
+      offset = buffer.byteLength - value.byteLength
     }
 
-    for (let i = byteOffset; i >= 0; i--) {
+    for (let i = offset; i >= 0; i--) {
       let found = true
 
       for (let j = 0; j < value.byteLength; j++) {
