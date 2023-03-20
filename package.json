@@ -11,7 +11,9 @@
     "lib",
     "prebuilds",
     "vendor/libbase64/include",
-    "vendor/libbase64/src"
+    "vendor/libbase64/src",
+    "vendor/libhex/include",
+    "vendor/libhex/src"
   ],
   "scripts": {
     "test": "standard && pear test/all.js",
