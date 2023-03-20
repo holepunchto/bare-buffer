@@ -8,6 +8,10 @@ if(NOT TARGET base64)
   add_subdirectory(vendor/libbase64 EXCLUDE_FROM_ALL)
 endif()
 
+if(NOT TARGET hex)
+  add_subdirectory(vendor/libhex EXCLUDE_FROM_ALL)
+endif()
+
 add_pear_module(pear_buffer)
 
 target_sources(
@@ -20,10 +24,12 @@ target_include_directories(
   pear_buffer
   PRIVATE
     $<TARGET_PROPERTY:base64,INTERFACE_INCLUDE_DIRECTORIES>
+    $<TARGET_PROPERTY:hex,INTERFACE_INCLUDE_DIRECTORIES>
 )
 
 target_link_libraries(
   pear_buffer
   PUBLIC
     base64_static
+    hex_static
 )

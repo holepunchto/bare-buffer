@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <base64.h>
+#include <hex.h>
 #include <js.h>
 #include <js/ffi.h>
 #include <pear.h>
@@ -189,6 +190,77 @@ pear_buffer_write_base64 (js_env_t *env, js_callback_info_t *info) {
   return result;
 }
 
+static js_value_t *
+pear_buffer_to_string_hex (js_env_t *env, js_callback_info_t *info) {
+  int err;
+
+  size_t argc = 1;
+  js_value_t *argv[1];
+
+  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
+  assert(err == 0);
+
+  assert(argc == 1);
+
+  size_t buf_len;
+  void *buf;
+  err = js_get_typedarray_info(env, argv[0], NULL, &buf, &buf_len, NULL, NULL);
+  assert(err == 0);
+
+  size_t str_len;
+  err = hex_encode(buf, buf_len, NULL, &str_len);
+  assert(err == 0);
+
+  char *str = malloc(str_len);
+  err = hex_encode(buf, buf_len, str, &str_len);
+  assert(err == 0);
+
+  js_value_t *result;
+  err = js_create_string_utf8(env, str, str_len, &result);
+  assert(err == 0);
+
+  free(str);
+
+  return result;
+}
+
+static js_value_t *
+pear_buffer_write_hex (js_env_t *env, js_callback_info_t *info) {
+  int err;
+
+  size_t argc = 2;
+  js_value_t *argv[2];
+
+  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
+  assert(err == 0);
+
+  assert(argc == 2);
+
+  size_t buf_len;
+  void *buf;
+  err = js_get_typedarray_info(env, argv[0], NULL, &buf, &buf_len, NULL, NULL);
+  assert(err == 0);
+
+  size_t str_len;
+  err = js_get_value_string_utf8(env, argv[1], NULL, 0, &str_len);
+  assert(err == 0);
+
+  char *str = malloc(str_len);
+  err = js_get_value_string_utf8(env, argv[1], str, str_len, NULL);
+  assert(err == 0);
+
+  err = hex_decode(str, str_len, buf, &buf_len);
+  assert(err == 0);
+
+  free(str);
+
+  js_value_t *result;
+  err = js_create_uint32(env, (uint32_t) buf_len, &result);
+  assert(err == 0);
+
+  return result;
+}
+
 static inline int
 compare_buffers (void *a, size_t a_len, void *b, size_t b_len) {
   int r = memcmp(a, b, a_len < b_len ? a_len : b_len);
@@ -293,6 +365,16 @@ init (js_env_t *env, js_value_t *exports) {
     js_value_t *val;
     js_create_function(env, "writeBase64", -1, pear_buffer_write_base64, NULL, &val);
     js_set_named_property(env, exports, "writeBase64", val);
+  }
+  {
+    js_value_t *val;
+    js_create_function(env, "toStringHex", -1, pear_buffer_to_string_hex, NULL, &val);
+    js_set_named_property(env, exports, "toStringHex", val);
+  }
+  {
+    js_value_t *val;
+    js_create_function(env, "writeHex", -1, pear_buffer_write_hex, NULL, &val);
+    js_set_named_property(env, exports, "writeHex", val);
   }
   {
     js_ffi_type_info_t *return_info;

@@ -2,3 +2,7 @@
 	path = vendor/libbase64
 	url = git@github.com:holepunchto/libbase64.git
 	shallow = true
+[submodule "vendor/libhex"]
+	path = vendor/libhex
+	url = git@github.com:holepunchto/libhex.git
+	shallow = true
