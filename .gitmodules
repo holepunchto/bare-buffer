@@ -1,0 +1,4 @@
+[submodule "vendor/libbase64"]
+	path = vendor/libbase64
+	url = git@github.com:holepunchto/libbase64.git
+	shallow = true

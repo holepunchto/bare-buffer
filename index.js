@@ -102,7 +102,7 @@ const Buffer = module.exports = exports = class Buffer extends Uint8Array {
 
     if (typeof value === 'number') return super.fill(value, offset, end)
 
-    value = exports.isBuffer(value) ? value : exports.from(value, encoding)
+    if (typeof value === 'string') value = exports.from(value, encoding)
 
     const length = value.byteLength
 
@@ -409,9 +409,7 @@ function bidirectionalIndexOf (buffer, value, offset, encoding, first) {
     else return -1
   }
 
-  if (typeof value === 'string') {
-    value = exports.from(value, encoding)
-  }
+  if (typeof value === 'string') value = exports.from(value, encoding)
 
   if (value.byteLength === 0) return -1
 

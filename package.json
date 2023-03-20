@@ -9,7 +9,9 @@
     "binding.js",
     "CMakeLists.txt",
     "lib",
-    "prebuilds"
+    "prebuilds",
+    "vendor/libbase64/include",
+    "vendor/libbase64/src"
   ],
   "scripts": {
     "test": "standard && pear test/all.js",

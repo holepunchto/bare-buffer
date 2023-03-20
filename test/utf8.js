@@ -1,15 +1,15 @@
 const test = require('brittle')
 const Buffer = require('..')
 
-test('byteLength', (t) => {
+test('utf8 byteLength', (t) => {
   t.is(Buffer.byteLength('hello world'), 11)
 })
 
-test('toString', (t) => {
+test('utf8 toString', (t) => {
   t.is(Buffer.from('hello world').toString(), 'hello world')
 })
 
-test('write', (t) => {
+test('utf8 write', (t) => {
   const buffer = Buffer.alloc(Buffer.byteLength('hello world'))
 
   buffer.write('hello world')
