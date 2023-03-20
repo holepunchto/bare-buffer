@@ -37,7 +37,7 @@ static uint32_t
 pear_buffer_byte_length_utf8_fast (js_ffi_receiver_t *receiver, js_ffi_string_t *str) {
   uint32_t bytes = 0;
 
-  for (int i = 0, n = str->len; i < n; i++) {
+  for (size_t i = 0, n = str->len; i < n; i++) {
     bytes += str->data[i] <= 0x7f ? 1 : 2;
   }
 
@@ -57,7 +57,7 @@ pear_buffer_byte_length_utf8 (js_env_t *env, js_callback_info_t *info) {
   assert(argc == 1);
 
   size_t str_len;
-  err = js_get_value_string_utf8(env, argv[0], NULL, -1, &str_len);
+  err = js_get_value_string_utf8(env, argv[0], NULL, 0, &str_len);
   assert(err == 0);
 
   js_value_t *result;

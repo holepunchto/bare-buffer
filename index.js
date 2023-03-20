@@ -172,6 +172,10 @@ const Buffer = module.exports = exports = class Buffer extends Uint8Array {
   }
 
   toString (encoding, start = 0, end = this.byteLength) {
+    if (arguments.length === 0) return utf8.toString(this)
+
+    if (arguments.length === 1) return codecFor(encoding).toString(this)
+
     if (start < 0) start = 0
     if (start >= this.byteLength) return ''
 
@@ -186,6 +190,8 @@ const Buffer = module.exports = exports = class Buffer extends Uint8Array {
   }
 
   write (string, offset = 0, length = this.byteLength - offset, encoding = 'utf8') {
+    if (arguments.length === 1) return utf8.write(this, string)
+
     // write(string, encoding)
     if (typeof offset === 'string') {
       encoding = offset
@@ -268,28 +274,22 @@ const Buffer = module.exports = exports = class Buffer extends Uint8Array {
   }
 }
 
-function codecFor (encoding) {
-  if (encoding) encoding = encoding.toLowerCase()
+const codecs = Object.create(null)
 
-  switch (encoding) {
-    case 'ascii':
-      return ascii
-    case 'base64':
-      return base64
-    case 'hex':
-      return hex
-    case 'utf8':
-    case 'utf-8':
-    case undefined:
-      return utf8
-    case 'ucs2':
-    case 'ucs-2':
-    case 'utf16le':
-    case 'utf-16le':
-      return utf16le
-    default:
-      throw new Error(`Unknown encoding: ${encoding}`)
-  }
+codecs.ascii = ascii
+codecs.base64 = base64
+codecs.hex = hex
+codecs.utf8 = codecs['utf-8'] = utf8
+codecs.utf16le = codecs.ucs2 = codecs['utf-16le'] = codecs['ucs-2'] = utf16le
+
+function codecFor (encoding = 'utf8') {
+  if (encoding in codecs) return codecs[encoding]
+
+  encoding = encoding.toLowerCase()
+
+  if (encoding in codecs) return codecs[encoding]
+
+  throw new Error(`Unknown encoding: ${encoding}`)
 }
 
 exports.isBuffer = function isBuffer (value) {
@@ -369,7 +369,7 @@ exports.from = function from (value, encodingOrOffset, length) {
 function fromString (string, encoding) {
   const codec = codecFor(encoding)
   const buffer = new Buffer(codec.byteLength(string))
-  codec.write(buffer, string, 0, buffer.byteLength)
+  codec.write(buffer, string)
   return buffer
 }
 
