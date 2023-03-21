@@ -332,17 +332,20 @@ exports.compare = function compare (a, b) {
   return binding.compare(a, b)
 }
 
-exports.concat = function concat (buffers, totalLength) {
-  if (totalLength === undefined) {
-    totalLength = buffers.reduce((len, buffer) => len + buffer.byteLength, 0)
+exports.concat = function concat (buffers, length) {
+  if (length === undefined) {
+    length = buffers.reduce((length, buffer) => length + buffer.byteLength, 0)
   }
 
-  const result = new Buffer(totalLength)
+  const result = new Buffer(length)
 
-  buffers.reduce((offset, buffer) => {
+  for (let i = 0, n = buffers.length, offset = 0; i < n; i++) {
+    const buffer = buffers[i]
+
     result.set(buffer, offset)
-    return offset + buffer.byteLength
-  }, 0)
+
+    offset += buffer.byteLength
+  }
 
   return result
 }
