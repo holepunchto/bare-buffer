@@ -17,7 +17,7 @@
   ],
   "scripts": {
     "test": "standard && pear test/all.js",
-    "install": "pear-dev rebuild",
+    "install": "pear-dev vendor sync && pear-dev rebuild",
     "prebuild": "pear-dev prebuild"
   },
   "repository": {
