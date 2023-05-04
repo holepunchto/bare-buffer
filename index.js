@@ -343,9 +343,8 @@ exports.concat = function concat (buffers, length) {
     const buffer = buffers[i]
 
     if (offset + buffer.byteLength > result.byteLength) {
-      const sub = buffer.subarray(0, result.byteLength - offset)
-      result.set(sub, offset)
-      return
+      result.set(buffer.subarray(0, result.byteLength - offset), offset)
+      return result
     }
 
     result.set(buffer, offset)
