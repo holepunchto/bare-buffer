@@ -46,6 +46,10 @@ test('concat', (t) => {
   t.alike(Buffer.concat([Buffer.from([1, 2, 3]), Buffer.from([4, 5, 6])]), Buffer.from([1, 2, 3, 4, 5, 6]))
 })
 
+test('concat', (t) => {
+  t.alike(Buffer.concat([Buffer.from([1, 2, 3]), Buffer.from([4, 5, 6])]), Buffer.from([1, 2, 3, 4, 5, 6]))
+})
+
 test('copy', (t) => {
   const x = Buffer.from([1, 2, 3])
   const y = Buffer.alloc(3)
