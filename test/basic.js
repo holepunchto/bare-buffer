@@ -46,6 +46,13 @@ test('concat', (t) => {
   t.alike(Buffer.concat([Buffer.from([1, 2, 3]), Buffer.from([4, 5, 6])]), Buffer.from([1, 2, 3, 4, 5, 6]))
 })
 
+test('concat with length', (t) => {
+  t.alike(Buffer.concat([Buffer.from([1, 2, 3]), Buffer.from([4, 5, 6])], 5), Buffer.from([1, 2, 3, 4, 5]))
+  t.alike(Buffer.concat([Buffer.from([1, 2, 3]), Buffer.from([4, 5, 6], [7, 8, 9])], 5), Buffer.from([1, 2, 3, 4, 5]))
+  t.alike(Buffer.concat([Buffer.from([1, 2, 3]), Buffer.from([4, 5, 6])], 6), Buffer.from([1, 2, 3, 4, 5, 6]))
+  t.alike(Buffer.concat([Buffer.from([1, 2, 3]), Buffer.from([4, 5, 6])], 7), Buffer.from([1, 2, 3, 4, 5, 6, 0]))
+})
+
 test('copy', (t) => {
   const x = Buffer.from([1, 2, 3])
   const y = Buffer.alloc(3)
