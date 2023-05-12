@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.25)
 
-project(pear_buffer C)
+project(bare_buffer C)
 
-include(pear)
+include(bare)
 
 if(NOT TARGET base64)
   add_subdirectory(vendor/libbase64 EXCLUDE_FROM_ALL)
@@ -12,23 +12,23 @@ if(NOT TARGET hex)
   add_subdirectory(vendor/libhex EXCLUDE_FROM_ALL)
 endif()
 
-add_pear_module(pear_buffer)
+add_bare_module(bare_buffer)
 
 target_sources(
-  pear_buffer
+  bare_buffer
   PRIVATE
     binding.c
 )
 
 target_include_directories(
-  pear_buffer
+  bare_buffer
   PRIVATE
     $<TARGET_PROPERTY:base64,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:hex,INTERFACE_INCLUDE_DIRECTORIES>
 )
 
 target_link_libraries(
-  pear_buffer
+  bare_buffer
   PUBLIC
     base64_static
     hex_static

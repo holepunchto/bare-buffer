@@ -1,5 +1,5 @@
 {
-  "name": "@pearjs/buffer",
+  "name": "bare-buffer",
   "version": "1.2.1",
   "description": "Native buffers for JavaScript",
   "main": "index.js",
@@ -16,20 +16,20 @@
     "vendor/libhex/src"
   ],
   "scripts": {
-    "test": "standard && pear test/all.js",
-    "install": "pear-dev vendor sync && pear-dev rebuild",
-    "prebuild": "pear-dev prebuild"
+    "test": "standard && bare test/all.js",
+    "install": "bare-dev vendor sync && bare-dev rebuild",
+    "prebuild": "bare-dev prebuild"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/holepunchto/pearjs-buffer.git"
+    "url": "https://github.com/holepunchto/bare-buffer.git"
   },
   "author": "Holepunch",
   "license": "Apache-2.0",
   "bugs": {
-    "url": "https://github.com/holepunchto/pearjs-buffer/issues"
+    "url": "https://github.com/holepunchto/bare-buffer/issues"
   },
-  "homepage": "https://github.com/holepunchto/pearjs-buffer#readme",
+  "homepage": "https://github.com/holepunchto/bare-buffer#readme",
   "devDependencies": {
     "brittle": "^3.1.1",
     "standard": "^17.0.0"

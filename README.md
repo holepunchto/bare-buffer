@@ -1,15 +1,15 @@
-# @pearjs/buffer
+# bare-buffer
 
 Native buffers for JavaScript.
 
 ```
-npm i @pearjs/buffer
+npm i bare-buffer
 ```
 
 ## Usage
 
 ```js
-const Buffer = require('@pearjs/buffer')
+const Buffer = require('bare-buffer')
 
 const message = Buffer.from('hello')
 const empty = Buffer.alloc(16)

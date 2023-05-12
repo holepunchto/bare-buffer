@@ -1,19 +1,19 @@
 #include <assert.h>
+#include <bare.h>
 #include <base64.h>
 #include <hex.h>
 #include <js.h>
 #include <js/ffi.h>
-#include <pear.h>
 #include <stdlib.h>
 #include <string.h>
 
 static void
-pear_buffer_set_zero_fill_enabled_fast (js_ffi_receiver_t *receiver, uint32_t enabled) {
+bare_buffer_set_zero_fill_enabled_fast (js_ffi_receiver_t *receiver, uint32_t enabled) {
   js_set_arraybuffer_zero_fill_enabled(enabled != 0);
 }
 
 static js_value_t *
-pear_buffer_set_zero_fill_enabled (js_env_t *env, js_callback_info_t *info) {
+bare_buffer_set_zero_fill_enabled (js_env_t *env, js_callback_info_t *info) {
   int err;
 
   size_t argc = 1;
@@ -34,7 +34,7 @@ pear_buffer_set_zero_fill_enabled (js_env_t *env, js_callback_info_t *info) {
 }
 
 static uint32_t
-pear_buffer_byte_length_utf8_fast (js_ffi_receiver_t *receiver, js_ffi_string_t *str) {
+bare_buffer_byte_length_utf8_fast (js_ffi_receiver_t *receiver, js_ffi_string_t *str) {
   uint32_t bytes = 0;
 
   for (size_t i = 0, n = str->len; i < n; i++) {
@@ -45,7 +45,7 @@ pear_buffer_byte_length_utf8_fast (js_ffi_receiver_t *receiver, js_ffi_string_t 
 }
 
 static js_value_t *
-pear_buffer_byte_length_utf8 (js_env_t *env, js_callback_info_t *info) {
+bare_buffer_byte_length_utf8 (js_env_t *env, js_callback_info_t *info) {
   int err;
 
   size_t argc = 1;
@@ -68,7 +68,7 @@ pear_buffer_byte_length_utf8 (js_env_t *env, js_callback_info_t *info) {
 }
 
 static js_value_t *
-pear_buffer_to_string_utf8 (js_env_t *env, js_callback_info_t *info) {
+bare_buffer_to_string_utf8 (js_env_t *env, js_callback_info_t *info) {
   int err;
 
   size_t argc = 1;
@@ -92,7 +92,7 @@ pear_buffer_to_string_utf8 (js_env_t *env, js_callback_info_t *info) {
 }
 
 static js_value_t *
-pear_buffer_write_utf8 (js_env_t *env, js_callback_info_t *info) {
+bare_buffer_write_utf8 (js_env_t *env, js_callback_info_t *info) {
   int err;
 
   size_t argc = 2;
@@ -120,7 +120,7 @@ pear_buffer_write_utf8 (js_env_t *env, js_callback_info_t *info) {
 }
 
 static js_value_t *
-pear_buffer_to_string_base64 (js_env_t *env, js_callback_info_t *info) {
+bare_buffer_to_string_base64 (js_env_t *env, js_callback_info_t *info) {
   int err;
 
   size_t argc = 1;
@@ -154,7 +154,7 @@ pear_buffer_to_string_base64 (js_env_t *env, js_callback_info_t *info) {
 }
 
 static js_value_t *
-pear_buffer_write_base64 (js_env_t *env, js_callback_info_t *info) {
+bare_buffer_write_base64 (js_env_t *env, js_callback_info_t *info) {
   int err;
 
   size_t argc = 2;
@@ -191,7 +191,7 @@ pear_buffer_write_base64 (js_env_t *env, js_callback_info_t *info) {
 }
 
 static js_value_t *
-pear_buffer_to_string_hex (js_env_t *env, js_callback_info_t *info) {
+bare_buffer_to_string_hex (js_env_t *env, js_callback_info_t *info) {
   int err;
 
   size_t argc = 1;
@@ -225,7 +225,7 @@ pear_buffer_to_string_hex (js_env_t *env, js_callback_info_t *info) {
 }
 
 static js_value_t *
-pear_buffer_write_hex (js_env_t *env, js_callback_info_t *info) {
+bare_buffer_write_hex (js_env_t *env, js_callback_info_t *info) {
   int err;
 
   size_t argc = 2;
@@ -275,12 +275,12 @@ compare_buffers (void *a, size_t a_len, void *b, size_t b_len) {
 }
 
 static int32_t
-pear_buffer_compare_fast (js_ffi_receiver_t *recv, js_ffi_typedarray_t *a, js_ffi_typedarray_t *b) {
+bare_buffer_compare_fast (js_ffi_receiver_t *recv, js_ffi_typedarray_t *a, js_ffi_typedarray_t *b) {
   return compare_buffers(a->data.u8, a->len, b->data.u8, b->len);
 }
 
 static js_value_t *
-pear_buffer_compare (js_env_t *env, js_callback_info_t *info) {
+bare_buffer_compare (js_env_t *env, js_callback_info_t *info) {
   int err;
 
   size_t argc = 2;
@@ -322,10 +322,10 @@ init (js_env_t *env, js_value_t *exports) {
     js_ffi_create_function_info(return_info, arg_info, 2, &function_info);
 
     js_ffi_function_t *ffi;
-    js_ffi_create_function(pear_buffer_set_zero_fill_enabled_fast, function_info, &ffi);
+    js_ffi_create_function(bare_buffer_set_zero_fill_enabled_fast, function_info, &ffi);
 
     js_value_t *val;
-    js_create_function(env, "setZeroFillEnabled", -1, pear_buffer_set_zero_fill_enabled, ffi, &val);
+    js_create_function(env, "setZeroFillEnabled", -1, bare_buffer_set_zero_fill_enabled, ffi, &val);
     js_set_named_property(env, exports, "setZeroFillEnabled", val);
   }
   {
@@ -340,40 +340,40 @@ init (js_env_t *env, js_value_t *exports) {
     js_ffi_create_function_info(return_info, arg_info, 2, &function_info);
 
     js_ffi_function_t *ffi;
-    js_ffi_create_function(pear_buffer_byte_length_utf8_fast, function_info, &ffi);
+    js_ffi_create_function(bare_buffer_byte_length_utf8_fast, function_info, &ffi);
 
     js_value_t *val;
-    js_create_function_with_ffi(env, "byteLengthUTF8", -1, pear_buffer_byte_length_utf8, NULL, ffi, &val);
+    js_create_function_with_ffi(env, "byteLengthUTF8", -1, bare_buffer_byte_length_utf8, NULL, ffi, &val);
     js_set_named_property(env, exports, "byteLengthUTF8", val);
   }
   {
     js_value_t *val;
-    js_create_function(env, "toStringUTF8", -1, pear_buffer_to_string_utf8, NULL, &val);
+    js_create_function(env, "toStringUTF8", -1, bare_buffer_to_string_utf8, NULL, &val);
     js_set_named_property(env, exports, "toStringUTF8", val);
   }
   {
     js_value_t *val;
-    js_create_function(env, "writeUTF8", -1, pear_buffer_write_utf8, NULL, &val);
+    js_create_function(env, "writeUTF8", -1, bare_buffer_write_utf8, NULL, &val);
     js_set_named_property(env, exports, "writeUTF8", val);
   }
   {
     js_value_t *val;
-    js_create_function(env, "toStringBase64", -1, pear_buffer_to_string_base64, NULL, &val);
+    js_create_function(env, "toStringBase64", -1, bare_buffer_to_string_base64, NULL, &val);
     js_set_named_property(env, exports, "toStringBase64", val);
   }
   {
     js_value_t *val;
-    js_create_function(env, "writeBase64", -1, pear_buffer_write_base64, NULL, &val);
+    js_create_function(env, "writeBase64", -1, bare_buffer_write_base64, NULL, &val);
     js_set_named_property(env, exports, "writeBase64", val);
   }
   {
     js_value_t *val;
-    js_create_function(env, "toStringHex", -1, pear_buffer_to_string_hex, NULL, &val);
+    js_create_function(env, "toStringHex", -1, bare_buffer_to_string_hex, NULL, &val);
     js_set_named_property(env, exports, "toStringHex", val);
   }
   {
     js_value_t *val;
-    js_create_function(env, "writeHex", -1, pear_buffer_write_hex, NULL, &val);
+    js_create_function(env, "writeHex", -1, bare_buffer_write_hex, NULL, &val);
     js_set_named_property(env, exports, "writeHex", val);
   }
   {
@@ -389,14 +389,14 @@ init (js_env_t *env, js_value_t *exports) {
     js_ffi_create_function_info(return_info, arg_info, 3, &function_info);
 
     js_ffi_function_t *ffi;
-    js_ffi_create_function(pear_buffer_compare_fast, function_info, &ffi);
+    js_ffi_create_function(bare_buffer_compare_fast, function_info, &ffi);
 
     js_value_t *val;
-    js_create_function_with_ffi(env, "compare", -1, pear_buffer_compare, NULL, ffi, &val);
+    js_create_function_with_ffi(env, "compare", -1, bare_buffer_compare, NULL, ffi, &val);
     js_set_named_property(env, exports, "compare", val);
   }
 
   return exports;
 }
 
-PEAR_MODULE(pear_buffer, init)
+BARE_MODULE(bare_buffer, init)
