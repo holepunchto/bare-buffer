@@ -121,6 +121,64 @@ bare_buffer_write_utf8 (js_env_t *env, js_callback_info_t *info) {
 }
 
 static js_value_t *
+bare_buffer_to_string_utf16le (js_env_t *env, js_callback_info_t *info) {
+  int err;
+
+  size_t argc = 1;
+  js_value_t *argv[1];
+
+  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
+  assert(err == 0);
+
+  assert(argc == 1);
+
+  size_t str_len;
+  utf16_t *str;
+  err = js_get_typedarray_info(env, argv[0], NULL, (void **) &str, &str_len, NULL, NULL);
+  assert(err == 0);
+
+  str_len /= sizeof(utf16_t);
+
+  js_value_t *result;
+  err = js_create_string_utf16le(env, str, str_len, &result);
+  assert(err == 0);
+
+  return result;
+}
+
+static js_value_t *
+bare_buffer_write_utf16le (js_env_t *env, js_callback_info_t *info) {
+  int err;
+
+  size_t argc = 2;
+  js_value_t *argv[2];
+
+  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
+  assert(err == 0);
+
+  assert(argc == 2);
+
+  size_t buf_len;
+  void *buf;
+  err = js_get_typedarray_info(env, argv[0], NULL, &buf, &buf_len, NULL, NULL);
+  assert(err == 0);
+
+  buf_len /= sizeof(utf16_t);
+
+  size_t str_len;
+  err = js_get_value_string_utf16le(env, argv[1], buf, buf_len, &str_len);
+  assert(err == 0);
+
+  str_len *= sizeof(utf16_t);
+
+  js_value_t *result;
+  err = js_create_uint32(env, (uint32_t) str_len, &result);
+  assert(err == 0);
+
+  return result;
+}
+
+static js_value_t *
 bare_buffer_to_string_base64 (js_env_t *env, js_callback_info_t *info) {
   int err;
 
@@ -356,6 +414,16 @@ init (js_env_t *env, js_value_t *exports) {
     js_value_t *val;
     js_create_function(env, "writeUTF8", -1, bare_buffer_write_utf8, NULL, &val);
     js_set_named_property(env, exports, "writeUTF8", val);
+  }
+  {
+    js_value_t *val;
+    js_create_function(env, "toStringUTF16LE", -1, bare_buffer_to_string_utf16le, NULL, &val);
+    js_set_named_property(env, exports, "toStringUTF16LE", val);
+  }
+  {
+    js_value_t *val;
+    js_create_function(env, "writeUTF16LE", -1, bare_buffer_write_utf16le, NULL, &val);
+    js_set_named_property(env, exports, "writeUTF16LE", val);
   }
   {
     js_value_t *val;
