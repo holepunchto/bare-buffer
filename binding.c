@@ -6,6 +6,7 @@
 #include <js/ffi.h>
 #include <stdlib.h>
 #include <string.h>
+#include <utf.h>
 
 static void
 bare_buffer_set_zero_fill_enabled_fast (js_ffi_receiver_t *receiver, uint32_t enabled) {
@@ -80,7 +81,7 @@ bare_buffer_to_string_utf8 (js_env_t *env, js_callback_info_t *info) {
   assert(argc == 1);
 
   size_t str_len;
-  char *str;
+  utf8_t *str;
   err = js_get_typedarray_info(env, argv[0], NULL, (void **) &str, &str_len, NULL, NULL);
   assert(err == 0);
 
@@ -140,7 +141,7 @@ bare_buffer_to_string_base64 (js_env_t *env, js_callback_info_t *info) {
   err = base64_encode(buf, buf_len, NULL, &str_len);
   assert(err == 0);
 
-  char *str = malloc(str_len);
+  utf8_t *str = malloc(str_len);
   err = base64_encode(buf, buf_len, str, &str_len);
   assert(err == 0);
 
@@ -174,7 +175,7 @@ bare_buffer_write_base64 (js_env_t *env, js_callback_info_t *info) {
   err = js_get_value_string_utf8(env, argv[1], NULL, 0, &str_len);
   assert(err == 0);
 
-  char *str = malloc(str_len);
+  utf8_t *str = malloc(str_len);
   err = js_get_value_string_utf8(env, argv[1], str, str_len, NULL);
   assert(err == 0);
 
@@ -211,7 +212,7 @@ bare_buffer_to_string_hex (js_env_t *env, js_callback_info_t *info) {
   err = hex_encode(buf, buf_len, NULL, &str_len);
   assert(err == 0);
 
-  char *str = malloc(str_len);
+  utf8_t *str = malloc(str_len);
   err = hex_encode(buf, buf_len, str, &str_len);
   assert(err == 0);
 
@@ -245,7 +246,7 @@ bare_buffer_write_hex (js_env_t *env, js_callback_info_t *info) {
   err = js_get_value_string_utf8(env, argv[1], NULL, 0, &str_len);
   assert(err == 0);
 
-  char *str = malloc(str_len);
+  utf8_t *str = malloc(str_len);
   err = js_get_value_string_utf8(env, argv[1], str, str_len, NULL);
   assert(err == 0);
 

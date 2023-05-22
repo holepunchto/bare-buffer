@@ -13,7 +13,9 @@
     "vendor/libbase64/include",
     "vendor/libbase64/src",
     "vendor/libhex/include",
-    "vendor/libhex/src"
+    "vendor/libhex/src",
+    "vendor/libutf/include",
+    "vendor/libutf/src"
   ],
   "scripts": {
     "test": "standard && bare test/all.js",

@@ -9,6 +9,10 @@ test('utf8 toString', (t) => {
   t.is(Buffer.from('hello world').toString(), 'hello world')
 })
 
+test('utf8 toString with NULL byte', (t) => {
+  t.is(Buffer.from('hello\0world').toString(), 'hello\0world')
+})
+
 test('utf8 write', (t) => {
   const buffer = Buffer.alloc(Buffer.byteLength('hello world'))
 

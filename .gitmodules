@@ -1,8 +1,12 @@
 [submodule "vendor/libbase64"]
 	path = vendor/libbase64
-	url = git@github.com:holepunchto/libbase64.git
+	url = ../../holepunchto/libbase64.git
 	shallow = true
 [submodule "vendor/libhex"]
 	path = vendor/libhex
-	url = git@github.com:holepunchto/libhex.git
+	url = ../../holepunchto/libhex.git
+	shallow = true
+[submodule "vendor/libutf"]
+	path = vendor/libutf
+	url = ../../holepunchto/libutf.git
 	shallow = true

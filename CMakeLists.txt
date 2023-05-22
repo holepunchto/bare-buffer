@@ -4,6 +4,10 @@ project(bare_buffer C)
 
 include(bare)
 
+if(NOT TARGET utf)
+  add_subdirectory(vendor/libutf EXCLUDE_FROM_ALL)
+endif()
+
 if(NOT TARGET base64)
   add_subdirectory(vendor/libbase64 EXCLUDE_FROM_ALL)
 endif()
@@ -23,6 +27,7 @@ target_sources(
 target_include_directories(
   bare_buffer
   PRIVATE
+    $<TARGET_PROPERTY:utf,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:base64,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:hex,INTERFACE_INCLUDE_DIRECTORIES>
 )
