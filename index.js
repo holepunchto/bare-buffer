@@ -274,6 +274,8 @@ const Buffer = module.exports = exports = class Buffer extends Uint8Array {
   }
 }
 
+exports.Buffer = exports
+
 const codecs = Object.create(null)
 
 codecs.ascii = ascii
