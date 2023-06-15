@@ -18,9 +18,7 @@
     "vendor/libutf/src"
   ],
   "scripts": {
-    "test": "standard && bare test/all.js",
-    "install": "bare-dev vendor sync && bare-dev rebuild",
-    "prebuild": "bare-dev prebuild"
+    "test": "standard && bare test/all.js"
   },
   "repository": {
     "type": "git",
