@@ -384,7 +384,7 @@ init (js_env_t *env, js_value_t *exports) {
     js_ffi_create_function(bare_buffer_set_zero_fill_enabled_fast, function_info, &ffi);
 
     js_value_t *val;
-    js_create_function(env, "setZeroFillEnabled", -1, bare_buffer_set_zero_fill_enabled, ffi, &val);
+    js_create_function_with_ffi(env, "setZeroFillEnabled", -1, bare_buffer_set_zero_fill_enabled, NULL, ffi, &val);
     js_set_named_property(env, exports, "setZeroFillEnabled", val);
   }
   {
