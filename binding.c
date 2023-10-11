@@ -36,13 +36,7 @@ bare_buffer_set_zero_fill_enabled (js_env_t *env, js_callback_info_t *info) {
 
 static uint32_t
 bare_buffer_byte_length_utf8_fast (js_ffi_receiver_t *receiver, js_ffi_string_t *str) {
-  uint32_t bytes = 0;
-
-  for (size_t i = 0, n = str->len; i < n; i++) {
-    bytes += str->data[i] <= 0x7f ? 1 : 2;
-  }
-
-  return bytes;
+  return str->len;
 }
 
 static js_value_t *
