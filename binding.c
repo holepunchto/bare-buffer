@@ -36,7 +36,17 @@ bare_buffer_set_zero_fill_enabled (js_env_t *env, js_callback_info_t *info) {
 
 static uint32_t
 bare_buffer_byte_length_utf8_fast (js_ffi_receiver_t *receiver, js_ffi_string_t *str) {
-  return str->len;
+  const uint8_t *data = (const uint8_t *) str->data;
+
+  uint32_t len = 0;
+
+  for (uint32_t i = 0, n = str->len; i < n; i++) {
+    // The string data is latin1 so we add an additional byte count for all
+    // non-ASCII characters.
+    len += 1 + (data[i] >> 7);
+  }
+
+  return len;
 }
 
 static js_value_t *
@@ -395,10 +405,8 @@ init (js_env_t *env, js_value_t *exports) {
     js_ffi_function_t *ffi;
     js_ffi_create_function(bare_buffer_byte_length_utf8_fast, function_info, &ffi);
 
-    (void) ffi; // TODO Renable fast path for byte length
-
     js_value_t *val;
-    js_create_function(env, "byteLengthUTF8", -1, bare_buffer_byte_length_utf8, NULL, &val);
+    js_create_function_with_ffi(env, "byteLengthUTF8", -1, bare_buffer_byte_length_utf8, NULL, ffi, &val);
     js_set_named_property(env, exports, "byteLengthUTF8", val);
   }
   {
