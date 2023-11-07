@@ -395,8 +395,10 @@ init (js_env_t *env, js_value_t *exports) {
     js_ffi_function_t *ffi;
     js_ffi_create_function(bare_buffer_byte_length_utf8_fast, function_info, &ffi);
 
+    (void) ffi; // TODO Renable fast path for byte length
+
     js_value_t *val;
-    js_create_function_with_ffi(env, "byteLengthUTF8", -1, bare_buffer_byte_length_utf8, NULL, ffi, &val);
+    js_create_function(env, "byteLengthUTF8", -1, bare_buffer_byte_length_utf8, NULL, &val);
     js_set_named_property(env, exports, "byteLengthUTF8", val);
   }
   {

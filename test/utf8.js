@@ -5,6 +5,14 @@ test('utf8 byteLength', (t) => {
   t.is(Buffer.byteLength('hello world'), 11)
 })
 
+test('utf8 byteLength, fast path for multibyte strings', (t) => {
+  let r
+  for (let i = 0; i < 1000000; i++) {
+    r = Buffer.byteLength('però')
+  }
+  t.is(r, 5)
+})
+
 test('utf8 toString', (t) => {
   t.is(Buffer.from('hello world').toString(), 'hello world')
 })
