@@ -12,7 +12,11 @@ jobs:
       matrix:
         node: [lts/*]
         os: [ubuntu-latest]
+        include:
+        - os: ubuntu-latest
+          name: ubuntu
     runs-on: ${{ matrix.os }}
+    name: ${{ matrix.name }}
     steps:
     - uses: actions/checkout@v4
       with:

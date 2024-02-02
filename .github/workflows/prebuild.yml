@@ -9,15 +9,15 @@ jobs:
         os: [ubuntu-22.04, macos-12, macos-14, windows-2022]
         include:
         - os: ubuntu-22.04
-          artifact: linux-x64
+          name: linux-x64
         - os: macos-12
-          artifact: darwin-x64
+          name: darwin-x64
         - os: macos-14
-          artifact: darwin-arm64
+          name: darwin-arm64
         - os: windows-2022
-          artifact: win32-x64
+          name: win32-x64
     runs-on: ${{ matrix.os }}
-    name: ${{ matrix.artifact }}
+    name: ${{ matrix.name }}
     steps:
     - uses: actions/checkout@v4
       with:
@@ -30,5 +30,5 @@ jobs:
     - run: bare-dev install
     - uses: actions/upload-artifact@v4
       with:
-        name: ${{ matrix.artifact }}
+        name: ${{ matrix.name }}
         path: prebuilds/*
