@@ -6,7 +6,7 @@ jobs:
     strategy:
       matrix:
         node: [20]
-        os: [ubuntu-20.04, macos-12, macos-14, windows-2022]
+        os: [ubuntu-22.04, macos-12, macos-14, windows-2022]
     runs-on: ${{ matrix.os }}
     container: ${{ matrix.container }}
     steps:
@@ -16,7 +16,6 @@ jobs:
     - uses: actions/setup-node@v4
       with:
         node-version: ${{ matrix.node }}
-    - run: npm upgrade -g npm
     - run: npm install -g bare-runtime bare-dev
     - run: npm install
     - run: bare-dev install
