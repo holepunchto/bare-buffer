@@ -17,7 +17,7 @@ jobs:
         - os: windows-2022
           artifact: win32-x64
     runs-on: ${{ matrix.os }}
-    container: ${{ matrix.container }}
+    name: ${{ matrix.artifact }}
     steps:
     - uses: actions/checkout@v4
       with:
