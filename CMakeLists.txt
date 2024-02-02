@@ -24,17 +24,10 @@ target_sources(
     binding.c
 )
 
-target_include_directories(
-  bare_buffer
-  PRIVATE
-    $<TARGET_PROPERTY:utf,INTERFACE_INCLUDE_DIRECTORIES>
-    $<TARGET_PROPERTY:base64,INTERFACE_INCLUDE_DIRECTORIES>
-    $<TARGET_PROPERTY:hex,INTERFACE_INCLUDE_DIRECTORIES>
-)
-
 target_link_libraries(
   bare_buffer
   PUBLIC
-    base64_static
-    hex_static
+    utf
+    base64
+    hex
 )
