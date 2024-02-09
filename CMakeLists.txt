@@ -19,13 +19,13 @@ endif()
 add_bare_module(bare_buffer)
 
 target_sources(
-  bare_buffer
+  ${bare_buffer}
   PRIVATE
     binding.c
 )
 
 target_link_libraries(
-  bare_buffer
+  ${bare_buffer}
   PUBLIC
     utf
     base64
