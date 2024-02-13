@@ -27,7 +27,7 @@ target_sources(
 target_link_libraries(
   ${bare_buffer}
   PUBLIC
-    utf
-    base64
-    hex
+    utf_static
+    base64_static
+    hex_static
 )
