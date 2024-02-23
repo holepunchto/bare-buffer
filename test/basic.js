@@ -158,3 +158,79 @@ test('swap64', (t) => {
     Buffer.from([0x8, 0x7, 0x6, 0x5, 0x4, 0x3, 0x2, 0x1])
   )
 })
+
+test('writeDoubleLE', (t) => {
+  const value = 123.456
+
+  const expectedBuffer = Buffer.from('77be9f1a2fdd5e40', 'hex')
+
+  const buffer = Buffer.alloc(8)
+  const bufferOffset = buffer.writeDoubleLE(value, 0)
+  t.is(bufferOffset, 8)
+  t.alike(buffer, expectedBuffer)
+})
+
+test('writeFloatLE', (t) => {
+  const value = 0xcafebabe
+
+  const expectedBuffer = Buffer.from('bbfe4a4f', 'hex')
+
+  const buffer = Buffer.alloc(4)
+  const bufferOffset = buffer.writeFloatLE(value, 0)
+  t.is(bufferOffset, 4)
+  t.alike(buffer, expectedBuffer)
+})
+
+test('writeUInt32LE', (t) => {
+  const value = 0xfeedface
+
+  const expectedBuffer = Buffer.from('cefaedfe', 'hex')
+
+  const buffer = Buffer.alloc(4)
+  const bufferOffset = buffer.writeUInt32LE(value, 0)
+  t.is(bufferOffset, 4)
+  t.alike(buffer, expectedBuffer)
+})
+
+test('writeInt32LE', (t) => {
+  const value = 0x05060708
+
+  const expectedBuffer = Buffer.from('08070605', 'hex')
+
+  const buffer = Buffer.alloc(4)
+  const bufferOffset = buffer.writeInt32LE(value, 0)
+  t.is(bufferOffset, 4)
+  t.alike(buffer, expectedBuffer)
+})
+
+test('readDoubleLE', (t) => {
+  const buffer = Buffer.from([1, 2, 3, 4, 5, 6, 7, 8])
+
+  const actual = buffer.readDoubleLE()
+  const expected = 5.447603722011605e-270
+  t.is(actual, expected)
+})
+
+test('readFloatLE', (t) => {
+  const buffer = Buffer.from([1, 2, 3, 4])
+
+  const actual = buffer.readFloatLE()
+  const expected = 1.539989614439558e-36
+  t.is(actual, expected)
+})
+
+test('readUInt32LE', (t) => {
+  const buffer = Buffer.from([0x12, 0x34, 0x56, 0x78])
+
+  const actual = buffer.readUInt32LE().toString(16)
+  const expected = '78563412'
+  t.is(actual, expected)
+})
+
+test('readInt32LE', (t) => {
+  const buffer = Buffer.from([0, 0, 0, 5])
+
+  const actual = buffer.readInt32LE()
+  const expected = 83886080
+  t.is(actual, expected)
+})
