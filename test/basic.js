@@ -234,3 +234,124 @@ test('readInt32LE', (t) => {
   const expected = 83886080
   t.is(actual, expected)
 })
+
+test('writeDoubleBE', (t) => {
+  const value = 123.456
+
+  const expectedBuffer = Buffer.from('405edd2f1a9fbe77', 'hex')
+
+  const buffer = Buffer.alloc(8)
+  const bufferOffset = buffer.writeDoubleBE(value, 0)
+  t.is(bufferOffset, 8)
+  t.alike(buffer, expectedBuffer)
+})
+
+test('writeFloatBE', (t) => {
+  const value = 0xcafebabe
+
+  const expectedBuffer = Buffer.from('4f4afebb', 'hex')
+
+  const buffer = Buffer.alloc(4)
+  const bufferOffset = buffer.writeFloatBE(value, 0)
+  t.is(bufferOffset, 4)
+  t.alike(buffer, expectedBuffer)
+})
+
+test('writeUInt32BE', (t) => {
+  const value = 0xfeedface
+
+  const expectedBuffer = Buffer.from('feedface', 'hex')
+
+  const buffer = Buffer.alloc(4)
+  const bufferOffset = buffer.writeUInt32BE(value, 0)
+  t.is(bufferOffset, 4)
+  t.alike(buffer, expectedBuffer)
+})
+
+test('writeInt32BE', (t) => {
+  const value = 0x05060708
+
+  const expectedBuffer = Buffer.from('05060708', 'hex')
+
+  const buffer = Buffer.alloc(4)
+  const bufferOffset = buffer.writeInt32BE(value, 0)
+  t.is(bufferOffset, 4)
+  t.alike(buffer, expectedBuffer)
+})
+
+test('writeInt32BE - top bit set', (t) => {
+  let value = -1
+
+  const expectedBuffer = Buffer.from('ffffffff', 'hex')
+
+  const buffer = Buffer.alloc(4)
+  let bufferOffset = buffer.writeInt32BE(value, 0)
+  t.is(bufferOffset, 4)
+  t.alike(buffer, expectedBuffer)
+
+  const expectedMax = Buffer.from('80000000', 'hex')
+
+  value = -1 * 0x80000000
+  bufferOffset = buffer.writeInt32BE(value, 0)
+  t.is(bufferOffset, 4)
+  t.alike(buffer, expectedMax)
+
+  const expectedMaxSub1 = Buffer.from('80000001', 'hex')
+
+  value = -1 * 0x7fffffff
+  bufferOffset = buffer.writeInt32BE(value, 0)
+  t.is(bufferOffset, 4)
+  t.alike(buffer, expectedMaxSub1)
+})
+
+test('readDoubleBE', (t) => {
+  const buffer = Buffer.from([8, 7, 6, 5, 4, 3, 2, 1])
+
+  const actual = buffer.readDoubleBE()
+  const expected = 5.447603722011605e-270
+  t.is(actual, expected)
+})
+
+test('readFloatBE', (t) => {
+  const buffer = Buffer.from([4, 3, 2, 1])
+
+  const actual = buffer.readFloatBE()
+  const expected = 1.539989614439558e-36
+  t.is(actual, expected)
+})
+
+test('readUInt32BE', (t) => {
+  const buffer = Buffer.from([0x78, 0x56, 0x34, 0x12])
+
+  const actual = buffer.readUInt32BE().toString(16)
+  const expected = '78563412'
+  t.is(actual, expected)
+})
+
+test('readInt32BE', (t) => {
+  const buffer = Buffer.from([5, 0, 0, 0])
+
+  const actual = buffer.readInt32BE()
+  const expected = 83886080
+  t.is(actual, expected)
+})
+
+test('readInt32BE - top bit set', (t) => {
+  const buffer = Buffer.from([0xff, 0xff, 0xff, 0xff])
+
+  let actual = buffer.readInt32BE()
+  let expected = -1
+  t.is(actual, expected)
+
+  const bufferMax = Buffer.from([0x80, 0, 0, 0x1])
+
+  actual = bufferMax.readInt32BE()
+  expected = -1 * 0x7fffffff
+  t.is(actual, expected)
+
+  const bufferSub1 = Buffer.from([0x80, 0, 0, 0])
+
+  actual = bufferSub1.readInt32BE()
+  expected = -1 * 0x80000000
+  t.is(actual, expected)
+})
