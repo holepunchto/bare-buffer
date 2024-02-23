@@ -271,6 +271,58 @@ const Buffer = module.exports = exports = class Buffer extends Uint8Array {
 
     return view.getInt32(offset, true)
   }
+
+  writeDoubleBE (value, offset = 0) {
+    const view = new DataView(this.buffer, this.byteOffset, this.byteLength)
+    view.setFloat64(offset, value, false)
+
+    return offset + 8
+  }
+
+  writeFloatBE (value, offset = 0) {
+    const view = new DataView(this.buffer, this.byteOffset, this.byteLength)
+    view.setFloat32(offset, value, false)
+
+    return offset + 4
+  }
+
+  writeUInt32BE (value, offset = 0) {
+    const view = new DataView(this.buffer, this.byteOffset, this.byteLength)
+    view.setUint32(offset, value, false)
+
+    return offset + 4
+  }
+
+  writeInt32BE (value, offset = 0) {
+    const view = new DataView(this.buffer, this.byteOffset, this.byteLength)
+    view.setInt32(offset, value, false)
+
+    return offset + 4
+  }
+
+  readDoubleBE (offset = 0) {
+    const view = new DataView(this.buffer, this.byteOffset, this.byteLength)
+
+    return view.getFloat64(offset, false)
+  }
+
+  readFloatBE (offset = 0) {
+    const view = new DataView(this.buffer, this.byteOffset, this.byteLength)
+
+    return view.getFloat32(offset, false)
+  }
+
+  readUInt32BE (offset = 0) {
+    const view = new DataView(this.buffer, this.byteOffset, this.byteLength)
+
+    return view.getUint32(offset, false)
+  }
+
+  readInt32BE (offset = 0) {
+    const view = new DataView(this.buffer, this.byteOffset, this.byteLength)
+
+    return view.getInt32(offset, false)
+  }
 }
 
 exports.Buffer = exports
