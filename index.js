@@ -1,3 +1,4 @@
+const constants = require('./lib/constants')
 const ascii = require('./lib/ascii')
 const base64 = require('./lib/base64')
 const hex = require('./lib/hex')
@@ -326,6 +327,8 @@ const Buffer = module.exports = exports = class Buffer extends Uint8Array {
 }
 
 exports.Buffer = exports
+
+exports.constants = constants
 
 const codecs = Object.create(null)
 

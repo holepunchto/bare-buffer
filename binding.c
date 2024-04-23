@@ -325,7 +325,7 @@ bare_buffer_write_hex (js_env_t *env, js_callback_info_t *info) {
 }
 
 static inline int
-compare_buffers (void *a, size_t a_len, void *b, size_t b_len) {
+bare_buffer__compare (void *a, size_t a_len, void *b, size_t b_len) {
   int r = memcmp(a, b, a_len < b_len ? a_len : b_len);
 
   if (r == 0) {
@@ -339,7 +339,7 @@ compare_buffers (void *a, size_t a_len, void *b, size_t b_len) {
 
 static int32_t
 bare_buffer_compare_fast (js_ffi_receiver_t *recv, js_ffi_typedarray_t *a, js_ffi_typedarray_t *b) {
-  return compare_buffers(a->data.u8, a->len, b->data.u8, b->len);
+  return bare_buffer__compare(a->data.u8, a->len, b->data.u8, b->len);
 }
 
 static js_value_t *
@@ -365,14 +365,14 @@ bare_buffer_compare (js_env_t *env, js_callback_info_t *info) {
   assert(err == 0);
 
   js_value_t *result;
-  err = js_create_int32(env, compare_buffers(a, a_len, b, b_len), &result);
+  err = js_create_int32(env, bare_buffer__compare(a, a_len, b, b_len), &result);
   assert(err == 0);
 
   return result;
 }
 
 static js_value_t *
-init (js_env_t *env, js_value_t *exports) {
+bare_buffer_exports (js_env_t *env, js_value_t *exports) {
   {
     js_ffi_type_info_t *return_info;
     js_ffi_create_type_info(js_ffi_void, &return_info);
@@ -472,4 +472,4 @@ init (js_env_t *env, js_value_t *exports) {
   return exports;
 }
 
-BARE_MODULE(bare_buffer, init)
+BARE_MODULE(bare_buffer, bare_buffer_exports)

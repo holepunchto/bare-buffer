@@ -2,7 +2,11 @@
   "name": "bare-buffer",
   "version": "2.1.1",
   "description": "Native buffers for JavaScript",
-  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./package": "./package.json",
+    "./constants": "./lib/constants.js"
+  },
   "files": [
     "index.js",
     "binding.c",
