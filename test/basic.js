@@ -19,6 +19,10 @@ test('allocUnsafeSlow', (t) => {
   t.is(Buffer.allocUnsafeSlow(42).byteLength, 42)
 })
 
+test('byteLength', (t) => {
+  t.is(Buffer.byteLength(Buffer.alloc(42)), 42)
+})
+
 test('compare', (t) => {
   t.is(Buffer.compare(Buffer.from([1, 2, 3]), Buffer.from([1, 2, 3])), 0)
   t.is(Buffer.compare(Buffer.from([1, 3, 2]), Buffer.from([1, 2, 3])), 1)
