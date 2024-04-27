@@ -381,7 +381,11 @@ exports.allocUnsafeSlow = function allocUnsafeSlow (size) {
 }
 
 exports.byteLength = function byteLength (string, encoding) {
-  return codecFor(encoding).byteLength(string)
+  if (typeof string === 'string') {
+    return codecFor(encoding).byteLength(string)
+  }
+
+  return string.byteLength
 }
 
 exports.compare = function compare (a, b) {
