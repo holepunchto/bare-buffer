@@ -335,6 +335,14 @@ test('readFloatBE', (t) => {
   t.is(actual, expected)
 })
 
+test('readUInt16BE', (t) => {
+  const buffer = Buffer.from([0x78, 0x56, 0x34, 0x12])
+
+  const actual = buffer.readUInt16BE(2).toString(16)
+  const expected = '3412'
+  t.is(actual, expected)
+})
+
 test('readUInt32BE', (t) => {
   const buffer = Buffer.from([0x78, 0x56, 0x34, 0x12])
 
