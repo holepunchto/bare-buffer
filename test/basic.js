@@ -185,6 +185,17 @@ test('writeFloatLE', (t) => {
   t.alike(buffer, expectedBuffer)
 })
 
+test('writeUInt16LE', (t) => {
+  const expectedBuffer = Buffer.from('deadbeef', 'hex')
+
+  const buffer = Buffer.alloc(4)
+
+  t.is(buffer.writeUInt16LE(0xadde, 0), 2)
+  t.is(buffer.writeUInt16LE(0xefbe, 2), 4)
+
+  t.alike(buffer, expectedBuffer)
+})
+
 test('writeUInt32LE', (t) => {
   const value = 0xfeedface
 

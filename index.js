@@ -235,6 +235,13 @@ const Buffer = module.exports = exports = class Buffer extends Uint8Array {
     return offset + 4
   }
 
+  writeUInt16LE (value, offset = 0) {
+    const view = new DataView(this.buffer, this.byteOffset, this.byteLength)
+    view.setUint16(offset, value, true)
+
+    return offset + 2
+  }
+
   writeUInt32LE (value, offset = 0) {
     const view = new DataView(this.buffer, this.byteOffset, this.byteLength)
     view.setUint32(offset, value, true)
