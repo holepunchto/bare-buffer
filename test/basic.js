@@ -234,6 +234,14 @@ test('readFloatLE', (t) => {
   t.is(actual, expected)
 })
 
+test('readUInt16LE', (t) => {
+  const buffer = Buffer.from([0x12, 0x34])
+
+  const actual = buffer.readUInt16LE().toString(16)
+  const expected = '3412'
+  t.is(actual, expected)
+})
+
 test('readUInt32LE', (t) => {
   const buffer = Buffer.from([0x12, 0x34, 0x56, 0x78])
 
