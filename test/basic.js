@@ -185,6 +185,17 @@ test('writeFloatLE', (t) => {
   t.alike(buffer, expectedBuffer)
 })
 
+test('writeUInt16LE', (t) => {
+  const expectedBuffer = Buffer.from('deadbeef', 'hex')
+
+  const buffer = Buffer.alloc(4)
+
+  t.is(buffer.writeUInt16LE(0xadde, 0), 2)
+  t.is(buffer.writeUInt16LE(0xefbe, 2), 4)
+
+  t.alike(buffer, expectedBuffer)
+})
+
 test('writeUInt32LE', (t) => {
   const value = 0xfeedface
 
@@ -261,6 +272,17 @@ test('writeFloatBE', (t) => {
   t.alike(buffer, expectedBuffer)
 })
 
+test('writeUInt16BE', (t) => {
+  const expectedBuffer = Buffer.from('deadbeef', 'hex')
+
+  const buffer = Buffer.alloc(4)
+
+  t.is(buffer.writeUInt16BE(0xdead, 0), 2)
+  t.is(buffer.writeUInt16BE(0xbeef, 2), 4)
+
+  t.alike(buffer, expectedBuffer)
+})
+
 test('writeUInt32BE', (t) => {
   const value = 0xfeedface
 
@@ -321,6 +343,14 @@ test('readFloatBE', (t) => {
 
   const actual = buffer.readFloatBE()
   const expected = 1.539989614439558e-36
+  t.is(actual, expected)
+})
+
+test('readUInt16BE', (t) => {
+  const buffer = Buffer.from([0x78, 0x56, 0x34, 0x12])
+
+  const actual = buffer.readUInt16BE(2).toString(16)
+  const expected = '3412'
   t.is(actual, expected)
 })
 
