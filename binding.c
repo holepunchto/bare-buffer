@@ -8,6 +8,8 @@
 #include <string.h>
 #include <utf.h>
 
+static js_type_tag_t bare_buffer__tag = {0xfea3e944b70b0812, 0xe53bb5c343c040b6};
+
 static void
 bare_buffer_set_zero_fill_enabled_fast (js_ffi_receiver_t *receiver, uint32_t enabled) {
   js_set_arraybuffer_zero_fill_enabled(enabled != 0);
@@ -372,6 +374,47 @@ bare_buffer_compare (js_env_t *env, js_callback_info_t *info) {
 }
 
 static js_value_t *
+bare_buffer_tag (js_env_t *env, js_callback_info_t *info) {
+  int err;
+
+  size_t argc = 1;
+  js_value_t *argv[1];
+
+  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
+  assert(err == 0);
+
+  assert(argc == 1);
+
+  err = js_add_type_tag(env, argv[0], &bare_buffer__tag);
+  assert(err == 0);
+
+  return NULL;
+}
+
+static js_value_t *
+bare_buffer_is_tagged (js_env_t *env, js_callback_info_t *info) {
+  int err;
+
+  size_t argc = 1;
+  js_value_t *argv[1];
+
+  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
+  assert(err == 0);
+
+  assert(argc == 1);
+
+  bool is_buffer;
+  err = js_check_type_tag(env, argv[0], &bare_buffer__tag, &is_buffer);
+  assert(err == 0);
+
+  js_value_t *result;
+  err = js_get_boolean(env, is_buffer, &result);
+  assert(err == 0);
+
+  return result;
+}
+
+static js_value_t *
 bare_buffer_exports (js_env_t *env, js_value_t *exports) {
   int err;
 
@@ -471,6 +514,9 @@ bare_buffer_exports (js_env_t *env, js_value_t *exports) {
 
     V("compare", bare_buffer_compare, ffi);
   }
+
+  V("tag", bare_buffer_tag, NULL)
+  V("isTagged", bare_buffer_is_tagged, NULL)
 #undef V
 
   return exports;

@@ -7,6 +7,10 @@ const utf16le = require('./lib/utf16le')
 const binding = require('./binding')
 
 const Buffer = module.exports = exports = class Buffer extends Uint8Array {
+  static {
+    binding.tag(this)
+  }
+
   [Symbol.species] () {
     return Buffer
   }
@@ -375,7 +379,17 @@ function codecFor (encoding = 'utf8') {
 }
 
 exports.isBuffer = function isBuffer (value) {
-  return value instanceof Buffer
+  if (typeof value !== 'object' || value === null) return false
+
+  let constructor = value.constructor
+
+  while (typeof constructor === 'function') {
+    if (binding.isTagged(constructor)) return true
+
+    constructor = Reflect.getPrototypeOf(constructor)
+  }
+
+  return false
 }
 
 exports.isEncoding = function isEncoding (encoding) {

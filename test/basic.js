@@ -163,6 +163,20 @@ test('swap64', (t) => {
   )
 })
 
+test('isBuffer', (t) => {
+  t.ok(Buffer.isBuffer(Buffer.alloc(4)))
+
+  t.absent(Buffer.isBuffer(new Uint8Array(4)))
+
+  t.absent(Buffer.isBuffer())
+  t.absent(Buffer.isBuffer({}))
+  t.absent(Buffer.isBuffer(null))
+
+  class MyBuffer extends Buffer {}
+
+  t.ok(Buffer.isBuffer(new MyBuffer(4)))
+})
+
 test('writeDoubleLE', (t) => {
   const value = 123.456
 
