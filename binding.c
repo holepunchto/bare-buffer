@@ -373,101 +373,105 @@ bare_buffer_compare (js_env_t *env, js_callback_info_t *info) {
 
 static js_value_t *
 bare_buffer_exports (js_env_t *env, js_value_t *exports) {
+  int err;
+
+#define V(name, fn, ffi) \
+  { \
+    js_value_t *val; \
+    if (ffi) { \
+      err = js_create_function_with_ffi(env, name, -1, fn, NULL, ffi, &val); \
+    } else { \
+      err = js_create_function(env, name, -1, fn, NULL, &val); \
+    } \
+    assert(err == 0); \
+    err = js_set_named_property(env, exports, name, val); \
+    assert(err == 0); \
+  }
+
   {
     js_ffi_type_info_t *return_info;
-    js_ffi_create_type_info(js_ffi_void, &return_info);
+    err = js_ffi_create_type_info(js_ffi_void, &return_info);
+    assert(err == 0);
 
     js_ffi_type_info_t *arg_info[2];
-    js_ffi_create_type_info(js_ffi_receiver, &arg_info[0]);
-    js_ffi_create_type_info(js_ffi_uint32, &arg_info[1]);
+
+    err = js_ffi_create_type_info(js_ffi_receiver, &arg_info[0]);
+    assert(err == 0);
+
+    err = js_ffi_create_type_info(js_ffi_uint32, &arg_info[1]);
+    assert(err == 0);
 
     js_ffi_function_info_t *function_info;
-    js_ffi_create_function_info(return_info, arg_info, 2, &function_info);
+    err = js_ffi_create_function_info(return_info, arg_info, 2, &function_info);
+    assert(err == 0);
 
     js_ffi_function_t *ffi;
-    js_ffi_create_function(bare_buffer_set_zero_fill_enabled_fast, function_info, &ffi);
+    err = js_ffi_create_function(bare_buffer_set_zero_fill_enabled_fast, function_info, &ffi);
+    assert(err == 0);
 
-    js_value_t *val;
-    js_create_function_with_ffi(env, "setZeroFillEnabled", -1, bare_buffer_set_zero_fill_enabled, NULL, ffi, &val);
-    js_set_named_property(env, exports, "setZeroFillEnabled", val);
+    V("setZeroFillEnabled", bare_buffer_set_zero_fill_enabled, ffi);
   }
+
   {
     js_ffi_type_info_t *return_info;
-    js_ffi_create_type_info(js_ffi_int32, &return_info);
+    err = js_ffi_create_type_info(js_ffi_int32, &return_info);
+    assert(err == 0);
 
     js_ffi_type_info_t *arg_info[2];
-    js_ffi_create_type_info(js_ffi_receiver, &arg_info[0]);
-    js_ffi_create_type_info(js_ffi_string, &arg_info[1]);
+
+    err = js_ffi_create_type_info(js_ffi_receiver, &arg_info[0]);
+    assert(err == 0);
+
+    err = js_ffi_create_type_info(js_ffi_string, &arg_info[1]);
+    assert(err == 0);
 
     js_ffi_function_info_t *function_info;
-    js_ffi_create_function_info(return_info, arg_info, 2, &function_info);
+    err = js_ffi_create_function_info(return_info, arg_info, 2, &function_info);
+    assert(err == 0);
 
     js_ffi_function_t *ffi;
-    js_ffi_create_function(bare_buffer_byte_length_utf8_fast, function_info, &ffi);
+    err = js_ffi_create_function(bare_buffer_byte_length_utf8_fast, function_info, &ffi);
+    assert(err == 0);
 
-    js_value_t *val;
-    js_create_function_with_ffi(env, "byteLengthUTF8", -1, bare_buffer_byte_length_utf8, NULL, ffi, &val);
-    js_set_named_property(env, exports, "byteLengthUTF8", val);
+    V("byteLengthUTF8", bare_buffer_byte_length_utf8, ffi);
   }
-  {
-    js_value_t *val;
-    js_create_function(env, "toStringUTF8", -1, bare_buffer_to_string_utf8, NULL, &val);
-    js_set_named_property(env, exports, "toStringUTF8", val);
-  }
-  {
-    js_value_t *val;
-    js_create_function(env, "writeUTF8", -1, bare_buffer_write_utf8, NULL, &val);
-    js_set_named_property(env, exports, "writeUTF8", val);
-  }
-  {
-    js_value_t *val;
-    js_create_function(env, "toStringUTF16LE", -1, bare_buffer_to_string_utf16le, NULL, &val);
-    js_set_named_property(env, exports, "toStringUTF16LE", val);
-  }
-  {
-    js_value_t *val;
-    js_create_function(env, "writeUTF16LE", -1, bare_buffer_write_utf16le, NULL, &val);
-    js_set_named_property(env, exports, "writeUTF16LE", val);
-  }
-  {
-    js_value_t *val;
-    js_create_function(env, "toStringBase64", -1, bare_buffer_to_string_base64, NULL, &val);
-    js_set_named_property(env, exports, "toStringBase64", val);
-  }
-  {
-    js_value_t *val;
-    js_create_function(env, "writeBase64", -1, bare_buffer_write_base64, NULL, &val);
-    js_set_named_property(env, exports, "writeBase64", val);
-  }
-  {
-    js_value_t *val;
-    js_create_function(env, "toStringHex", -1, bare_buffer_to_string_hex, NULL, &val);
-    js_set_named_property(env, exports, "toStringHex", val);
-  }
-  {
-    js_value_t *val;
-    js_create_function(env, "writeHex", -1, bare_buffer_write_hex, NULL, &val);
-    js_set_named_property(env, exports, "writeHex", val);
-  }
+
+  V("toStringUTF8", bare_buffer_to_string_utf8, NULL);
+  V("writeUTF8", bare_buffer_write_utf8, NULL);
+  V("toStringUTF16LE", bare_buffer_to_string_utf16le, NULL);
+  V("writeUTF16LE", bare_buffer_write_utf16le, NULL);
+  V("toStringBase64", bare_buffer_to_string_base64, NULL);
+  V("writeBase64", bare_buffer_write_base64, NULL);
+  V("toStringHex", bare_buffer_to_string_hex, NULL);
+  V("writeHex", bare_buffer_write_hex, NULL);
+
   {
     js_ffi_type_info_t *return_info;
-    js_ffi_create_type_info(js_ffi_int32, &return_info);
+    err = js_ffi_create_type_info(js_ffi_int32, &return_info);
+    assert(err == 0);
 
     js_ffi_type_info_t *arg_info[3];
-    js_ffi_create_type_info(js_ffi_receiver, &arg_info[0]);
-    js_ffi_create_type_info(js_ffi_uint8array, &arg_info[1]);
-    js_ffi_create_type_info(js_ffi_uint8array, &arg_info[2]);
+
+    err = js_ffi_create_type_info(js_ffi_receiver, &arg_info[0]);
+    assert(err == 0);
+
+    err = js_ffi_create_type_info(js_ffi_uint8array, &arg_info[1]);
+    assert(err == 0);
+
+    err = js_ffi_create_type_info(js_ffi_uint8array, &arg_info[2]);
+    assert(err == 0);
 
     js_ffi_function_info_t *function_info;
-    js_ffi_create_function_info(return_info, arg_info, 3, &function_info);
+    err = js_ffi_create_function_info(return_info, arg_info, 3, &function_info);
+    assert(err == 0);
 
     js_ffi_function_t *ffi;
-    js_ffi_create_function(bare_buffer_compare_fast, function_info, &ffi);
+    err = js_ffi_create_function(bare_buffer_compare_fast, function_info, &ffi);
+    assert(err == 0);
 
-    js_value_t *val;
-    js_create_function_with_ffi(env, "compare", -1, bare_buffer_compare, NULL, ffi, &val);
-    js_set_named_property(env, exports, "compare", val);
+    V("compare", bare_buffer_compare, ffi);
   }
+#undef V
 
   return exports;
 }
