@@ -175,6 +175,9 @@ test('isBuffer', (t) => {
   class MyBuffer extends Buffer {}
 
   t.ok(Buffer.isBuffer(new MyBuffer(4)))
+
+  t.unlike(Buffer, global.Buffer)
+  t.ok(Buffer.isBuffer(global.Buffer.alloc(4)))
 })
 
 test('writeDoubleLE', (t) => {
