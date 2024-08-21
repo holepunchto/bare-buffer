@@ -225,6 +225,24 @@ const Buffer = module.exports = exports = class Buffer extends Uint8Array {
     return codecFor(encoding).write(buffer, string)
   }
 
+  writeUInt8 (value, offset = 0) {
+    const view = new DataView(this.buffer, this.byteoffset, this.bytelength)
+    view.setUint8(offset, value, true)
+
+    return offset + 1
+  }
+
+  writeUint8 (...args) {
+    return this.writeUInt8(...args)
+  }
+
+  writeInt8 (value, offset = 0) {
+    const view = new DataView(this.buffer, this.byteoffset, this.bytelength)
+    view.setInt8(offset, value)
+
+    return offset + 1
+  }
+
   writeDoubleLE (value, offset = 0) {
     const view = new DataView(this.buffer, this.byteOffset, this.byteLength)
     view.setFloat64(offset, value, true)
@@ -258,6 +276,22 @@ const Buffer = module.exports = exports = class Buffer extends Uint8Array {
     view.setInt32(offset, value, true)
 
     return offset + 4
+  }
+
+  readInt8 (offset = 0) {
+    const view = new DataView(this.buffer, this.byteOffset, this.byteLength)
+
+    return view.getInt8(offset)
+  }
+
+  readUInt8 (offset = 0) {
+    const view = new DataView(this.buffer, this.byteOffset, this.byteLength)
+
+    return view.getUint8(offset)
+  }
+
+  readUint8 (...args) {
+    return this.readUInt8(...args)
   }
 
   readDoubleLE (offset = 0) {
