@@ -228,16 +228,18 @@ const Buffer = module.exports = exports = class Buffer extends Uint8Array {
   writeUInt8 (value, offset = 0) {
     const view = new DataView(this.buffer, this.byteoffset, this.bytelength)
     view.setUint8(offset, value, true)
+
     return offset + 1
   }
 
-  writeUint8 () {
-    return this.writeUInt8(...arguments)
+  writeUint8 (...args) {
+    return this.writeUInt8(...args)
   }
 
   writeInt8 (value, offset = 0) {
     const view = new DataView(this.buffer, this.byteoffset, this.bytelength)
-    view.setInt8(offset, value, true)
+    view.setInt8(offset, value)
+
     return offset + 1
   }
 
@@ -278,17 +280,18 @@ const Buffer = module.exports = exports = class Buffer extends Uint8Array {
 
   readInt8 (offset = 0) {
     const view = new DataView(this.buffer, this.byteOffset, this.byteLength)
-    return view.getInt8(offset, true)
+
+    return view.getInt8(offset)
   }
 
   readUInt8 (offset = 0) {
     const view = new DataView(this.buffer, this.byteOffset, this.byteLength)
 
-    return view.getUint8(offset, true)
+    return view.getUint8(offset)
   }
 
-  readUint8 () {
-    return this.readUInt8(...arguments)
+  readUint8 (...args) {
+    return this.readUInt8(...args)
   }
 
   readDoubleLE (offset = 0) {
