@@ -226,7 +226,6 @@ const Buffer = module.exports = exports = class Buffer extends Uint8Array {
   }
 
   writeUInt8 (value, offset = 0) {
-
     const view = new DataView(this.buffer, this.byteoffset, this.bytelength)
     view.setUint8(offset, value, true)
     return offset + 1
@@ -592,4 +591,3 @@ function swap (buffer, n, m) {
   buffer[n] = buffer[m]
   buffer[m] = i
 }
-
