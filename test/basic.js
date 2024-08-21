@@ -414,3 +414,45 @@ test('readInt32BE - top bit set', (t) => {
   expected = -1 * 0x80000000
   t.is(actual, expected)
 })
+
+test('writeUInt8', (t) => {
+  const expected = Buffer.from('hello')
+
+  const buf = Buffer.alloc(5)
+  t.ok(buf.writeUInt8(104, 0) === 1)
+  t.ok(buf.writeUInt8(101, 1) === 2)
+  buf.writeUInt8(108, 2)
+  buf.writeUInt8(108, 3)
+  buf.writeUInt8(111, 4)
+  t.alike(expected, buf)
+})
+
+test('writeInt8', (t) => {
+  const expected = Buffer.from([0xff, 0xff9c, 0xfdd5, 0x1c])
+
+  const buf = Buffer.alloc(4)
+  t.ok(buf.writeInt8(-1, 0) === 1)
+  t.ok(buf.writeInt8(-100, 1) === 2)
+  buf.writeInt8(-43, 2)
+  buf.writeInt8(28, 3)
+  t.alike(expected, buf)
+})
+
+test('readUInt8', (t) => {
+  const buffer = Buffer.from([0xff, 0xff, 0xff, 0xff])
+
+  let actual = buffer.readUInt8()
+  const expected = 255
+  t.is(actual, expected)
+
+  actual = buffer.readUint8() // alias
+  t.is(actual, expected)
+})
+
+test('readInt8', (t) => {
+  const buffer = Buffer.from([0xff, 0xff, 0xff, 0xff])
+
+  const actual = buffer.readInt8()
+  const expected = -1
+  t.is(actual, expected)
+})
