@@ -226,14 +226,9 @@ const Buffer = module.exports = exports = class Buffer extends Uint8Array {
   }
 
   writeUInt8 (value, offset = 0) {
-    checkOffsetArg(offset, this.byteLength)
 
-    if (typeof value === 'number' && (value < 0 || value > 255)) {
-      throw RangeError(`The value of "value" is out of range. It must be >= 0 and <= 255. Received ${value}`)
-    }
-
-    this[offset] = value
-
+    const view = new DataView(this.buffer, this.byteoffset, this.bytelength)
+    view.setUint8(offset, value, true)
     return offset + 1
   }
 
@@ -242,13 +237,8 @@ const Buffer = module.exports = exports = class Buffer extends Uint8Array {
   }
 
   writeInt8 (value, offset = 0) {
-    checkOffsetArg(offset, this.byteLength)
-    if (typeof value === 'number' && (value < -128 || value > 127)) {
-      throw RangeError(`The value of "value" is out of range. It must be >= -128 and <= 127. Received ${value}`)
-    }
-
-    this[offset] = value
-
+    const view = new DataView(this.buffer, this.byteoffset, this.bytelength)
+    view.setInt8(offset, value, true)
     return offset + 1
   }
 
@@ -288,14 +278,14 @@ const Buffer = module.exports = exports = class Buffer extends Uint8Array {
   }
 
   readInt8 (offset = 0) {
-    checkOffsetArg(offset, this.byteLength)
-
-    return this[offset] << 24 >> 24
+    const view = new DataView(this.buffer, this.byteOffset, this.byteLength)
+    return view.getInt8(offset, true)
   }
 
   readUInt8 (offset = 0) {
-    checkOffsetArg(offset, this.byteLength)
-    return this[offset]
+    const view = new DataView(this.buffer, this.byteOffset, this.byteLength)
+
+    return view.getUint8(offset, true)
   }
 
   readUint8 () {
@@ -603,16 +593,3 @@ function swap (buffer, n, m) {
   buffer[m] = i
 }
 
-function checkOffsetArg (offset, byteLength) {
-  if (typeof offset !== 'number') {
-    throw TypeError(`The "offset" argument must be of type number. Received type ${typeof offset} (${offset})`)
-  }
-
-  if (offset < 0 || offset >= byteLength) {
-    throw RangeError(`The value of "offset" is out of range. It must be >= 0 and <= ${byteLength}. Received ${offset}`)
-  }
-
-  if (offset === 0 && byteLength === 0) {
-    throw RangeError('Attempt to access memory outside buffer bound')
-  }
-}
