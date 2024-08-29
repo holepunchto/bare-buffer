@@ -1,6 +1,6 @@
 {
   "name": "bare-buffer",
-  "version": "2.5.0",
+  "version": "2.5.1",
   "description": "Native buffers for JavaScript",
   "exports": {
     ".": "./index.js",
