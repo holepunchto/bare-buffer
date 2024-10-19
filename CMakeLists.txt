@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.25)
 
-project(bare_buffer C)
+find_package(cmake-bare REQUIRED PATHS node_modules/cmake-bare)
 
-include(bare)
+project(bare_buffer C)
 
 if(NOT TARGET utf)
   add_subdirectory(vendor/libutf EXCLUDE_FROM_ALL)
