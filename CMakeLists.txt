@@ -20,9 +20,6 @@ add_bare_module(bare_buffer)
 
 target_sources(
   ${bare_buffer}
-  PUBLIC
-    $<TARGET_OBJECTS:base64>
-    $<TARGET_OBJECTS:hex>
   PRIVATE
     binding.c
 )
