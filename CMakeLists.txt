@@ -26,6 +26,9 @@ target_sources(
 
 target_link_libraries(
   ${bare_buffer}
+  PRIVATE
+    $<TARGET_OBJECTS:base64>
+    $<TARGET_OBJECTS:hex>
   PUBLIC
     base64
     hex
