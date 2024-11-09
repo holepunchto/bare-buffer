@@ -13,13 +13,7 @@
     "binding.js",
     "CMakeLists.txt",
     "lib",
-    "prebuilds",
-    "vendor/libbase64/include",
-    "vendor/libbase64/src",
-    "vendor/libhex/include",
-    "vendor/libhex/src",
-    "vendor/libutf/include",
-    "vendor/libutf/src"
+    "prebuilds"
   ],
   "addon": true,
   "scripts": {
@@ -38,6 +32,7 @@
   "devDependencies": {
     "brittle": "^3.1.1",
     "cmake-bare": "^1.1.6",
+    "cmake-fetch": "^1.0.0",
     "standard": "^17.0.0"
   }
 }

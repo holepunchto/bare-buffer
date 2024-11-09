@@ -1,20 +1,13 @@
 cmake_minimum_required(VERSION 3.25)
 
 find_package(cmake-bare REQUIRED PATHS node_modules/cmake-bare)
+find_package(cmake-fetch REQUIRED PATHS node_modules/cmake-fetch)
 
 project(bare_buffer C)
 
-if(NOT TARGET utf)
-  add_subdirectory(vendor/libutf EXCLUDE_FROM_ALL)
-endif()
-
-if(NOT TARGET base64)
-  add_subdirectory(vendor/libbase64 EXCLUDE_FROM_ALL)
-endif()
-
-if(NOT TARGET hex)
-  add_subdirectory(vendor/libhex EXCLUDE_FROM_ALL)
-endif()
+fetch_package("github:holepunchto/libutf#65b6ba0")
+fetch_package("github:holepunchto/libbase64#4cd8d8b")
+fetch_package("github:holepunchto/libhex#939999b")
 
 add_bare_module(bare_buffer)
 
