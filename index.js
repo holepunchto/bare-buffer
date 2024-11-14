@@ -340,7 +340,7 @@ const views = new WeakMap()
 
 function viewOf (buffer) {
   let view = views.get(buffer)
-  if (view === undefined) return view
+  if (view !== undefined) return view
   view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength)
   views.set(buffer, view)
   return view
