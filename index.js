@@ -6,9 +6,19 @@ const utf8 = require('./lib/utf8')
 const utf16le = require('./lib/utf16le')
 const binding = require('./binding')
 
+let poolSize = 0
+
 const Buffer = module.exports = exports = class Buffer extends Uint8Array {
   static {
     binding.tag(this)
+  }
+
+  static get poolSize () {
+    return poolSize
+  }
+
+  static set poolSize (value) {
+    poolSize = Math.max(0, value)
   }
 
   [Symbol.species] () {
@@ -225,169 +235,83 @@ const Buffer = module.exports = exports = class Buffer extends Uint8Array {
     return codecFor(encoding).write(buffer, string)
   }
 
-  writeUInt8 (value, offset = 0) {
-    const view = new DataView(this.buffer, this.byteoffset, this.bytelength)
-    view.setUint8(offset, value, true)
+  readBigInt64BE (offset = 0) { return viewOf(this).getBigInt64(offset, false) }
+  readBigInt64LE (offset = 0) { return viewOf(this).getBigInt64(offset, true) }
 
-    return offset + 1
-  }
+  readBigUint64BE (offset = 0) { return viewOf(this).getBigUint64(offset, false) }
+  readBigUint64LE (offset = 0) { return viewOf(this).getBigUint64(offset, true) }
 
-  writeUint8 (...args) {
-    return this.writeUInt8(...args)
-  }
+  readDoubleBE (offset = 0) { return viewOf(this).getFloat64(offset, false) }
+  readDoubleLE (offset = 0) { return viewOf(this).getFloat64(offset, true) }
 
-  writeInt8 (value, offset = 0) {
-    const view = new DataView(this.buffer, this.byteoffset, this.bytelength)
-    view.setInt8(offset, value)
+  readFloatBE (offset = 0) { return viewOf(this).getFloat32(offset, false) }
+  readFloatLE (offset = 0) { return viewOf(this).getFloat32(offset, true) }
 
-    return offset + 1
-  }
+  readInt8 (offset = 0) { return viewOf(this).getInt8(offset) }
 
-  writeDoubleLE (value, offset = 0) {
-    const view = new DataView(this.buffer, this.byteOffset, this.byteLength)
-    view.setFloat64(offset, value, true)
+  readInt16BE (offset = 0) { return viewOf(this).getInt16(offset, false) }
+  readInt16LE (offset = 0) { return viewOf(this).getInt16(offset, true) }
 
-    return offset + 8
-  }
+  readInt32BE (offset = 0) { return viewOf(this).getInt32(offset, false) }
+  readInt32LE (offset = 0) { return viewOf(this).getInt32(offset, true) }
 
-  writeFloatLE (value, offset = 0) {
-    const view = new DataView(this.buffer, this.byteOffset, this.byteLength)
-    view.setFloat32(offset, value, true)
+  readUint8 (offset = 0) { return viewOf(this).getUint8(offset) }
 
-    return offset + 4
-  }
+  readUint16BE (offset = 0) { return viewOf(this).getUint16(offset, false) }
+  readUint16LE (offset = 0) { return viewOf(this).getUint16(offset, true) }
 
-  writeUInt16LE (value, offset = 0) {
-    const view = new DataView(this.buffer, this.byteOffset, this.byteLength)
-    view.setUint16(offset, value, true)
+  readUint32BE (offset = 0) { return viewOf(this).getUint32(offset, false) }
+  readUint32LE (offset = 0) { return viewOf(this).getUint32(offset, true) }
 
-    return offset + 2
-  }
+  readBigUInt64BE (...args) { return this.readBigUint64BE(...args) }
+  readBigUInt64LE (...args) { return this.readBigUint64LE(...args) }
 
-  writeUInt32LE (value, offset = 0) {
-    const view = new DataView(this.buffer, this.byteOffset, this.byteLength)
-    view.setUint32(offset, value, true)
+  readUInt8 (...args) { return this.readUint8(...args) }
 
-    return offset + 4
-  }
+  readUInt16BE (...args) { return this.readUint16BE(...args) }
+  readUInt16LE (...args) { return this.readUint16LE(...args) }
 
-  writeInt32LE (value, offset = 0) {
-    const view = new DataView(this.buffer, this.byteOffset, this.byteLength)
-    view.setInt32(offset, value, true)
+  readUInt32BE (...args) { return this.readUint32BE(...args) }
+  readUInt32LE (...args) { return this.readUint32LE(...args) }
 
-    return offset + 4
-  }
+  writeBigInt64BE (value, offset = 0) { viewOf(this).setBigInt64(offset, value, false); return offset + 8 }
+  writeBigInt64LE (value, offset = 0) { viewOf(this).setBigInt64(offset, value, true); return offset + 8 }
 
-  readInt8 (offset = 0) {
-    const view = new DataView(this.buffer, this.byteOffset, this.byteLength)
+  writeBigUint64BE (value, offset = 0) { viewOf(this).setBigUint64(offset, value, false); return offset + 8 }
+  writeBigUint64LE (value, offset = 0) { viewOf(this).setBigUint64(offset, value, true); return offset + 8 }
 
-    return view.getInt8(offset)
-  }
+  writeDoubleBE (value, offset = 0) { viewOf(this).setFloat64(offset, value, false); return offset + 8 }
+  writeDoubleLE (value, offset = 0) { viewOf(this).setFloat64(offset, value, true); return offset + 8 }
 
-  readUInt8 (offset = 0) {
-    const view = new DataView(this.buffer, this.byteOffset, this.byteLength)
+  writeFloatBE (value, offset = 0) { viewOf(this).setFloat32(offset, value, false); return offset + 4 }
+  writeFloatLE (value, offset = 0) { viewOf(this).setFloat32(offset, value, true); return offset + 4 }
 
-    return view.getUint8(offset)
-  }
+  writeInt8 (value, offset = 0) { viewOf(this).setInt8(offset, value); return offset + 1 }
 
-  readUint8 (...args) {
-    return this.readUInt8(...args)
-  }
+  writeInt16BE (value, offset = 0) { viewOf(this).setInt16(offset, value, false); return offset + 2 }
+  writeInt16LE (value, offset = 0) { viewOf(this).setInt16(offset, value, true); return offset + 2 }
 
-  readDoubleLE (offset = 0) {
-    const view = new DataView(this.buffer, this.byteOffset, this.byteLength)
+  writeInt32BE (value, offset = 0) { viewOf(this).setInt32(offset, value, false); return offset + 4 }
+  writeInt32LE (value, offset = 0) { viewOf(this).setInt32(offset, value, true); return offset + 4 }
 
-    return view.getFloat64(offset, true)
-  }
+  writeUint8 (value, offset = 0) { viewOf(this).setUint8(offset, value, true); return offset + 1 }
 
-  readFloatLE (offset = 0) {
-    const view = new DataView(this.buffer, this.byteOffset, this.byteLength)
+  writeUint16BE (value, offset = 0) { viewOf(this).setUint16(offset, value, false); return offset + 2 }
+  writeUint16LE (value, offset = 0) { viewOf(this).setUint16(offset, value, true); return offset + 2 }
 
-    return view.getFloat32(offset, true)
-  }
+  writeUint32LE (value, offset = 0) { viewOf(this).setUint32(offset, value, true); return offset + 4 }
+  writeUint32BE (value, offset = 0) { viewOf(this).setUint32(offset, value, false); return offset + 4 }
 
-  readUInt16LE (offset = 0) {
-    const view = new DataView(this.buffer, this.byteOffset, this.byteLength)
+  writeBigUInt64BE (...args) { return this.writeBigUint64BE(...args) }
+  writeBigUInt64LE (...args) { return this.writeBigUint64LE(...args) }
 
-    return view.getUint16(offset, true)
-  }
+  writeUInt8 (...args) { return this.writeUint8(...args) }
 
-  readUInt32LE (offset = 0) {
-    const view = new DataView(this.buffer, this.byteOffset, this.byteLength)
+  writeUInt16BE (...args) { return this.writeUint16BE(...args) }
+  writeUInt16LE (...args) { return this.writeUint16LE(...args) }
 
-    return view.getUint32(offset, true)
-  }
-
-  readInt32LE (offset = 0) {
-    const view = new DataView(this.buffer, this.byteOffset, this.byteLength)
-
-    return view.getInt32(offset, true)
-  }
-
-  writeDoubleBE (value, offset = 0) {
-    const view = new DataView(this.buffer, this.byteOffset, this.byteLength)
-    view.setFloat64(offset, value, false)
-
-    return offset + 8
-  }
-
-  writeFloatBE (value, offset = 0) {
-    const view = new DataView(this.buffer, this.byteOffset, this.byteLength)
-    view.setFloat32(offset, value, false)
-
-    return offset + 4
-  }
-
-  writeUInt16BE (value, offset = 0) {
-    const view = new DataView(this.buffer, this.byteOffset, this.byteLength)
-    view.setUint16(offset, value, false)
-
-    return offset + 2
-  }
-
-  writeUInt32BE (value, offset = 0) {
-    const view = new DataView(this.buffer, this.byteOffset, this.byteLength)
-    view.setUint32(offset, value, false)
-
-    return offset + 4
-  }
-
-  writeInt32BE (value, offset = 0) {
-    const view = new DataView(this.buffer, this.byteOffset, this.byteLength)
-    view.setInt32(offset, value, false)
-
-    return offset + 4
-  }
-
-  readDoubleBE (offset = 0) {
-    const view = new DataView(this.buffer, this.byteOffset, this.byteLength)
-
-    return view.getFloat64(offset, false)
-  }
-
-  readFloatBE (offset = 0) {
-    const view = new DataView(this.buffer, this.byteOffset, this.byteLength)
-
-    return view.getFloat32(offset, false)
-  }
-
-  readUInt16BE (offset = 0) {
-    const view = new DataView(this.buffer, this.byteOffset, this.byteLength)
-
-    return view.getUint16(offset, false)
-  }
-
-  readUInt32BE (offset = 0) {
-    const view = new DataView(this.buffer, this.byteOffset, this.byteLength)
-
-    return view.getUint32(offset, false)
-  }
-
-  readInt32BE (offset = 0) {
-    const view = new DataView(this.buffer, this.byteOffset, this.byteLength)
-
-    return view.getInt32(offset, false)
-  }
+  writeUInt32BE (...args) { return this.writeUint32BE(...args) }
+  writeUInt32LE (...args) { return this.writeUint32LE(...args) }
 }
 
 exports.Buffer = exports
@@ -410,6 +334,16 @@ function codecFor (encoding = 'utf8') {
   if (encoding in codecs) return codecs[encoding]
 
   throw new Error(`Unknown encoding: ${encoding}`)
+}
+
+const views = new WeakMap()
+
+function viewOf (buffer) {
+  let view = views.get(buffer)
+  if (view === undefined) return view
+  view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength)
+  views.set(buffer, view)
+  return view
 }
 
 exports.isBuffer = function isBuffer (value) {

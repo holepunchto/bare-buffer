@@ -38,17 +38,7 @@ bare_buffer_set_zero_fill_enabled (js_env_t *env, js_callback_info_t *info) {
 
 static uint32_t
 bare_buffer_byte_length_utf8_fast (js_ffi_receiver_t *receiver, js_ffi_string_t *str) {
-  const uint8_t *data = (const uint8_t *) str->data;
-
-  uint32_t len = 0;
-
-  for (uint32_t i = 0, n = str->len; i < n; i++) {
-    // The string data is latin1 so we add an additional byte count for all
-    // non-ASCII characters.
-    len += 1 + (data[i] >> 7);
-  }
-
-  return len;
+  return utf8_length_from_latin1((const latin1_t *) str->data, str->len);
 }
 
 static js_value_t *
