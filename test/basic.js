@@ -378,8 +378,8 @@ const assertRead = (t, { byteSize, signed, littleEndian }) => {
 const assertWrite = (t, { byteSize, signed, littleEndian }) => {
   const method = inferMethodName({ prefix: 'write', byteSize, signed, littleEndian })
 
-  const LE = [0xDE, 0xADDE, 0xEFBEADDE, 0xEFBEADDEEFBEADDEn]
-  const BE = [0xDE, 0xDEAD, 0xDEADBEEF, 0xDEADBEEFDEADBEEFn]
+  const LE = [0xde, 0xadde, 0xefbeadde, 0xefbeaddeefbeadden]
+  const BE = [0xde, 0xdead, 0xdeadbeef, 0xdeadbeefdeadbeefn]
 
   const index = Math.log2(byteSize) - 3
   const bufferInput = littleEndian ? LE[index] : BE[index]
