@@ -180,66 +180,42 @@ test('isBuffer', (t) => {
   t.ok(Buffer.isBuffer(global.Buffer.alloc(4)))
 })
 
-test('writeDoubleLE', (t) => {
-  const value = 123.456
+test('readInt8', (t) => assertRead(t, { byteSize: 8, signed: false }))
+test('readUInt8', (t) => assertRead(t, { byteSize: 8, signed: true }))
 
-  const expectedBuffer = Buffer.from('77be9f1a2fdd5e40', 'hex')
+test('readInt16LE', (t) => assertRead(t, { byteSize: 16, signed: true, littleEndian: true }))
+test('readInt32LE', (t) => assertRead(t, { byteSize: 32, signed: true, littleEndian: true }))
+test('readBigInt64LE', (t) => assertRead(t, { byteSize: 64, signed: true, littleEndian: true }))
 
-  const buffer = Buffer.alloc(8)
-  const bufferOffset = buffer.writeDoubleLE(value, 0)
-  t.is(bufferOffset, 8)
-  t.alike(buffer, expectedBuffer)
-})
+test('readInt16BE', (t) => assertRead(t, { byteSize: 16, signed: true, littleEndian: false }))
+test('readInt32BE', (t) => assertRead(t, { byteSize: 32, signed: true, littleEndian: false }))
+test('readBigInt64BE', (t) => assertRead(t, { byteSize: 64, signed: true, littleEndian: false }))
 
-test('writeFloatLE', (t) => {
-  const value = 0xcafebabe
+test('readUInt16LE', (t) => assertRead(t, { byteSize: 16, signed: false, littleEndian: true }))
+test('readUInt32LE', (t) => assertRead(t, { byteSize: 32, signed: false, littleEndian: true }))
+test('readBigUInt64LE', (t) => assertRead(t, { byteSize: 64, signed: false, littleEndian: true }))
 
-  const expectedBuffer = Buffer.from('bbfe4a4f', 'hex')
+test('readUInt16BE', (t) => assertRead(t, { byteSize: 16, signed: false, littleEndian: false }))
+test('readUInt32BE', (t) => assertRead(t, { byteSize: 32, signed: false, littleEndian: false }))
+test('readBigUInt64BE', (t) => assertRead(t, { byteSize: 64, signed: false, littleEndian: false }))
 
-  const buffer = Buffer.alloc(4)
-  const bufferOffset = buffer.writeFloatLE(value, 0)
-  t.is(bufferOffset, 4)
-  t.alike(buffer, expectedBuffer)
-})
+test('readInt32BE - top bit set', (t) => {
+  const buffer = Buffer.from([0xff, 0xff, 0xff, 0xff])
 
-test('writeUInt16LE', (t) => {
-  const expectedBuffer = Buffer.from('deadbeef', 'hex')
+  let actual = buffer.readInt32BE()
+  let expected = -1
+  t.is(actual, expected)
 
-  const buffer = Buffer.alloc(4)
+  const bufferMax = Buffer.from([0x80, 0, 0, 0x1])
 
-  t.is(buffer.writeUInt16LE(0xadde, 0), 2)
-  t.is(buffer.writeUInt16LE(0xefbe, 2), 4)
+  actual = bufferMax.readInt32BE()
+  expected = -1 * 0x7fffffff
+  t.is(actual, expected)
 
-  t.alike(buffer, expectedBuffer)
-})
+  const bufferSub1 = Buffer.from([0x80, 0, 0, 0])
 
-test('writeUInt32LE', (t) => {
-  const value = 0xfeedface
-
-  const expectedBuffer = Buffer.from('cefaedfe', 'hex')
-
-  const buffer = Buffer.alloc(4)
-  const bufferOffset = buffer.writeUInt32LE(value, 0)
-  t.is(bufferOffset, 4)
-  t.alike(buffer, expectedBuffer)
-})
-
-test('writeInt32LE', (t) => {
-  const value = 0x05060708
-
-  const expectedBuffer = Buffer.from('08070605', 'hex')
-
-  const buffer = Buffer.alloc(4)
-  const bufferOffset = buffer.writeInt32LE(value, 0)
-  t.is(bufferOffset, 4)
-  t.alike(buffer, expectedBuffer)
-})
-
-test('readDoubleLE', (t) => {
-  const buffer = Buffer.from([1, 2, 3, 4, 5, 6, 7, 8])
-
-  const actual = buffer.readDoubleLE()
-  const expected = 5.447603722011605e-270
+  actual = bufferSub1.readInt32BE()
+  expected = -1 * 0x80000000
   t.is(actual, expected)
 })
 
@@ -251,84 +227,48 @@ test('readFloatLE', (t) => {
   t.is(actual, expected)
 })
 
-test('readUInt16LE', (t) => {
-  const buffer = Buffer.from([0x12, 0x34])
+test('readFloatBE', (t) => {
+  const buffer = Buffer.from([4, 3, 2, 1])
 
-  const actual = buffer.readUInt16LE().toString(16)
-  const expected = '3412'
+  const actual = buffer.readFloatBE()
+  const expected = 1.539989614439558e-36
   t.is(actual, expected)
 })
 
-test('readUInt32LE', (t) => {
-  const buffer = Buffer.from([0x12, 0x34, 0x56, 0x78])
+test('readDoubleLE', (t) => {
+  const buffer = Buffer.from([1, 2, 3, 4, 5, 6, 7, 8])
 
-  const actual = buffer.readUInt32LE().toString(16)
-  const expected = '78563412'
+  const actual = buffer.readDoubleLE()
+  const expected = 5.447603722011605e-270
   t.is(actual, expected)
 })
 
-test('readInt32LE', (t) => {
-  const buffer = Buffer.from([0, 0, 0, 5])
+test('readDoubleBE', (t) => {
+  const buffer = Buffer.from([8, 7, 6, 5, 4, 3, 2, 1])
 
-  const actual = buffer.readInt32LE()
-  const expected = 83886080
+  const actual = buffer.readDoubleBE()
+  const expected = 5.447603722011605e-270
   t.is(actual, expected)
 })
 
-test('writeDoubleBE', (t) => {
-  const value = 123.456
+test('writeInt8', (t) => assertWrite(t, { byteSize: 8, signed: false }))
+test('writeUInt8', (t) => assertWrite(t, { byteSize: 8, signed: true }))
 
-  const expectedBuffer = Buffer.from('405edd2f1a9fbe77', 'hex')
+test('writeInt16LE', (t) => assertWrite(t, { byteSize: 16, signed: true, littleEndian: true }))
+test('writeInt32LE', (t) => assertWrite(t, { byteSize: 32, signed: true, littleEndian: true }))
+test('writeBigInt64LE', (t) => assertWrite(t, { byteSize: 64, signed: true, littleEndian: true }))
 
-  const buffer = Buffer.alloc(8)
-  const bufferOffset = buffer.writeDoubleBE(value, 0)
-  t.is(bufferOffset, 8)
-  t.alike(buffer, expectedBuffer)
-})
+test('writeInt16BE', (t) => assertWrite(t, { byteSize: 16, signed: true, littleEndian: false }))
+test('writeInt32BE', (t) => assertWrite(t, { byteSize: 32, signed: true, littleEndian: false }))
+test('writeBigInt64BE', (t) => assertWrite(t, { byteSize: 64, signed: true, littleEndian: false }))
 
-test('writeFloatBE', (t) => {
-  const value = 0xcafebabe
+test('writeUInt16LE', (t) => assertWrite(t, { byteSize: 16, signed: false, littleEndian: true }))
+test('writeUInt32LE', (t) => assertWrite(t, { byteSize: 32, signed: false, littleEndian: true }))
+test('writeBigUInt64LE', (t) => assertWrite(t, { byteSize: 64, signed: false, littleEndian: true }))
 
-  const expectedBuffer = Buffer.from('4f4afebb', 'hex')
-
-  const buffer = Buffer.alloc(4)
-  const bufferOffset = buffer.writeFloatBE(value, 0)
-  t.is(bufferOffset, 4)
-  t.alike(buffer, expectedBuffer)
-})
-
-test('writeUInt16BE', (t) => {
-  const expectedBuffer = Buffer.from('deadbeef', 'hex')
-
-  const buffer = Buffer.alloc(4)
-
-  t.is(buffer.writeUInt16BE(0xdead, 0), 2)
-  t.is(buffer.writeUInt16BE(0xbeef, 2), 4)
-
-  t.alike(buffer, expectedBuffer)
-})
-
-test('writeUInt32BE', (t) => {
-  const value = 0xfeedface
-
-  const expectedBuffer = Buffer.from('feedface', 'hex')
-
-  const buffer = Buffer.alloc(4)
-  const bufferOffset = buffer.writeUInt32BE(value, 0)
-  t.is(bufferOffset, 4)
-  t.alike(buffer, expectedBuffer)
-})
-
-test('writeInt32BE', (t) => {
-  const value = 0x05060708
-
-  const expectedBuffer = Buffer.from('05060708', 'hex')
-
-  const buffer = Buffer.alloc(4)
-  const bufferOffset = buffer.writeInt32BE(value, 0)
-  t.is(bufferOffset, 4)
-  t.alike(buffer, expectedBuffer)
-})
+test('writeUInt16BE', (t) => assertWrite(t, { byteSize: 16, signed: false, littleEndian: false }))
+test('writeUInt32BE', (t) => assertWrite(t, { byteSize: 32, signed: false, littleEndian: false }))
+test('writeBigUInt64BE', (t) => assertWrite(t, { byteSize: 64, signed: false, littleEndian: false }))
 
 test('writeInt32BE - top bit set', (t) => {
   let value = -1
@@ -355,104 +295,101 @@ test('writeInt32BE - top bit set', (t) => {
   t.alike(buffer, expectedMaxSub1)
 })
 
-test('readDoubleBE', (t) => {
-  const buffer = Buffer.from([8, 7, 6, 5, 4, 3, 2, 1])
+test('writeFloatLE', (t) => {
+  const value = 0xcafebabe
 
-  const actual = buffer.readDoubleBE()
-  const expected = 5.447603722011605e-270
-  t.is(actual, expected)
+  const expectedBuffer = Buffer.from('bbfe4a4f', 'hex')
+
+  const buffer = Buffer.alloc(4)
+  const bufferOffset = buffer.writeFloatLE(value, 0)
+  t.is(bufferOffset, 4)
+  t.alike(buffer, expectedBuffer)
 })
 
-test('readFloatBE', (t) => {
-  const buffer = Buffer.from([4, 3, 2, 1])
+test('writeFloatBE', (t) => {
+  const value = 0xcafebabe
 
-  const actual = buffer.readFloatBE()
-  const expected = 1.539989614439558e-36
-  t.is(actual, expected)
+  const expectedBuffer = Buffer.from('4f4afebb', 'hex')
+
+  const buffer = Buffer.alloc(4)
+  const bufferOffset = buffer.writeFloatBE(value, 0)
+  t.is(bufferOffset, 4)
+  t.alike(buffer, expectedBuffer)
 })
 
-test('readUInt16BE', (t) => {
-  const buffer = Buffer.from([0x78, 0x56, 0x34, 0x12])
+test('writeDoubleLE', (t) => {
+  const value = 123.456
 
-  const actual = buffer.readUInt16BE(2).toString(16)
-  const expected = '3412'
-  t.is(actual, expected)
+  const expectedBuffer = Buffer.from('77be9f1a2fdd5e40', 'hex')
+
+  const buffer = Buffer.alloc(8)
+  const bufferOffset = buffer.writeDoubleLE(value, 0)
+  t.is(bufferOffset, 8)
+  t.alike(buffer, expectedBuffer)
 })
 
-test('readUInt32BE', (t) => {
-  const buffer = Buffer.from([0x78, 0x56, 0x34, 0x12])
+test('writeDoubleBE', (t) => {
+  const value = 123.456
 
-  const actual = buffer.readUInt32BE().toString(16)
-  const expected = '78563412'
-  t.is(actual, expected)
+  const expectedBuffer = Buffer.from('405edd2f1a9fbe77', 'hex')
+
+  const buffer = Buffer.alloc(8)
+  const bufferOffset = buffer.writeDoubleBE(value, 0)
+  t.is(bufferOffset, 8)
+  t.alike(buffer, expectedBuffer)
 })
 
-test('readInt32BE', (t) => {
-  const buffer = Buffer.from([5, 0, 0, 0])
+const inferMethodName = ({ prefix, byteSize, signed, littleEndian }) => {
+  const b = byteSize === 64 ? 'Big' : ''
+  const s = signed ? '' : 'U'
+  const e = byteSize === 8 ? '' : littleEndian ? 'LE' : 'BE'
 
-  const actual = buffer.readInt32BE()
-  const expected = 83886080
-  t.is(actual, expected)
-})
+  return prefix + b + s + 'Int' + byteSize + e
+}
 
-test('readInt32BE - top bit set', (t) => {
-  const buffer = Buffer.from([0xff, 0xff, 0xff, 0xff])
+const assertRead = (t, { byteSize, signed, littleEndian }) => {
+  const method = inferMethodName({ prefix: 'read', byteSize, signed, littleEndian })
 
-  let actual = buffer.readInt32BE()
-  let expected = -1
-  t.is(actual, expected)
+  t.test('endianness', (t) => {
+    const LE = [0xff, 0xde, 0xbc, 0x9a, 0x78, 0x56, 0x34, 0x12]
+    const BE = [0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xff]
 
-  const bufferMax = Buffer.from([0x80, 0, 0, 0x1])
+    const buffer = Buffer.from(littleEndian ? LE : BE)
+    const offset = littleEndian ? buffer.length - (byteSize / 8) : 0
 
-  actual = bufferMax.readInt32BE()
-  expected = -1 * 0x7fffffff
-  t.is(actual, expected)
+    const actual = buffer[method](offset).toString(16)
+    const expected = '123456789abcdeff'.slice(0, byteSize / 4)
 
-  const bufferSub1 = Buffer.from([0x80, 0, 0, 0])
+    t.is(actual, expected)
+  })
 
-  actual = bufferSub1.readInt32BE()
-  expected = -1 * 0x80000000
-  t.is(actual, expected)
-})
+  t.test('signedness', (t) => {
+    const buffer = Buffer.from([0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff])
 
-test('writeUInt8', (t) => {
-  const expected = Buffer.from('hello')
+    const actual = buffer[method]()
 
-  const buf = Buffer.alloc(5)
-  t.ok(buf.writeUInt8(104, 0) === 1)
-  t.ok(buf.writeUInt8(101, 1) === 2)
-  buf.writeUInt8(108, 2)
-  buf.writeUInt8(108, 3)
-  buf.writeUInt8(111, 4)
-  t.alike(expected, buf)
-})
+    const expectedUnsigned = byteSize === 64 ? 2n ** 64n - 1n : 2 ** byteSize - 1
+    const expectedSigned = byteSize === 64 ? -1n : -1
 
-test('writeInt8', (t) => {
-  const expected = Buffer.from([0xff, 0xff9c, 0xfdd5, 0x1c])
+    t.is(actual, signed ? expectedSigned : expectedUnsigned)
+  })
+}
 
-  const buf = Buffer.alloc(4)
-  t.ok(buf.writeInt8(-1, 0) === 1)
-  t.ok(buf.writeInt8(-100, 1) === 2)
-  buf.writeInt8(-43, 2)
-  buf.writeInt8(28, 3)
-  t.alike(expected, buf)
-})
+const assertWrite = (t, { byteSize, signed, littleEndian }) => {
+  const method = inferMethodName({ prefix: 'write', byteSize, signed, littleEndian })
 
-test('readUInt8', (t) => {
-  const buffer = Buffer.from([0xff, 0xff, 0xff, 0xff])
+  const LE = [0xde, 0xadde, 0xefbeadde, 0xefbeaddeefbeadden]
+  const BE = [0xde, 0xdead, 0xdeadbeef, 0xdeadbeefdeadbeefn]
 
-  let actual = buffer.readUInt8()
-  const expected = 255
-  t.is(actual, expected)
+  const index = Math.log2(byteSize) - 3
+  const bufferInput = littleEndian ? LE[index] : BE[index]
 
-  actual = buffer.readUint8() // alias
-  t.is(actual, expected)
-})
+  const buffer = Buffer.alloc(byteSize / 8)
+  const bufferOffset = buffer[method](bufferInput, 0)
 
-test('readInt8', (t) => {
-  const buffer = Buffer.from([0xff, 0xff, 0xff, 0xff])
+  const expected = 'deadbeefdeadbeef'.slice(0, byteSize / 4)
+  const expectedBuffer = Buffer.from(expected, 'hex')
 
-  const actual = buffer.readInt8()
-  const expected = -1
-  t.is(actual, expected)
-})
+  t.is(bufferOffset, byteSize / 8)
+  t.alike(buffer, expectedBuffer)
+}
