@@ -465,7 +465,7 @@ module.exports = exports = class Buffer extends Uint8Array {
 
 const Buffer = exports
 
-exports.Buffer = Buffer
+exports.Buffer = Buffer // For Node.js compatibility
 
 exports.constants = constants
 
