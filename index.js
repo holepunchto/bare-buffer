@@ -8,24 +8,24 @@ const binding = require('./binding')
 
 let poolSize = 0
 
-const Buffer = module.exports = exports = class Buffer extends Uint8Array {
+module.exports = exports = class Buffer extends Uint8Array {
   static {
     binding.tag(this)
   }
 
-  static get poolSize () {
+  static get poolSize() {
     return poolSize
   }
 
-  static set poolSize (value) {
+  static set poolSize(value) {
     poolSize = Math.max(0, value)
   }
 
-  [Symbol.species] () {
+  [Symbol.species]() {
     return Buffer
   }
 
-  copy (target, targetStart = 0, sourceStart = 0, sourceEnd = this.byteLength) {
+  copy(target, targetStart = 0, sourceStart = 0, sourceEnd = this.byteLength) {
     let source = this
 
     if (targetStart < 0) targetStart = 0
@@ -39,14 +39,18 @@ const Buffer = module.exports = exports = class Buffer extends Uint8Array {
     if (sourceEnd <= sourceStart) return 0
     if (sourceEnd > source.byteLength) sourceEnd = source.byteLength
 
-    if (sourceEnd - sourceStart > targetLength) sourceEnd = sourceStart + targetLength
+    if (sourceEnd - sourceStart > targetLength) {
+      sourceEnd = sourceStart + targetLength
+    }
 
     const sourceLength = sourceEnd - sourceStart
 
     if (source === target) {
       target.copyWithin(targetStart, sourceStart, sourceEnd)
     } else {
-      if (sourceStart !== 0 || sourceEnd !== source.byteLength) source = source.subarray(sourceStart, sourceEnd)
+      if (sourceStart !== 0 || sourceEnd !== source.byteLength) {
+        source = source.subarray(sourceStart, sourceEnd)
+      }
 
       target.set(source, targetStart)
     }
@@ -54,7 +58,7 @@ const Buffer = module.exports = exports = class Buffer extends Uint8Array {
     return sourceLength
   }
 
-  equals (target) {
+  equals(target) {
     const source = this
 
     if (source === target) return true
@@ -64,7 +68,13 @@ const Buffer = module.exports = exports = class Buffer extends Uint8Array {
     return binding.compare(source, target) === 0
   }
 
-  compare (target, targetStart = 0, targetEnd = target.byteLength, sourceStart = 0, sourceEnd = this.byteLength) {
+  compare(
+    target,
+    targetStart = 0,
+    targetEnd = target.byteLength,
+    sourceStart = 0,
+    sourceEnd = this.byteLength
+  ) {
     let source = this
 
     if (source === target) return 0
@@ -83,14 +93,18 @@ const Buffer = module.exports = exports = class Buffer extends Uint8Array {
     if (sourceEnd < sourceStart) sourceEnd = sourceStart
     if (sourceEnd > source.byteLength) sourceEnd = source.byteLength
 
-    if (sourceStart !== 0 || sourceEnd !== source.byteLength) source = source.subarray(sourceStart, sourceEnd)
+    if (sourceStart !== 0 || sourceEnd !== source.byteLength) {
+      source = source.subarray(sourceStart, sourceEnd)
+    }
 
-    if (targetStart !== 0 || targetEnd !== target.byteLength) target = target.subarray(targetStart, targetEnd)
+    if (targetStart !== 0 || targetEnd !== target.byteLength) {
+      target = target.subarray(targetStart, targetEnd)
+    }
 
     return binding.compare(source, target)
   }
 
-  fill (value, offset = 0, end = this.byteLength, encoding = 'utf8') {
+  fill(value, offset = 0, end = this.byteLength, encoding = 'utf8') {
     if (typeof value === 'string') {
       // fill(string, encoding)
       if (typeof offset === 'string') {
@@ -98,7 +112,7 @@ const Buffer = module.exports = exports = class Buffer extends Uint8Array {
         offset = 0
         end = this.byteLength
 
-      // fill(string, offset, encoding)
+        // fill(string, offset, encoding)
       } else if (typeof end === 'string') {
         encoding = end
         end = this.byteLength
@@ -128,36 +142,42 @@ const Buffer = module.exports = exports = class Buffer extends Uint8Array {
     return this
   }
 
-  includes (value, offset, encoding) {
+  includes(value, offset, encoding) {
     return this.indexOf(value, offset, encoding) !== -1
   }
 
-  indexOf (value, offset = 0, encoding) {
+  indexOf(value, offset = 0, encoding) {
     if (typeof value === 'number') return super.indexOf(value & 0xff, offset)
 
     return bidirectionalIndexOf(this, value, offset, encoding, true /* first */)
   }
 
-  lastIndexOf (value, offset = this.byteLength - 1, encoding) {
-    if (typeof value === 'number') return super.lastIndexOf(value & 0xff, offset)
+  lastIndexOf(value, offset = this.byteLength - 1, encoding) {
+    if (typeof value === 'number') {
+      return super.lastIndexOf(value & 0xff, offset)
+    }
 
     return bidirectionalIndexOf(this, value, offset, encoding, false /* last */)
   }
 
-  swap16 () {
+  swap16() {
     const length = this.byteLength
 
-    if (length % 2 !== 0) throw new RangeError('Buffer size must be a multiple of 16-bits')
+    if (length % 2 !== 0) {
+      throw new RangeError('Buffer size must be a multiple of 16-bits')
+    }
 
     for (let i = 0; i < length; i += 2) swap(this, i, i + 1)
 
     return this
   }
 
-  swap32 () {
+  swap32() {
     const length = this.byteLength
 
-    if (length % 4 !== 0) throw new RangeError('Buffer size must be a multiple of 32-bits')
+    if (length % 4 !== 0) {
+      throw new RangeError('Buffer size must be a multiple of 32-bits')
+    }
 
     for (let i = 0; i < length; i += 4) {
       swap(this, i, i + 3)
@@ -167,10 +187,12 @@ const Buffer = module.exports = exports = class Buffer extends Uint8Array {
     return this
   }
 
-  swap64 () {
+  swap64() {
     const length = this.byteLength
 
-    if (length % 8 !== 0) throw new RangeError('Buffer size must be a multiple of 64-bits')
+    if (length % 8 !== 0) {
+      throw new RangeError('Buffer size must be a multiple of 64-bits')
+    }
 
     for (let i = 0; i < length; i += 8) {
       swap(this, i, i + 7)
@@ -182,7 +204,7 @@ const Buffer = module.exports = exports = class Buffer extends Uint8Array {
     return this
   }
 
-  toString (encoding, start = 0, end = this.byteLength) {
+  toString(encoding, start = 0, end = this.byteLength) {
     // toString()
     if (arguments.length === 0) return utf8.toString(this)
 
@@ -197,12 +219,19 @@ const Buffer = module.exports = exports = class Buffer extends Uint8Array {
 
     let buffer = this
 
-    if (start !== 0 || end !== this.byteLength) buffer = buffer.subarray(start, end)
+    if (start !== 0 || end !== this.byteLength) {
+      buffer = buffer.subarray(start, end)
+    }
 
     return codecFor(encoding).toString(buffer)
   }
 
-  write (string, offset = 0, length = this.byteLength - offset, encoding = 'utf8') {
+  write(
+    string,
+    offset = 0,
+    length = this.byteLength - offset,
+    encoding = 'utf8'
+  ) {
     // write(string)
     if (arguments.length === 1) return utf8.write(this, string)
 
@@ -212,7 +241,7 @@ const Buffer = module.exports = exports = class Buffer extends Uint8Array {
       offset = 0
       length = this.byteLength
 
-    // write(string, offset, encoding)
+      // write(string, offset, encoding)
     } else if (typeof length === 'string') {
       encoding = length
       length = this.byteLength - offset
@@ -230,91 +259,213 @@ const Buffer = module.exports = exports = class Buffer extends Uint8Array {
 
     let buffer = this
 
-    if (start !== 0 || end !== this.byteLength) buffer = buffer.subarray(start, end)
+    if (start !== 0 || end !== this.byteLength) {
+      buffer = buffer.subarray(start, end)
+    }
 
     return codecFor(encoding).write(buffer, string)
   }
 
-  readBigInt64BE (offset = 0) { return viewOf(this).getBigInt64(offset, false) }
-  readBigInt64LE (offset = 0) { return viewOf(this).getBigInt64(offset, true) }
+  readBigInt64BE(offset = 0) {
+    return viewOf(this).getBigInt64(offset, false)
+  }
+  readBigInt64LE(offset = 0) {
+    return viewOf(this).getBigInt64(offset, true)
+  }
 
-  readBigUint64BE (offset = 0) { return viewOf(this).getBigUint64(offset, false) }
-  readBigUint64LE (offset = 0) { return viewOf(this).getBigUint64(offset, true) }
+  readBigUint64BE(offset = 0) {
+    return viewOf(this).getBigUint64(offset, false)
+  }
+  readBigUint64LE(offset = 0) {
+    return viewOf(this).getBigUint64(offset, true)
+  }
 
-  readDoubleBE (offset = 0) { return viewOf(this).getFloat64(offset, false) }
-  readDoubleLE (offset = 0) { return viewOf(this).getFloat64(offset, true) }
+  readDoubleBE(offset = 0) {
+    return viewOf(this).getFloat64(offset, false)
+  }
+  readDoubleLE(offset = 0) {
+    return viewOf(this).getFloat64(offset, true)
+  }
 
-  readFloatBE (offset = 0) { return viewOf(this).getFloat32(offset, false) }
-  readFloatLE (offset = 0) { return viewOf(this).getFloat32(offset, true) }
+  readFloatBE(offset = 0) {
+    return viewOf(this).getFloat32(offset, false)
+  }
+  readFloatLE(offset = 0) {
+    return viewOf(this).getFloat32(offset, true)
+  }
 
-  readInt8 (offset = 0) { return viewOf(this).getInt8(offset) }
+  readInt8(offset = 0) {
+    return viewOf(this).getInt8(offset)
+  }
 
-  readInt16BE (offset = 0) { return viewOf(this).getInt16(offset, false) }
-  readInt16LE (offset = 0) { return viewOf(this).getInt16(offset, true) }
+  readInt16BE(offset = 0) {
+    return viewOf(this).getInt16(offset, false)
+  }
+  readInt16LE(offset = 0) {
+    return viewOf(this).getInt16(offset, true)
+  }
 
-  readInt32BE (offset = 0) { return viewOf(this).getInt32(offset, false) }
-  readInt32LE (offset = 0) { return viewOf(this).getInt32(offset, true) }
+  readInt32BE(offset = 0) {
+    return viewOf(this).getInt32(offset, false)
+  }
+  readInt32LE(offset = 0) {
+    return viewOf(this).getInt32(offset, true)
+  }
 
-  readUint8 (offset = 0) { return viewOf(this).getUint8(offset) }
+  readUint8(offset = 0) {
+    return viewOf(this).getUint8(offset)
+  }
 
-  readUint16BE (offset = 0) { return viewOf(this).getUint16(offset, false) }
-  readUint16LE (offset = 0) { return viewOf(this).getUint16(offset, true) }
+  readUint16BE(offset = 0) {
+    return viewOf(this).getUint16(offset, false)
+  }
+  readUint16LE(offset = 0) {
+    return viewOf(this).getUint16(offset, true)
+  }
 
-  readUint32BE (offset = 0) { return viewOf(this).getUint32(offset, false) }
-  readUint32LE (offset = 0) { return viewOf(this).getUint32(offset, true) }
+  readUint32BE(offset = 0) {
+    return viewOf(this).getUint32(offset, false)
+  }
+  readUint32LE(offset = 0) {
+    return viewOf(this).getUint32(offset, true)
+  }
 
-  readBigUInt64BE (...args) { return this.readBigUint64BE(...args) }
-  readBigUInt64LE (...args) { return this.readBigUint64LE(...args) }
+  readBigUInt64BE(...args) {
+    return this.readBigUint64BE(...args)
+  }
+  readBigUInt64LE(...args) {
+    return this.readBigUint64LE(...args)
+  }
 
-  readUInt8 (...args) { return this.readUint8(...args) }
+  readUInt8(...args) {
+    return this.readUint8(...args)
+  }
 
-  readUInt16BE (...args) { return this.readUint16BE(...args) }
-  readUInt16LE (...args) { return this.readUint16LE(...args) }
+  readUInt16BE(...args) {
+    return this.readUint16BE(...args)
+  }
+  readUInt16LE(...args) {
+    return this.readUint16LE(...args)
+  }
 
-  readUInt32BE (...args) { return this.readUint32BE(...args) }
-  readUInt32LE (...args) { return this.readUint32LE(...args) }
+  readUInt32BE(...args) {
+    return this.readUint32BE(...args)
+  }
+  readUInt32LE(...args) {
+    return this.readUint32LE(...args)
+  }
 
-  writeBigInt64BE (value, offset = 0) { viewOf(this).setBigInt64(offset, value, false); return offset + 8 }
-  writeBigInt64LE (value, offset = 0) { viewOf(this).setBigInt64(offset, value, true); return offset + 8 }
+  writeBigInt64BE(value, offset = 0) {
+    viewOf(this).setBigInt64(offset, value, false)
+    return offset + 8
+  }
+  writeBigInt64LE(value, offset = 0) {
+    viewOf(this).setBigInt64(offset, value, true)
+    return offset + 8
+  }
 
-  writeBigUint64BE (value, offset = 0) { viewOf(this).setBigUint64(offset, value, false); return offset + 8 }
-  writeBigUint64LE (value, offset = 0) { viewOf(this).setBigUint64(offset, value, true); return offset + 8 }
+  writeBigUint64BE(value, offset = 0) {
+    viewOf(this).setBigUint64(offset, value, false)
+    return offset + 8
+  }
+  writeBigUint64LE(value, offset = 0) {
+    viewOf(this).setBigUint64(offset, value, true)
+    return offset + 8
+  }
 
-  writeDoubleBE (value, offset = 0) { viewOf(this).setFloat64(offset, value, false); return offset + 8 }
-  writeDoubleLE (value, offset = 0) { viewOf(this).setFloat64(offset, value, true); return offset + 8 }
+  writeDoubleBE(value, offset = 0) {
+    viewOf(this).setFloat64(offset, value, false)
+    return offset + 8
+  }
+  writeDoubleLE(value, offset = 0) {
+    viewOf(this).setFloat64(offset, value, true)
+    return offset + 8
+  }
 
-  writeFloatBE (value, offset = 0) { viewOf(this).setFloat32(offset, value, false); return offset + 4 }
-  writeFloatLE (value, offset = 0) { viewOf(this).setFloat32(offset, value, true); return offset + 4 }
+  writeFloatBE(value, offset = 0) {
+    viewOf(this).setFloat32(offset, value, false)
+    return offset + 4
+  }
+  writeFloatLE(value, offset = 0) {
+    viewOf(this).setFloat32(offset, value, true)
+    return offset + 4
+  }
 
-  writeInt8 (value, offset = 0) { viewOf(this).setInt8(offset, value); return offset + 1 }
+  writeInt8(value, offset = 0) {
+    viewOf(this).setInt8(offset, value)
+    return offset + 1
+  }
 
-  writeInt16BE (value, offset = 0) { viewOf(this).setInt16(offset, value, false); return offset + 2 }
-  writeInt16LE (value, offset = 0) { viewOf(this).setInt16(offset, value, true); return offset + 2 }
+  writeInt16BE(value, offset = 0) {
+    viewOf(this).setInt16(offset, value, false)
+    return offset + 2
+  }
+  writeInt16LE(value, offset = 0) {
+    viewOf(this).setInt16(offset, value, true)
+    return offset + 2
+  }
 
-  writeInt32BE (value, offset = 0) { viewOf(this).setInt32(offset, value, false); return offset + 4 }
-  writeInt32LE (value, offset = 0) { viewOf(this).setInt32(offset, value, true); return offset + 4 }
+  writeInt32BE(value, offset = 0) {
+    viewOf(this).setInt32(offset, value, false)
+    return offset + 4
+  }
+  writeInt32LE(value, offset = 0) {
+    viewOf(this).setInt32(offset, value, true)
+    return offset + 4
+  }
 
-  writeUint8 (value, offset = 0) { viewOf(this).setUint8(offset, value, true); return offset + 1 }
+  writeUint8(value, offset = 0) {
+    viewOf(this).setUint8(offset, value, true)
+    return offset + 1
+  }
 
-  writeUint16BE (value, offset = 0) { viewOf(this).setUint16(offset, value, false); return offset + 2 }
-  writeUint16LE (value, offset = 0) { viewOf(this).setUint16(offset, value, true); return offset + 2 }
+  writeUint16BE(value, offset = 0) {
+    viewOf(this).setUint16(offset, value, false)
+    return offset + 2
+  }
+  writeUint16LE(value, offset = 0) {
+    viewOf(this).setUint16(offset, value, true)
+    return offset + 2
+  }
 
-  writeUint32LE (value, offset = 0) { viewOf(this).setUint32(offset, value, true); return offset + 4 }
-  writeUint32BE (value, offset = 0) { viewOf(this).setUint32(offset, value, false); return offset + 4 }
+  writeUint32LE(value, offset = 0) {
+    viewOf(this).setUint32(offset, value, true)
+    return offset + 4
+  }
+  writeUint32BE(value, offset = 0) {
+    viewOf(this).setUint32(offset, value, false)
+    return offset + 4
+  }
 
-  writeBigUInt64BE (...args) { return this.writeBigUint64BE(...args) }
-  writeBigUInt64LE (...args) { return this.writeBigUint64LE(...args) }
+  writeBigUInt64BE(...args) {
+    return this.writeBigUint64BE(...args)
+  }
+  writeBigUInt64LE(...args) {
+    return this.writeBigUint64LE(...args)
+  }
 
-  writeUInt8 (...args) { return this.writeUint8(...args) }
+  writeUInt8(...args) {
+    return this.writeUint8(...args)
+  }
 
-  writeUInt16BE (...args) { return this.writeUint16BE(...args) }
-  writeUInt16LE (...args) { return this.writeUint16LE(...args) }
+  writeUInt16BE(...args) {
+    return this.writeUint16BE(...args)
+  }
+  writeUInt16LE(...args) {
+    return this.writeUint16LE(...args)
+  }
 
-  writeUInt32BE (...args) { return this.writeUint32BE(...args) }
-  writeUInt32LE (...args) { return this.writeUint32LE(...args) }
+  writeUInt32BE(...args) {
+    return this.writeUint32BE(...args)
+  }
+  writeUInt32LE(...args) {
+    return this.writeUint32LE(...args)
+  }
 }
 
-exports.Buffer = exports
+const Buffer = exports
+
+exports.Buffer = Buffer
 
 exports.constants = constants
 
@@ -326,7 +477,7 @@ codecs.hex = hex
 codecs.utf8 = codecs['utf-8'] = utf8
 codecs.utf16le = codecs.ucs2 = codecs['utf-16le'] = codecs['ucs-2'] = utf16le
 
-function codecFor (encoding = 'utf8') {
+function codecFor(encoding = 'utf8') {
   if (encoding in codecs) return codecs[encoding]
 
   encoding = encoding.toLowerCase()
@@ -338,7 +489,7 @@ function codecFor (encoding = 'utf8') {
 
 const views = new WeakMap()
 
-function viewOf (buffer) {
+function viewOf(buffer) {
   let view = views.get(buffer)
   if (view === undefined) {
     view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength)
@@ -347,7 +498,7 @@ function viewOf (buffer) {
   return view
 }
 
-exports.isBuffer = function isBuffer (value) {
+exports.isBuffer = function isBuffer(value) {
   if (typeof value !== 'object' || value === null) return false
 
   let constructor = value.constructor
@@ -361,7 +512,7 @@ exports.isBuffer = function isBuffer (value) {
   return false
 }
 
-exports.isEncoding = function isEncoding (encoding) {
+exports.isEncoding = function isEncoding(encoding) {
   try {
     codecFor(encoding)
     return true
@@ -370,13 +521,13 @@ exports.isEncoding = function isEncoding (encoding) {
   }
 }
 
-exports.alloc = function alloc (size, fill, encoding) {
+exports.alloc = function alloc(size, fill, encoding) {
   const buffer = new Buffer(size)
   if (fill !== undefined) buffer.fill(fill, 0, buffer.byteLength, encoding)
   return buffer
 }
 
-exports.allocUnsafe = function allocUnsafe (size) {
+exports.allocUnsafe = function allocUnsafe(size) {
   binding.setZeroFillEnabled(0)
   try {
     return new Buffer(size)
@@ -385,11 +536,11 @@ exports.allocUnsafe = function allocUnsafe (size) {
   }
 }
 
-exports.allocUnsafeSlow = function allocUnsafeSlow (size) {
+exports.allocUnsafeSlow = function allocUnsafeSlow(size) {
   return exports.allocUnsafe(size)
 }
 
-exports.byteLength = function byteLength (string, encoding) {
+exports.byteLength = function byteLength(string, encoding) {
   if (typeof string === 'string') {
     return codecFor(encoding).byteLength(string)
   }
@@ -397,11 +548,11 @@ exports.byteLength = function byteLength (string, encoding) {
   return string.byteLength
 }
 
-exports.compare = function compare (a, b) {
+exports.compare = function compare(a, b) {
   return binding.compare(a, b)
 }
 
-exports.concat = function concat (buffers, length) {
+exports.concat = function concat(buffers, length) {
   if (length === undefined) {
     length = buffers.reduce((length, buffer) => length + buffer.byteLength, 0)
   }
@@ -424,12 +575,12 @@ exports.concat = function concat (buffers, length) {
   return result
 }
 
-exports.coerce = function coerce (buffer) {
+exports.coerce = function coerce(buffer) {
   if (exports.isBuffer(buffer)) return buffer
   return new Buffer(buffer.buffer, buffer.byteOffset, buffer.byteLength)
 }
 
-exports.from = function from (value, encodingOrOffset, length) {
+exports.from = function from(value, encodingOrOffset, length) {
   // from(string, encoding)
   if (typeof value === 'string') return fromString(value, encodingOrOffset)
 
@@ -443,37 +594,37 @@ exports.from = function from (value, encodingOrOffset, length) {
   return fromArrayBuffer(value, encodingOrOffset, length)
 }
 
-function fromString (string, encoding) {
+function fromString(string, encoding) {
   const codec = codecFor(encoding)
   const buffer = new Buffer(codec.byteLength(string))
   codec.write(buffer, string)
   return buffer
 }
 
-function fromArray (array) {
+function fromArray(array) {
   const buffer = new Buffer(array.length)
   buffer.set(array)
   return buffer
 }
 
-function fromBuffer (buffer) {
+function fromBuffer(buffer) {
   const copy = new Buffer(buffer.byteLength)
   copy.set(buffer)
   return copy
 }
 
-function fromArrayBuffer (arrayBuffer, offset, length) {
+function fromArrayBuffer(arrayBuffer, offset, length) {
   return new Buffer(arrayBuffer, offset, length)
 }
 
-function bidirectionalIndexOf (buffer, value, offset, encoding, first) {
+function bidirectionalIndexOf(buffer, value, offset, encoding, first) {
   if (buffer.byteLength === 0) return -1
 
   if (typeof offset === 'string') {
     encoding = offset
     offset = 0
   } else if (offset === undefined) {
-    offset = first ? 0 : (buffer.byteLength - 1)
+    offset = first ? 0 : buffer.byteLength - 1
   } else if (offset < 0) {
     offset += buffer.byteLength
   }
@@ -524,7 +675,7 @@ function bidirectionalIndexOf (buffer, value, offset, encoding, first) {
   return -1
 }
 
-function swap (buffer, n, m) {
+function swap(buffer, n, m) {
   const i = buffer[n]
   buffer[n] = buffer[m]
   buffer[m] = i

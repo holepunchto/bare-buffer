@@ -41,20 +41,45 @@ test('compare', (t) => {
 
   t.test('varying alignment', (t) => {
     for (let i = 0; i < 10; i++) {
-      t.is(Buffer.compare(Buffer.alloc(i).subarray(i), Buffer.alloc(i).subarray(i)), 0, `offset ${i}`)
+      t.is(
+        Buffer.compare(
+          Buffer.alloc(i).subarray(i),
+          Buffer.alloc(i).subarray(i)
+        ),
+        0,
+        `offset ${i}`
+      )
     }
   })
 })
 
 test('concat', (t) => {
-  t.alike(Buffer.concat([Buffer.from([1, 2, 3]), Buffer.from([4, 5, 6])]), Buffer.from([1, 2, 3, 4, 5, 6]))
+  t.alike(
+    Buffer.concat([Buffer.from([1, 2, 3]), Buffer.from([4, 5, 6])]),
+    Buffer.from([1, 2, 3, 4, 5, 6])
+  )
 })
 
 test('concat with length', (t) => {
-  t.alike(Buffer.concat([Buffer.from([1, 2, 3]), Buffer.from([4, 5, 6])], 5), Buffer.from([1, 2, 3, 4, 5]))
-  t.alike(Buffer.concat([Buffer.from([1, 2, 3]), Buffer.from([4, 5, 6], [7, 8, 9])], 5), Buffer.from([1, 2, 3, 4, 5]))
-  t.alike(Buffer.concat([Buffer.from([1, 2, 3]), Buffer.from([4, 5, 6])], 6), Buffer.from([1, 2, 3, 4, 5, 6]))
-  t.alike(Buffer.concat([Buffer.from([1, 2, 3]), Buffer.from([4, 5, 6])], 7), Buffer.from([1, 2, 3, 4, 5, 6, 0]))
+  t.alike(
+    Buffer.concat([Buffer.from([1, 2, 3]), Buffer.from([4, 5, 6])], 5),
+    Buffer.from([1, 2, 3, 4, 5])
+  )
+  t.alike(
+    Buffer.concat(
+      [Buffer.from([1, 2, 3]), Buffer.from([4, 5, 6], [7, 8, 9])],
+      5
+    ),
+    Buffer.from([1, 2, 3, 4, 5])
+  )
+  t.alike(
+    Buffer.concat([Buffer.from([1, 2, 3]), Buffer.from([4, 5, 6])], 6),
+    Buffer.from([1, 2, 3, 4, 5, 6])
+  )
+  t.alike(
+    Buffer.concat([Buffer.from([1, 2, 3]), Buffer.from([4, 5, 6])], 7),
+    Buffer.from([1, 2, 3, 4, 5, 6, 0])
+  )
 })
 
 test('copy', (t) => {
@@ -85,7 +110,11 @@ test('equals', (t) => {
 
   t.test('varying alignment', (t) => {
     for (let i = 0; i < 10; i++) {
-      t.is(Buffer.alloc(i).subarray(i).equals(Buffer.alloc(i).subarray(i)), true, `offset ${i}`)
+      t.is(
+        Buffer.alloc(i).subarray(i).equals(Buffer.alloc(i).subarray(i)),
+        true,
+        `offset ${i}`
+      )
     }
   })
 })
@@ -183,21 +212,33 @@ test('isBuffer', (t) => {
 test('readInt8', (t) => assertRead(t, { byteSize: 8, signed: false }))
 test('readUInt8', (t) => assertRead(t, { byteSize: 8, signed: true }))
 
-test('readInt16LE', (t) => assertRead(t, { byteSize: 16, signed: true, littleEndian: true }))
-test('readInt32LE', (t) => assertRead(t, { byteSize: 32, signed: true, littleEndian: true }))
-test('readBigInt64LE', (t) => assertRead(t, { byteSize: 64, signed: true, littleEndian: true }))
+test('readInt16LE', (t) =>
+  assertRead(t, { byteSize: 16, signed: true, littleEndian: true }))
+test('readInt32LE', (t) =>
+  assertRead(t, { byteSize: 32, signed: true, littleEndian: true }))
+test('readBigInt64LE', (t) =>
+  assertRead(t, { byteSize: 64, signed: true, littleEndian: true }))
 
-test('readInt16BE', (t) => assertRead(t, { byteSize: 16, signed: true, littleEndian: false }))
-test('readInt32BE', (t) => assertRead(t, { byteSize: 32, signed: true, littleEndian: false }))
-test('readBigInt64BE', (t) => assertRead(t, { byteSize: 64, signed: true, littleEndian: false }))
+test('readInt16BE', (t) =>
+  assertRead(t, { byteSize: 16, signed: true, littleEndian: false }))
+test('readInt32BE', (t) =>
+  assertRead(t, { byteSize: 32, signed: true, littleEndian: false }))
+test('readBigInt64BE', (t) =>
+  assertRead(t, { byteSize: 64, signed: true, littleEndian: false }))
 
-test('readUInt16LE', (t) => assertRead(t, { byteSize: 16, signed: false, littleEndian: true }))
-test('readUInt32LE', (t) => assertRead(t, { byteSize: 32, signed: false, littleEndian: true }))
-test('readBigUInt64LE', (t) => assertRead(t, { byteSize: 64, signed: false, littleEndian: true }))
+test('readUInt16LE', (t) =>
+  assertRead(t, { byteSize: 16, signed: false, littleEndian: true }))
+test('readUInt32LE', (t) =>
+  assertRead(t, { byteSize: 32, signed: false, littleEndian: true }))
+test('readBigUInt64LE', (t) =>
+  assertRead(t, { byteSize: 64, signed: false, littleEndian: true }))
 
-test('readUInt16BE', (t) => assertRead(t, { byteSize: 16, signed: false, littleEndian: false }))
-test('readUInt32BE', (t) => assertRead(t, { byteSize: 32, signed: false, littleEndian: false }))
-test('readBigUInt64BE', (t) => assertRead(t, { byteSize: 64, signed: false, littleEndian: false }))
+test('readUInt16BE', (t) =>
+  assertRead(t, { byteSize: 16, signed: false, littleEndian: false }))
+test('readUInt32BE', (t) =>
+  assertRead(t, { byteSize: 32, signed: false, littleEndian: false }))
+test('readBigUInt64BE', (t) =>
+  assertRead(t, { byteSize: 64, signed: false, littleEndian: false }))
 
 test('readInt32BE - top bit set', (t) => {
   const buffer = Buffer.from([0xff, 0xff, 0xff, 0xff])
@@ -254,21 +295,33 @@ test('readDoubleBE', (t) => {
 test('writeInt8', (t) => assertWrite(t, { byteSize: 8, signed: false }))
 test('writeUInt8', (t) => assertWrite(t, { byteSize: 8, signed: true }))
 
-test('writeInt16LE', (t) => assertWrite(t, { byteSize: 16, signed: true, littleEndian: true }))
-test('writeInt32LE', (t) => assertWrite(t, { byteSize: 32, signed: true, littleEndian: true }))
-test('writeBigInt64LE', (t) => assertWrite(t, { byteSize: 64, signed: true, littleEndian: true }))
+test('writeInt16LE', (t) =>
+  assertWrite(t, { byteSize: 16, signed: true, littleEndian: true }))
+test('writeInt32LE', (t) =>
+  assertWrite(t, { byteSize: 32, signed: true, littleEndian: true }))
+test('writeBigInt64LE', (t) =>
+  assertWrite(t, { byteSize: 64, signed: true, littleEndian: true }))
 
-test('writeInt16BE', (t) => assertWrite(t, { byteSize: 16, signed: true, littleEndian: false }))
-test('writeInt32BE', (t) => assertWrite(t, { byteSize: 32, signed: true, littleEndian: false }))
-test('writeBigInt64BE', (t) => assertWrite(t, { byteSize: 64, signed: true, littleEndian: false }))
+test('writeInt16BE', (t) =>
+  assertWrite(t, { byteSize: 16, signed: true, littleEndian: false }))
+test('writeInt32BE', (t) =>
+  assertWrite(t, { byteSize: 32, signed: true, littleEndian: false }))
+test('writeBigInt64BE', (t) =>
+  assertWrite(t, { byteSize: 64, signed: true, littleEndian: false }))
 
-test('writeUInt16LE', (t) => assertWrite(t, { byteSize: 16, signed: false, littleEndian: true }))
-test('writeUInt32LE', (t) => assertWrite(t, { byteSize: 32, signed: false, littleEndian: true }))
-test('writeBigUInt64LE', (t) => assertWrite(t, { byteSize: 64, signed: false, littleEndian: true }))
+test('writeUInt16LE', (t) =>
+  assertWrite(t, { byteSize: 16, signed: false, littleEndian: true }))
+test('writeUInt32LE', (t) =>
+  assertWrite(t, { byteSize: 32, signed: false, littleEndian: true }))
+test('writeBigUInt64LE', (t) =>
+  assertWrite(t, { byteSize: 64, signed: false, littleEndian: true }))
 
-test('writeUInt16BE', (t) => assertWrite(t, { byteSize: 16, signed: false, littleEndian: false }))
-test('writeUInt32BE', (t) => assertWrite(t, { byteSize: 32, signed: false, littleEndian: false }))
-test('writeBigUInt64BE', (t) => assertWrite(t, { byteSize: 64, signed: false, littleEndian: false }))
+test('writeUInt16BE', (t) =>
+  assertWrite(t, { byteSize: 16, signed: false, littleEndian: false }))
+test('writeUInt32BE', (t) =>
+  assertWrite(t, { byteSize: 32, signed: false, littleEndian: false }))
+test('writeBigUInt64BE', (t) =>
+  assertWrite(t, { byteSize: 64, signed: false, littleEndian: false }))
 
 test('writeInt32BE - top bit set', (t) => {
   let value = -1
@@ -348,14 +401,19 @@ const inferMethodName = ({ prefix, byteSize, signed, littleEndian }) => {
 }
 
 const assertRead = (t, { byteSize, signed, littleEndian }) => {
-  const method = inferMethodName({ prefix: 'read', byteSize, signed, littleEndian })
+  const method = inferMethodName({
+    prefix: 'read',
+    byteSize,
+    signed,
+    littleEndian
+  })
 
   t.test('endianness', (t) => {
     const LE = [0xff, 0xde, 0xbc, 0x9a, 0x78, 0x56, 0x34, 0x12]
     const BE = [0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xff]
 
     const buffer = Buffer.from(littleEndian ? LE : BE)
-    const offset = littleEndian ? buffer.length - (byteSize / 8) : 0
+    const offset = littleEndian ? buffer.length - byteSize / 8 : 0
 
     const actual = buffer[method](offset).toString(16)
     const expected = '123456789abcdeff'.slice(0, byteSize / 4)
@@ -368,7 +426,8 @@ const assertRead = (t, { byteSize, signed, littleEndian }) => {
 
     const actual = buffer[method]()
 
-    const expectedUnsigned = byteSize === 64 ? 2n ** 64n - 1n : 2 ** byteSize - 1
+    const expectedUnsigned =
+      byteSize === 64 ? 2n ** 64n - 1n : 2 ** byteSize - 1
     const expectedSigned = byteSize === 64 ? -1n : -1
 
     t.is(actual, signed ? expectedSigned : expectedUnsigned)
@@ -376,7 +435,12 @@ const assertRead = (t, { byteSize, signed, littleEndian }) => {
 }
 
 const assertWrite = (t, { byteSize, signed, littleEndian }) => {
-  const method = inferMethodName({ prefix: 'write', byteSize, signed, littleEndian })
+  const method = inferMethodName({
+    prefix: 'write',
+    byteSize,
+    signed,
+    littleEndian
+  })
 
   const LE = [0xde, 0xadde, 0xefbeadde, 0xefbeaddeefbeadden]
   const BE = [0xde, 0xdead, 0xdeadbeef, 0xdeadbeefdeadbeefn]
