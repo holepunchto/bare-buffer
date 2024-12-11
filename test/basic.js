@@ -1,6 +1,13 @@
 const test = require('brittle')
 const Buffer = require('..')
 
+test('from', (t) => {
+  t.ok(Buffer.from('123'), 'from string')
+  t.ok(Buffer.from([1, 2, 3]), 'from array')
+  t.ok(Buffer.from(Buffer.from([1, 2, 3])), 'from buffer')
+  t.ok(Buffer.from(new ArrayBuffer(8)), 'from arraybuffer')
+})
+
 test('alloc', (t) => {
   t.is(Buffer.alloc(42).byteLength, 42)
 })
