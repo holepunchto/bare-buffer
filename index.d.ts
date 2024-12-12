@@ -1,17 +1,17 @@
-type TypedArray =
-  | Int8Array
-  | Uint8Array
-  | Uint8ClampedArray
-  | Int16Array
-  | Uint16Array
-  | Int32Array
-  | Uint32Array
-  | Float32Array
-  | Float64Array
-  | BigInt64Array
-  | BigUint64Array
+export type BufferEncoding =
+  | 'ascii'
+  | 'base64'
+  | 'hex'
+  | 'ucs-2'
+  | 'ucs2'
+  | 'utf-16le'
+  | 'utf-8'
+  | 'utf16le'
+  | 'utf8'
 
-export class Buffer extends Uint8Array {
+declare class Buffer extends Uint8Array {
+  static Buffer: this
+
   static poolSize: number
 
   compare(
@@ -31,34 +31,33 @@ export class Buffer extends Uint8Array {
 
   equals(target: Buffer): boolean
 
+  fill(value: string, encoding?: BufferEncoding): this
+  fill(value: string, offset?: number, encoding?: BufferEncoding): this
   fill(
-    value: Buffer | string | number | boolean,
+    value: string,
     offset?: number,
     end?: number,
-    encoding?: string
-  ): Buffer
+    encoding?: BufferEncoding
+  ): this
+  fill(value: Buffer | number | boolean, offset?: number, end?: number): this
 
-  includes(
-    value: Buffer | string | number,
-    offset?: number,
-    enconding?: string
-  ): boolean
+  includes(value: string, encoding?: BufferEncoding): boolean
+  includes(value: string, offset?: number, encoding?: BufferEncoding): boolean
+  includes(value: Buffer | number | boolean, offset?: number): boolean
 
-  indexOf(
-    value: Buffer | string | number,
-    offset?: number,
-    encoding?: string
-  ): number
+  indexOf(value: string, encoding?: BufferEncoding): number
+  indexOf(value: string, offset?: number, encoding?: BufferEncoding): number
+  indexOf(value: Buffer | number | boolean, offset?: number): number
 
-  lastIndexOf(
-    value: Buffer | string | number,
-    offset?: number,
-    encoding?: string
-  ): number
+  lastIndexOf(value: string, encoding?: BufferEncoding): number
+  lastIndexOf(value: string, offset?: number, encoding?: BufferEncoding): number
+  lastIndexOf(value: Buffer | number | boolean, offset?: number): number
 
-  swap16(): Buffer
-  swap32(): Buffer
-  swap64(): Buffer
+  swap16(): this
+  swap32(): this
+  swap64(): this
+
+  toString(encoding?: BufferEncoding, start?: number, end?: number): string
 
   readDoubleBE(offset?: number): number
   readDoubleLE(offset?: number): number
@@ -95,11 +94,13 @@ export class Buffer extends Uint8Array {
   readBigUInt64LE(offset?: number): bigint
   readBigUint64LE(offset?: number): bigint
 
+  write(string: string, encoding?: BufferEncoding): number
+  write(string: string, offset?: number, encoding?: BufferEncoding): number
   write(
     string: string,
     offset?: number,
     length?: number,
-    encoding?: string
+    encoding?: BufferEncoding
   ): number
 
   writeDoubleBE(value: number, offset?: number): number
@@ -136,49 +137,47 @@ export class Buffer extends Uint8Array {
   writeBigUInt64BE(value: bigint, offset?: number): number
   writeBigUint64LE(value: bigint, offset?: number): number
   writeBigUInt64LE(value: bigint, offset?: number): number
-
-  toString(encoding?: string, start?: number, end?: number): void
 }
 
-export function isBuffer(value: any): boolean
+declare namespace Buffer {
+  export function isBuffer(value: unknown): value is Buffer
 
-export function isEncoding(encoding: string): boolean
+  export function isEncoding(encoding: string): encoding is BufferEncoding
 
-export function alloc(
-  size: number,
-  fill?: Buffer | string | number | boolean,
-  encoding?: string
-): Buffer
+  export function alloc(
+    size: number,
+    fill: string,
+    encoding?: BufferEncoding
+  ): Buffer
 
-export function allocUnsafe(size: number): Buffer
+  export function alloc(size: number, fill?: Buffer | number | boolean): Buffer
 
-export function allocUnsafeSlow(size: number): Buffer
+  export function allocUnsafe(size: number): Buffer
 
-export function byteLength(
-  string:
-    | Buffer
-    | TypedArray
-    | DataView
-    | ArrayBuffer
-    | SharedArrayBuffer
-    | string,
-  encoding?: string
-): number
+  export function allocUnsafeSlow(size: number): Buffer
 
-export function compare(a: Buffer, b: Buffer): number
+  export function byteLength(
+    string: ArrayBufferView | ArrayBufferLike | string,
+    encoding?: BufferEncoding
+  ): number
 
-export function concat(buffers: Buffer[], length?: number): Buffer
+  export function compare(a: Buffer, b: Buffer): number
 
-export function coerce(buffer: Buffer): Buffer
+  export function concat(buffers: Buffer[], length?: number): Buffer
 
-export function from(buffer: Buffer | TypedArray | DataView | number[]): Buffer
-export function from(string: string, encoding?: string): Buffer
-export function from(
-  arrayBuffer: ArrayBuffer | SharedArrayBuffer,
-  offset?: number,
-  length?: number
-): Buffer
+  export function coerce(buffer: Buffer): Buffer
 
-export const constants: { MAX_LENGTH: number; MAX_STRING_LENGTH: number }
+  export function from(data: ArrayLike<number>): Buffer
+
+  export function from(string: string, encoding?: BufferEncoding): Buffer
+
+  export function from(
+    arrayBuffer: ArrayBufferLike,
+    offset?: number,
+    length?: number
+  ): Buffer
+
+  export const constants: { MAX_LENGTH: number; MAX_STRING_LENGTH: number }
+}
 
 export = Buffer

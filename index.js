@@ -147,12 +147,18 @@ module.exports = exports = class Buffer extends Uint8Array {
   }
 
   indexOf(value, offset = 0, encoding) {
-    if (typeof value === 'number') return super.indexOf(value & 0xff, offset)
+    if (typeof value === 'boolean') value = +value
+
+    if (typeof value === 'number') {
+      return super.indexOf(value & 0xff, offset)
+    }
 
     return bidirectionalIndexOf(this, value, offset, encoding, true /* first */)
   }
 
   lastIndexOf(value, offset = this.byteLength - 1, encoding) {
+    if (typeof value === 'boolean') value = +value
+
     if (typeof value === 'number') {
       return super.lastIndexOf(value & 0xff, offset)
     }
@@ -204,7 +210,7 @@ module.exports = exports = class Buffer extends Uint8Array {
     return this
   }
 
-  toString(encoding, start = 0, end = this.byteLength) {
+  toString(encoding = 'utf8', start = 0, end = this.byteLength) {
     // toString()
     if (arguments.length === 0) return utf8.toString(this)
 
