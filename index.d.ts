@@ -1,4 +1,4 @@
-export type BufferEncoding =
+type BufferEncoding =
   | 'ascii'
   | 'base64'
   | 'hex'
@@ -10,7 +10,7 @@ export type BufferEncoding =
   | 'utf8'
 
 declare class Buffer extends Uint8Array {
-  static Buffer: this
+  static Buffer: Buffer
 
   static poolSize: number
 
@@ -149,7 +149,6 @@ declare namespace Buffer {
     fill: string,
     encoding?: BufferEncoding
   ): Buffer
-
   export function alloc(size: number, fill?: Buffer | number | boolean): Buffer
 
   export function allocUnsafe(size: number): Buffer
@@ -167,10 +166,9 @@ declare namespace Buffer {
 
   export function coerce(buffer: Buffer): Buffer
 
+  export function from(data: Iterable<number>): Buffer
   export function from(data: ArrayLike<number>): Buffer
-
   export function from(string: string, encoding?: BufferEncoding): Buffer
-
   export function from(
     arrayBuffer: ArrayBufferLike,
     offset?: number,
