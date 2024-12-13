@@ -1,6 +1,13 @@
 const test = require('brittle')
 const Buffer = require('..')
 
+test('from', (t) => {
+  t.ok(Buffer.from('123'), 'from string')
+  t.ok(Buffer.from([1, 2, 3]), 'from array')
+  t.ok(Buffer.from(Buffer.from([1, 2, 3])), 'from buffer')
+  t.ok(Buffer.from(new ArrayBuffer(8)), 'from arraybuffer')
+})
+
 test('alloc', (t) => {
   t.is(Buffer.alloc(42).byteLength, 42)
 })
@@ -66,10 +73,7 @@ test('concat with length', (t) => {
     Buffer.from([1, 2, 3, 4, 5])
   )
   t.alike(
-    Buffer.concat(
-      [Buffer.from([1, 2, 3]), Buffer.from([4, 5, 6], [7, 8, 9])],
-      5
-    ),
+    Buffer.concat([Buffer.from([1, 2, 3]), Buffer.from([4, 5, 6])], 5),
     Buffer.from([1, 2, 3, 4, 5])
   )
   t.alike(
