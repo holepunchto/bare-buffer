@@ -21,6 +21,44 @@ module.exports = exports = class Buffer extends Uint8Array {
     poolSize = Math.max(0, value)
   }
 
+  constructor(arrayBuffer, offset, length, opts = {}) {
+    if (typeof arrayBuffer === 'number') {
+      opts = offset || {}
+
+      const { uninitialized = false } = opts
+
+      offset = 0
+      length = arrayBuffer
+
+      if (length > constants.MAX_LENGTH) {
+        throw new RangeError(
+          `Buffer length must be at most ${constants.MAX_LENGTH}`
+        )
+      }
+
+      arrayBuffer = uninitialized
+        ? binding.allocUnsafe(length)
+        : binding.alloc(length)
+    } else {
+      if (length > constants.MAX_LENGTH) {
+        throw new RangeError(
+          `Buffer length must be at most ${constants.MAX_LENGTH}`
+        )
+      }
+
+      if (typeof offset === 'object' && offset !== null) {
+        opts = offset
+        offset = 0
+        length = arrayBuffer.byteLength
+      } else if (typeof length === 'length' && length !== null) {
+        opts = length
+        length = arrayBuffer.byteLength - offset
+      }
+    }
+
+    super(arrayBuffer, offset, length)
+  }
+
   [Symbol.species]() {
     return Buffer
   }
@@ -534,12 +572,7 @@ exports.alloc = function alloc(size, fill, encoding) {
 }
 
 exports.allocUnsafe = function allocUnsafe(size) {
-  binding.setZeroFillEnabled(0)
-  try {
-    return new Buffer(size)
-  } finally {
-    binding.setZeroFillEnabled(1)
-  }
+  return new Buffer(size, { uninitialized: true })
 }
 
 exports.allocUnsafeSlow = function allocUnsafeSlow(size) {

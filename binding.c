@@ -10,13 +10,8 @@
 
 static js_type_tag_t bare_buffer__tag = {0xfea3e944b70b0812, 0xe53bb5c343c040b6};
 
-static void
-bare_buffer_set_zero_fill_enabled_fast (js_ffi_receiver_t *receiver, uint32_t enabled) {
-  js_set_arraybuffer_zero_fill_enabled(enabled != 0);
-}
-
 static js_value_t *
-bare_buffer_set_zero_fill_enabled (js_env_t *env, js_callback_info_t *info) {
+bare_buffer_alloc (js_env_t *env, js_callback_info_t *info) {
   int err;
 
   size_t argc = 1;
@@ -27,18 +22,38 @@ bare_buffer_set_zero_fill_enabled (js_env_t *env, js_callback_info_t *info) {
 
   assert(argc == 1);
 
-  uint32_t enabled;
-  err = js_get_value_uint32(env, argv[0], &enabled);
+  uint32_t len;
+  err = js_get_value_uint32(env, argv[0], &len);
   assert(err == 0);
 
-  js_set_arraybuffer_zero_fill_enabled(enabled != 0);
+  js_value_t *result;
+  err = js_create_arraybuffer(env, len, NULL, &result);
+  assert(err == 0);
 
-  return NULL;
+  return result;
 }
 
-static uint32_t
-bare_buffer_byte_length_utf8_fast (js_ffi_receiver_t *receiver, js_ffi_string_t *str) {
-  return utf8_length_from_latin1((const latin1_t *) str->data, str->len);
+static js_value_t *
+bare_buffer_alloc_unsafe (js_env_t *env, js_callback_info_t *info) {
+  int err;
+
+  size_t argc = 1;
+  js_value_t *argv[1];
+
+  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
+  assert(err == 0);
+
+  assert(argc == 1);
+
+  uint32_t len;
+  err = js_get_value_uint32(env, argv[0], &len);
+  assert(err == 0);
+
+  js_value_t *result;
+  err = js_create_unsafe_arraybuffer(env, len, NULL, &result);
+  assert(err == 0);
+
+  return result;
 }
 
 static js_value_t *
@@ -329,11 +344,6 @@ bare_buffer__compare (void *a, size_t a_len, void *b, size_t b_len) {
   return r < 0 ? -1 : 1;
 }
 
-static int32_t
-bare_buffer_compare_fast (js_ffi_receiver_t *recv, js_ffi_typedarray_t *a, js_ffi_typedarray_t *b) {
-  return bare_buffer__compare(a->data.u8, a->len, b->data.u8, b->len);
-}
-
 static js_value_t *
 bare_buffer_compare (js_env_t *env, js_callback_info_t *info) {
   int err;
@@ -408,105 +418,34 @@ static js_value_t *
 bare_buffer_exports (js_env_t *env, js_value_t *exports) {
   int err;
 
-#define V(name, fn, ffi) \
+#define V(name, fn) \
   { \
     js_value_t *val; \
-    if (ffi) { \
-      err = js_create_function_with_ffi(env, name, -1, fn, NULL, ffi, &val); \
-    } else { \
-      err = js_create_function(env, name, -1, fn, NULL, &val); \
-    } \
+    err = js_create_function(env, name, -1, fn, NULL, &val); \
     assert(err == 0); \
     err = js_set_named_property(env, exports, name, val); \
     assert(err == 0); \
   }
 
-  {
-    js_ffi_type_info_t *return_info;
-    err = js_ffi_create_type_info(js_ffi_void, &return_info);
-    assert(err == 0);
+  V("alloc", bare_buffer_alloc);
+  V("allocUnsafe", bare_buffer_alloc_unsafe);
 
-    js_ffi_type_info_t *arg_info[2];
+  V("byteLengthUTF8", bare_buffer_byte_length_utf8);
+  V("toStringUTF8", bare_buffer_to_string_utf8);
+  V("writeUTF8", bare_buffer_write_utf8);
 
-    err = js_ffi_create_type_info(js_ffi_receiver, &arg_info[0]);
-    assert(err == 0);
+  V("toStringUTF16LE", bare_buffer_to_string_utf16le);
+  V("writeUTF16LE", bare_buffer_write_utf16le);
 
-    err = js_ffi_create_type_info(js_ffi_uint32, &arg_info[1]);
-    assert(err == 0);
+  V("toStringBase64", bare_buffer_to_string_base64);
+  V("writeBase64", bare_buffer_write_base64);
 
-    js_ffi_function_info_t *function_info;
-    err = js_ffi_create_function_info(return_info, arg_info, 2, &function_info);
-    assert(err == 0);
+  V("toStringHex", bare_buffer_to_string_hex);
+  V("writeHex", bare_buffer_write_hex);
 
-    js_ffi_function_t *ffi;
-    err = js_ffi_create_function(bare_buffer_set_zero_fill_enabled_fast, function_info, &ffi);
-    assert(err == 0);
-
-    V("setZeroFillEnabled", bare_buffer_set_zero_fill_enabled, ffi);
-  }
-
-  {
-    js_ffi_type_info_t *return_info;
-    err = js_ffi_create_type_info(js_ffi_int32, &return_info);
-    assert(err == 0);
-
-    js_ffi_type_info_t *arg_info[2];
-
-    err = js_ffi_create_type_info(js_ffi_receiver, &arg_info[0]);
-    assert(err == 0);
-
-    err = js_ffi_create_type_info(js_ffi_string, &arg_info[1]);
-    assert(err == 0);
-
-    js_ffi_function_info_t *function_info;
-    err = js_ffi_create_function_info(return_info, arg_info, 2, &function_info);
-    assert(err == 0);
-
-    js_ffi_function_t *ffi;
-    err = js_ffi_create_function(bare_buffer_byte_length_utf8_fast, function_info, &ffi);
-    assert(err == 0);
-
-    V("byteLengthUTF8", bare_buffer_byte_length_utf8, ffi);
-  }
-
-  V("toStringUTF8", bare_buffer_to_string_utf8, NULL);
-  V("writeUTF8", bare_buffer_write_utf8, NULL);
-  V("toStringUTF16LE", bare_buffer_to_string_utf16le, NULL);
-  V("writeUTF16LE", bare_buffer_write_utf16le, NULL);
-  V("toStringBase64", bare_buffer_to_string_base64, NULL);
-  V("writeBase64", bare_buffer_write_base64, NULL);
-  V("toStringHex", bare_buffer_to_string_hex, NULL);
-  V("writeHex", bare_buffer_write_hex, NULL);
-
-  {
-    js_ffi_type_info_t *return_info;
-    err = js_ffi_create_type_info(js_ffi_int32, &return_info);
-    assert(err == 0);
-
-    js_ffi_type_info_t *arg_info[3];
-
-    err = js_ffi_create_type_info(js_ffi_receiver, &arg_info[0]);
-    assert(err == 0);
-
-    err = js_ffi_create_type_info(js_ffi_uint8array, &arg_info[1]);
-    assert(err == 0);
-
-    err = js_ffi_create_type_info(js_ffi_uint8array, &arg_info[2]);
-    assert(err == 0);
-
-    js_ffi_function_info_t *function_info;
-    err = js_ffi_create_function_info(return_info, arg_info, 3, &function_info);
-    assert(err == 0);
-
-    js_ffi_function_t *ffi;
-    err = js_ffi_create_function(bare_buffer_compare_fast, function_info, &ffi);
-    assert(err == 0);
-
-    V("compare", bare_buffer_compare, ffi);
-  }
-
-  V("tag", bare_buffer_tag, NULL)
-  V("isTagged", bare_buffer_is_tagged, NULL)
+  V("compare", bare_buffer_compare);
+  V("tag", bare_buffer_tag);
+  V("isTagged", bare_buffer_is_tagged);
 #undef V
 
   return exports;

@@ -10,10 +10,6 @@ type BufferEncoding =
   | 'utf8'
 
 declare class Buffer extends Uint8Array {
-  static Buffer: Buffer
-
-  static poolSize: number
-
   compare(
     target: Buffer,
     targetStart?: number,
@@ -140,6 +136,10 @@ declare class Buffer extends Uint8Array {
 }
 
 declare namespace Buffer {
+  export { Buffer }
+
+  export let poolSize: number
+
   export function isBuffer(value: unknown): value is Buffer
 
   export function isEncoding(encoding: string): encoding is BufferEncoding
