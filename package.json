@@ -35,6 +35,9 @@
     "url": "https://github.com/holepunchto/bare-buffer/issues"
   },
   "homepage": "https://github.com/holepunchto/bare-buffer#readme",
+  "engines": {
+    "bare": ">=1.13.0"
+  },
   "devDependencies": {
     "brittle": "^3.1.1",
     "cmake-bare": "^1.1.6",
