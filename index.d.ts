@@ -136,7 +136,7 @@ declare class Buffer extends Uint8Array {
 }
 
 declare namespace Buffer {
-  export { Buffer }
+  export { Buffer, BufferEncoding }
 
   export let poolSize: number
 
