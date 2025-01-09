@@ -1,6 +1,18 @@
 const test = require('brittle')
 const Buffer = require('../..')
 
+test("Buffer.byteLength(string, 'hex')", async (t) => {
+  const string = Buffer.alloc(4 * 1024, 'a').toString('hex')
+
+  const elapsed = await t.execution(() => {
+    for (let i = 0; i < 1e7; i++) {
+      Buffer.byteLength(string, 'hex')
+    }
+  })
+
+  t.comment(((1e7 / elapsed) * 1e3) | 0, 'ops/s')
+})
+
 test("Buffer.from(string, 'hex')", async (t) => {
   const string = Buffer.alloc(4 * 1024, 'a').toString('hex')
 
