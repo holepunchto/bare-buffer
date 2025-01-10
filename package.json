@@ -8,13 +8,17 @@
       "default": "./index.js"
     },
     "./package": "./package.json",
-    "./global": "./global.js",
+    "./global": {
+      "types": "./global.d.ts",
+      "default": "./global.js"
+    },
     "./constants": "./lib/constants.js"
   },
   "files": [
     "index.js",
     "index.d.ts",
     "global.js",
+    "global.d.ts",
     "binding.c",
     "binding.js",
     "CMakeLists.txt",

@@ -9,7 +9,7 @@ type BufferEncoding =
   | 'utf16le'
   | 'utf8'
 
-declare class Buffer extends Uint8Array {
+interface Buffer extends Uint8Array {
   compare(
     target: Buffer,
     targetStart?: number,
@@ -135,9 +135,11 @@ declare class Buffer extends Uint8Array {
   writeBigUInt64LE(value: bigint, offset?: number): number
 }
 
-declare namespace Buffer {
-  export { Buffer, BufferEncoding }
+declare class Buffer extends Uint8Array {
+  constructor(arrayBuffer: ArrayBuffer, offset?: number, length?: number)
+}
 
+declare namespace Buffer {
   export let poolSize: number
 
   export function isBuffer(value: unknown): value is Buffer
@@ -176,6 +178,8 @@ declare namespace Buffer {
   ): Buffer
 
   export const constants: { MAX_LENGTH: number; MAX_STRING_LENGTH: number }
+
+  export { Buffer, BufferEncoding }
 }
 
 export = Buffer
