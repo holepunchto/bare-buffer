@@ -1,3 +1,5 @@
+import constants from './lib/constants'
+
 type BufferEncoding =
   | 'ascii'
   | 'base64'
@@ -177,9 +179,7 @@ declare namespace Buffer {
     length?: number
   ): Buffer
 
-  export const constants: { MAX_LENGTH: number; MAX_STRING_LENGTH: number }
-
-  export { Buffer, BufferEncoding }
+  export { Buffer, type BufferEncoding, constants }
 }
 
 export = Buffer
