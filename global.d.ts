@@ -1,7 +1,9 @@
 import * as buffer from '.'
 
-declare global {
-  interface Buffer extends buffer.Buffer {}
+type BufferConstructor = typeof buffer.Buffer
 
-  class Buffer extends buffer.Buffer {}
+declare global {
+  type Buffer = buffer.Buffer
+
+  const Buffer: BufferConstructor
 }
