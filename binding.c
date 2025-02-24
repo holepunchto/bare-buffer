@@ -276,6 +276,83 @@ bare_buffer_write_utf16le (js_env_t *env, js_callback_info_t *info) {
 }
 
 static js_value_t *
+bare_buffer_to_string_latin1 (js_env_t *env, js_callback_info_t *info) {
+  int err;
+
+  size_t argc = 1;
+  js_value_t *argv[1];
+
+  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
+  assert(err == 0);
+
+  assert(argc == 1);
+
+  latin1_t *buf;
+  size_t buf_len;
+  err = js_get_typedarray_info(env, argv[0], NULL, (void **) &buf, &buf_len, NULL, NULL);
+  assert(err == 0);
+
+  js_value_t *result;
+  err = js_create_string_latin1(env, buf, buf_len, &result);
+  assert(err == 0);
+
+  return result;
+}
+
+static uint32_t
+bare_buffer_typed_write_latin1 (js_value_t *receiver, js_value_t *typedarray, js_value_t *string, js_typed_callback_info_t *info) {
+  int err;
+
+  js_env_t *env;
+  err = js_get_typed_callback_info(info, &env, NULL);
+  assert(err == 0);
+
+  void *buf;
+  size_t buf_len;
+
+  js_typedarray_view_t *buf_view;
+  err = js_get_typedarray_view(env, typedarray, NULL, &buf, &buf_len, &buf_view);
+  assert(err == 0);
+
+  size_t str_len;
+  err = js_get_value_string_latin1(env, string, buf, buf_len, &str_len);
+  assert(err == 0);
+
+  err = js_release_typedarray_view(env, buf_view);
+  assert(err == 0);
+
+  return (uint32_t) str_len;
+}
+
+static js_value_t *
+bare_buffer_write_latin1 (js_env_t *env, js_callback_info_t *info) {
+  int err;
+
+  size_t argc = 2;
+  js_value_t *argv[2];
+
+  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
+  assert(err == 0);
+
+  assert(argc == 2);
+
+  void *buf;
+  size_t buf_len;
+  err = js_get_typedarray_info(env, argv[0], NULL, &buf, &buf_len, NULL, NULL);
+  assert(err == 0);
+
+  size_t str_len;
+  err = js_get_value_string_latin1(env, argv[1], buf, buf_len, &str_len);
+  assert(err == 0);
+
+  js_value_t *result;
+  err = js_create_uint32(env, (uint32_t) str_len, &result);
+  assert(err == 0);
+
+  return result;
+}
+
+static js_value_t *
 bare_buffer_to_string_base64 (js_env_t *env, js_callback_info_t *info) {
   int err;
 
@@ -621,11 +698,11 @@ bare_buffer_exports (js_env_t *env, js_value_t *exports) {
   V(
     "byteLengthUTF8",
     bare_buffer_byte_length_utf8,
-    &((js_callback_signature_t) {
+    &((js_callback_signature_t){
       .version = 0,
       .result = js_uint32,
       .args_len = 2,
-      .args = (int[]) {
+      .args = (int[]){
         js_object,
         js_string,
       }
@@ -638,11 +715,11 @@ bare_buffer_exports (js_env_t *env, js_value_t *exports) {
   V(
     "writeUTF8",
     bare_buffer_write_utf8,
-    &((js_callback_signature_t) {
+    &((js_callback_signature_t){
       .version = 0,
       .result = js_uint32,
       .args_len = 3,
-      .args = (int[]) {
+      .args = (int[]){
         js_object,
         js_object,
         js_string,
@@ -656,11 +733,11 @@ bare_buffer_exports (js_env_t *env, js_value_t *exports) {
   V(
     "writeUTF16LE",
     bare_buffer_write_utf16le,
-    &((js_callback_signature_t) {
+    &((js_callback_signature_t){
       .version = 0,
       .result = js_uint32,
       .args_len = 3,
-      .args = (int[]) {
+      .args = (int[]){
         js_object,
         js_object,
         js_string,
@@ -669,16 +746,34 @@ bare_buffer_exports (js_env_t *env, js_value_t *exports) {
     bare_buffer_typed_write_utf16le
   );
 
+  V("toStringLatin1", bare_buffer_to_string_latin1, NULL, NULL);
+
+  V(
+    "writeLatin1",
+    bare_buffer_write_latin1,
+    &((js_callback_signature_t){
+      .version = 0,
+      .result = js_uint32,
+      .args_len = 3,
+      .args = (int[]){
+        js_object,
+        js_object,
+        js_string,
+      }
+    }),
+    bare_buffer_typed_write_latin1
+  );
+
   V("toStringBase64", bare_buffer_to_string_base64, NULL, NULL);
 
   V(
     "writeBase64",
     bare_buffer_write_base64,
-    &((js_callback_signature_t) {
+    &((js_callback_signature_t){
       .version = 0,
       .result = js_uint32,
       .args_len = 3,
-      .args = (int[]) {
+      .args = (int[]){
         js_object,
         js_object,
         js_string,
@@ -692,11 +787,11 @@ bare_buffer_exports (js_env_t *env, js_value_t *exports) {
   V(
     "writeHex",
     bare_buffer_write_hex,
-    &((js_callback_signature_t) {
+    &((js_callback_signature_t){
       .version = 0,
       .result = js_uint32,
       .args_len = 3,
-      .args = (int[]) {
+      .args = (int[]){
         js_object,
         js_object,
         js_string,
@@ -708,11 +803,11 @@ bare_buffer_exports (js_env_t *env, js_value_t *exports) {
   V(
     "compare",
     bare_buffer_compare,
-    &((js_callback_signature_t) {
+    &((js_callback_signature_t){
       .version = 0,
       .result = js_int32,
       .args_len = 3,
-      .args = (int[]) {
+      .args = (int[]){
         js_object,
         js_object,
         js_object,
