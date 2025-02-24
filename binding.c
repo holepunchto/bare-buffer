@@ -10,7 +10,7 @@
 static js_type_tag_t bare_buffer__tag = {0xfea3e944b70b0812, 0xe53bb5c343c040b6};
 
 static inline int
-bare_buffer__memcmp (void *a, size_t a_len, void *b, size_t b_len) {
+bare_buffer__memcmp(void *a, size_t a_len, void *b, size_t b_len) {
   int r = memcmp(a, b, a_len < b_len ? a_len : b_len);
 
   if (r == 0) {
@@ -23,12 +23,12 @@ bare_buffer__memcmp (void *a, size_t a_len, void *b, size_t b_len) {
 }
 
 static void
-bare_buffer__on_free_string (js_env_t *env, void *data, void *finalize_hint) {
+bare_buffer__on_free_string(js_env_t *env, void *data, void *finalize_hint) {
   free(data);
 }
 
 static js_value_t *
-bare_buffer_alloc (js_env_t *env, js_callback_info_t *info) {
+bare_buffer_alloc(js_env_t *env, js_callback_info_t *info) {
   int err;
 
   size_t argc = 1;
@@ -51,7 +51,7 @@ bare_buffer_alloc (js_env_t *env, js_callback_info_t *info) {
 }
 
 static js_value_t *
-bare_buffer_alloc_unsafe (js_env_t *env, js_callback_info_t *info) {
+bare_buffer_alloc_unsafe(js_env_t *env, js_callback_info_t *info) {
   int err;
 
   size_t argc = 1;
@@ -74,7 +74,7 @@ bare_buffer_alloc_unsafe (js_env_t *env, js_callback_info_t *info) {
 }
 
 static uint32_t
-bare_buffer_typed_byte_length_utf8 (js_value_t *receiver, js_value_t *str, js_typed_callback_info_t *info) {
+bare_buffer_typed_byte_length_utf8(js_value_t *receiver, js_value_t *str, js_typed_callback_info_t *info) {
   int err;
 
   js_env_t *env;
@@ -89,7 +89,7 @@ bare_buffer_typed_byte_length_utf8 (js_value_t *receiver, js_value_t *str, js_ty
 }
 
 static js_value_t *
-bare_buffer_byte_length_utf8 (js_env_t *env, js_callback_info_t *info) {
+bare_buffer_byte_length_utf8(js_env_t *env, js_callback_info_t *info) {
   int err;
 
   size_t argc = 1;
@@ -112,7 +112,7 @@ bare_buffer_byte_length_utf8 (js_env_t *env, js_callback_info_t *info) {
 }
 
 static js_value_t *
-bare_buffer_to_string_utf8 (js_env_t *env, js_callback_info_t *info) {
+bare_buffer_to_string_utf8(js_env_t *env, js_callback_info_t *info) {
   int err;
 
   size_t argc = 1;
@@ -136,7 +136,7 @@ bare_buffer_to_string_utf8 (js_env_t *env, js_callback_info_t *info) {
 }
 
 static uint32_t
-bare_buffer_typed_write_utf8 (js_value_t *receiver, js_value_t *typedarray, js_value_t *string, js_typed_callback_info_t *info) {
+bare_buffer_typed_write_utf8(js_value_t *receiver, js_value_t *typedarray, js_value_t *string, js_typed_callback_info_t *info) {
   int err;
 
   js_env_t *env;
@@ -161,7 +161,7 @@ bare_buffer_typed_write_utf8 (js_value_t *receiver, js_value_t *typedarray, js_v
 }
 
 static js_value_t *
-bare_buffer_write_utf8 (js_env_t *env, js_callback_info_t *info) {
+bare_buffer_write_utf8(js_env_t *env, js_callback_info_t *info) {
   int err;
 
   size_t argc = 2;
@@ -189,7 +189,7 @@ bare_buffer_write_utf8 (js_env_t *env, js_callback_info_t *info) {
 }
 
 static js_value_t *
-bare_buffer_to_string_utf16le (js_env_t *env, js_callback_info_t *info) {
+bare_buffer_to_string_utf16le(js_env_t *env, js_callback_info_t *info) {
   int err;
 
   size_t argc = 1;
@@ -215,7 +215,7 @@ bare_buffer_to_string_utf16le (js_env_t *env, js_callback_info_t *info) {
 }
 
 static uint32_t
-bare_buffer_typed_write_utf16le (js_value_t *receiver, js_value_t *typedarray, js_value_t *string, js_typed_callback_info_t *info) {
+bare_buffer_typed_write_utf16le(js_value_t *receiver, js_value_t *typedarray, js_value_t *string, js_typed_callback_info_t *info) {
   int err;
 
   js_env_t *env;
@@ -244,7 +244,7 @@ bare_buffer_typed_write_utf16le (js_value_t *receiver, js_value_t *typedarray, j
 }
 
 static js_value_t *
-bare_buffer_write_utf16le (js_env_t *env, js_callback_info_t *info) {
+bare_buffer_write_utf16le(js_env_t *env, js_callback_info_t *info) {
   int err;
 
   size_t argc = 2;
@@ -276,7 +276,84 @@ bare_buffer_write_utf16le (js_env_t *env, js_callback_info_t *info) {
 }
 
 static js_value_t *
-bare_buffer_to_string_base64 (js_env_t *env, js_callback_info_t *info) {
+bare_buffer_to_string_latin1(js_env_t *env, js_callback_info_t *info) {
+  int err;
+
+  size_t argc = 1;
+  js_value_t *argv[1];
+
+  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
+  assert(err == 0);
+
+  assert(argc == 1);
+
+  latin1_t *buf;
+  size_t buf_len;
+  err = js_get_typedarray_info(env, argv[0], NULL, (void **) &buf, &buf_len, NULL, NULL);
+  assert(err == 0);
+
+  js_value_t *result;
+  err = js_create_string_latin1(env, buf, buf_len, &result);
+  assert(err == 0);
+
+  return result;
+}
+
+static uint32_t
+bare_buffer_typed_write_latin1(js_value_t *receiver, js_value_t *typedarray, js_value_t *string, js_typed_callback_info_t *info) {
+  int err;
+
+  js_env_t *env;
+  err = js_get_typed_callback_info(info, &env, NULL);
+  assert(err == 0);
+
+  void *buf;
+  size_t buf_len;
+
+  js_typedarray_view_t *buf_view;
+  err = js_get_typedarray_view(env, typedarray, NULL, &buf, &buf_len, &buf_view);
+  assert(err == 0);
+
+  size_t str_len;
+  err = js_get_value_string_latin1(env, string, buf, buf_len, &str_len);
+  assert(err == 0);
+
+  err = js_release_typedarray_view(env, buf_view);
+  assert(err == 0);
+
+  return (uint32_t) str_len;
+}
+
+static js_value_t *
+bare_buffer_write_latin1(js_env_t *env, js_callback_info_t *info) {
+  int err;
+
+  size_t argc = 2;
+  js_value_t *argv[2];
+
+  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
+  assert(err == 0);
+
+  assert(argc == 2);
+
+  void *buf;
+  size_t buf_len;
+  err = js_get_typedarray_info(env, argv[0], NULL, &buf, &buf_len, NULL, NULL);
+  assert(err == 0);
+
+  size_t str_len;
+  err = js_get_value_string_latin1(env, argv[1], buf, buf_len, &str_len);
+  assert(err == 0);
+
+  js_value_t *result;
+  err = js_create_uint32(env, (uint32_t) str_len, &result);
+  assert(err == 0);
+
+  return result;
+}
+
+static js_value_t *
+bare_buffer_to_string_base64(js_env_t *env, js_callback_info_t *info) {
   int err;
 
   size_t argc = 1;
@@ -308,7 +385,7 @@ bare_buffer_to_string_base64 (js_env_t *env, js_callback_info_t *info) {
 }
 
 static uint32_t
-bare_buffer_typed_write_base64 (js_value_t *receiver, js_value_t *typedarray, js_value_t *string, js_typed_callback_info_t *info) {
+bare_buffer_typed_write_base64(js_value_t *receiver, js_value_t *typedarray, js_value_t *string, js_typed_callback_info_t *info) {
   int err;
 
   js_env_t *env;
@@ -348,7 +425,7 @@ bare_buffer_typed_write_base64 (js_value_t *receiver, js_value_t *typedarray, js
 }
 
 static js_value_t *
-bare_buffer_write_base64 (js_env_t *env, js_callback_info_t *info) {
+bare_buffer_write_base64(js_env_t *env, js_callback_info_t *info) {
   int err;
 
   size_t argc = 2;
@@ -391,7 +468,7 @@ bare_buffer_write_base64 (js_env_t *env, js_callback_info_t *info) {
 }
 
 static js_value_t *
-bare_buffer_to_string_hex (js_env_t *env, js_callback_info_t *info) {
+bare_buffer_to_string_hex(js_env_t *env, js_callback_info_t *info) {
   int err;
 
   size_t argc = 1;
@@ -423,7 +500,7 @@ bare_buffer_to_string_hex (js_env_t *env, js_callback_info_t *info) {
 }
 
 static uint32_t
-bare_buffer_typed_write_hex (js_value_t *receiver, js_value_t *typedarray, js_value_t *string, js_typed_callback_info_t *info) {
+bare_buffer_typed_write_hex(js_value_t *receiver, js_value_t *typedarray, js_value_t *string, js_typed_callback_info_t *info) {
   int err;
 
   js_env_t *env;
@@ -463,7 +540,7 @@ bare_buffer_typed_write_hex (js_value_t *receiver, js_value_t *typedarray, js_va
 }
 
 static js_value_t *
-bare_buffer_write_hex (js_env_t *env, js_callback_info_t *info) {
+bare_buffer_write_hex(js_env_t *env, js_callback_info_t *info) {
   int err;
 
   size_t argc = 2;
@@ -506,7 +583,7 @@ bare_buffer_write_hex (js_env_t *env, js_callback_info_t *info) {
 }
 
 static int32_t
-bare_buffer_typed_compare (js_value_t *receiver, js_value_t *source, js_value_t *target, js_typed_callback_info_t *info) {
+bare_buffer_typed_compare(js_value_t *receiver, js_value_t *source, js_value_t *target, js_typed_callback_info_t *info) {
   int err;
 
   js_env_t *env;
@@ -527,7 +604,7 @@ bare_buffer_typed_compare (js_value_t *receiver, js_value_t *source, js_value_t 
 }
 
 static js_value_t *
-bare_buffer_compare (js_env_t *env, js_callback_info_t *info) {
+bare_buffer_compare(js_env_t *env, js_callback_info_t *info) {
   int err;
 
   size_t argc = 2;
@@ -556,7 +633,7 @@ bare_buffer_compare (js_env_t *env, js_callback_info_t *info) {
 }
 
 static js_value_t *
-bare_buffer_tag (js_env_t *env, js_callback_info_t *info) {
+bare_buffer_tag(js_env_t *env, js_callback_info_t *info) {
   int err;
 
   size_t argc = 1;
@@ -574,7 +651,7 @@ bare_buffer_tag (js_env_t *env, js_callback_info_t *info) {
 }
 
 static js_value_t *
-bare_buffer_is_tagged (js_env_t *env, js_callback_info_t *info) {
+bare_buffer_is_tagged(js_env_t *env, js_callback_info_t *info) {
   int err;
 
   size_t argc = 1;
@@ -597,7 +674,7 @@ bare_buffer_is_tagged (js_env_t *env, js_callback_info_t *info) {
 }
 
 static js_value_t *
-bare_buffer_exports (js_env_t *env, js_value_t *exports) {
+bare_buffer_exports(js_env_t *env, js_value_t *exports) {
   int err;
 
 #define V(name, untyped, signature, typed) \
@@ -667,6 +744,24 @@ bare_buffer_exports (js_env_t *env, js_value_t *exports) {
       }
     }),
     bare_buffer_typed_write_utf16le
+  );
+
+  V("toStringLatin1", bare_buffer_to_string_latin1, NULL, NULL);
+
+  V(
+    "writeLatin1",
+    bare_buffer_write_latin1,
+    &((js_callback_signature_t) {
+      .version = 0,
+      .result = js_uint32,
+      .args_len = 3,
+      .args = (int[]) {
+        js_object,
+        js_object,
+        js_string,
+      }
+    }),
+    bare_buffer_typed_write_latin1
   );
 
   V("toStringBase64", bare_buffer_to_string_base64, NULL, NULL);

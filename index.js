@@ -4,6 +4,7 @@ const base64 = require('./lib/base64')
 const hex = require('./lib/hex')
 const utf8 = require('./lib/utf8')
 const utf16le = require('./lib/utf16le')
+const latin1 = require('./lib/latin1')
 const binding = require('./binding')
 
 let poolSize = 0
@@ -520,6 +521,7 @@ codecs.base64 = base64
 codecs.hex = hex
 codecs.utf8 = codecs['utf-8'] = utf8
 codecs.utf16le = codecs.ucs2 = codecs['utf-16le'] = codecs['ucs-2'] = utf16le
+codecs.latin1 = codecs.binary = latin1
 
 function codecFor(encoding = 'utf8') {
   if (encoding in codecs) return codecs[encoding]

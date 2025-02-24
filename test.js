@@ -1,4 +1,6 @@
 require('./test/basic')
 require('./test/base64')
 require('./test/hex')
+require('./test/latin1')
 require('./test/utf8')
+require('./test/utf16le')
