@@ -592,15 +592,27 @@ bare_buffer_typed_compare(js_value_t *receiver, js_value_t *source, js_value_t *
 
   void *a;
   size_t a_len;
-  err = js_get_typedarray_info(env, source, NULL, &a, &a_len, NULL, NULL);
+
+  js_typedarray_view_t *a_view;
+  err = js_get_typedarray_view(env, source, NULL, &a, &a_len, &a_view);
   assert(err == 0);
 
   void *b;
   size_t b_len;
-  err = js_get_typedarray_info(env, target, NULL, &b, &b_len, NULL, NULL);
+
+  js_typedarray_view_t *b_view;
+  err = js_get_typedarray_view(env, source, NULL, &b, &b_len, &a_view);
   assert(err == 0);
 
-  return bare_buffer__memcmp(a, a_len, b, b_len);
+  int result = bare_buffer__memcmp(a, a_len, b, b_len);
+
+  err = js_release_typedarray_view(env, a_view);
+  assert(err == 0);
+
+  err = js_release_typedarray_view(env, b_view);
+  assert(err == 0);
+
+  return result;
 }
 
 static js_value_t *
