@@ -601,7 +601,7 @@ bare_buffer_typed_compare(js_value_t *receiver, js_value_t *source, js_value_t *
   size_t b_len;
 
   js_typedarray_view_t *b_view;
-  err = js_get_typedarray_view(env, source, NULL, &b, &b_len, &a_view);
+  err = js_get_typedarray_view(env, source, NULL, &b, &b_len, &b_view);
   assert(err == 0);
 
   int result = bare_buffer__memcmp(a, a_len, b, b_len);
