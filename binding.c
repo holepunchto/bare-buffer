@@ -143,18 +143,20 @@ bare_buffer_typed_write_utf8(js_value_t *receiver, js_value_t *typedarray, js_va
   err = js_get_typed_callback_info(info, &env, NULL);
   assert(err == 0);
 
+  js_handle_scope_t *scope;
+  err = js_open_handle_scope(env, &scope);
+  assert(err == 0);
+
   void *buf;
   size_t buf_len;
-
-  js_typedarray_view_t *buf_view;
-  err = js_get_typedarray_view(env, typedarray, NULL, &buf, &buf_len, &buf_view);
+  err = js_get_typedarray_info(env, typedarray, NULL, &buf, &buf_len, NULL, NULL);
   assert(err == 0);
 
   size_t str_len;
   err = js_get_value_string_utf8(env, string, buf, buf_len, &str_len);
   assert(err == 0);
 
-  err = js_release_typedarray_view(env, buf_view);
+  err = js_close_handle_scope(env, scope);
   assert(err == 0);
 
   return (uint32_t) str_len;
@@ -222,11 +224,13 @@ bare_buffer_typed_write_utf16le(js_value_t *receiver, js_value_t *typedarray, js
   err = js_get_typed_callback_info(info, &env, NULL);
   assert(err == 0);
 
+  js_handle_scope_t *scope;
+  err = js_open_handle_scope(env, &scope);
+  assert(err == 0);
+
   void *buf;
   size_t buf_len;
-
-  js_typedarray_view_t *buf_view;
-  err = js_get_typedarray_view(env, typedarray, NULL, &buf, &buf_len, &buf_view);
+  err = js_get_typedarray_info(env, typedarray, NULL, &buf, &buf_len, NULL, NULL);
   assert(err == 0);
 
   buf_len /= sizeof(utf16_t);
@@ -237,7 +241,7 @@ bare_buffer_typed_write_utf16le(js_value_t *receiver, js_value_t *typedarray, js
 
   str_len *= sizeof(utf16_t);
 
-  err = js_release_typedarray_view(env, buf_view);
+  err = js_close_handle_scope(env, scope);
   assert(err == 0);
 
   return (uint32_t) str_len;
@@ -307,18 +311,20 @@ bare_buffer_typed_write_latin1(js_value_t *receiver, js_value_t *typedarray, js_
   err = js_get_typed_callback_info(info, &env, NULL);
   assert(err == 0);
 
+  js_handle_scope_t *scope;
+  err = js_open_handle_scope(env, &scope);
+  assert(err == 0);
+
   void *buf;
   size_t buf_len;
-
-  js_typedarray_view_t *buf_view;
-  err = js_get_typedarray_view(env, typedarray, NULL, &buf, &buf_len, &buf_view);
+  err = js_get_typedarray_info(env, typedarray, NULL, &buf, &buf_len, NULL, NULL);
   assert(err == 0);
 
   size_t str_len;
   err = js_get_value_string_latin1(env, string, buf, buf_len, &str_len);
   assert(err == 0);
 
-  err = js_release_typedarray_view(env, buf_view);
+  err = js_close_handle_scope(env, scope);
   assert(err == 0);
 
   return (uint32_t) str_len;
@@ -392,11 +398,13 @@ bare_buffer_typed_write_base64(js_value_t *receiver, js_value_t *typedarray, js_
   err = js_get_typed_callback_info(info, &env, NULL);
   assert(err == 0);
 
+  js_handle_scope_t *scope;
+  err = js_open_handle_scope(env, &scope);
+  assert(err == 0);
+
   void *buf;
   size_t buf_len;
-
-  js_typedarray_view_t *buf_view;
-  err = js_get_typedarray_view(env, typedarray, NULL, &buf, &buf_len, &buf_view);
+  err = js_get_typedarray_info(env, typedarray, NULL, &buf, &buf_len, NULL, NULL);
   assert(err == 0);
 
   js_string_encoding_t encoding;
@@ -418,7 +426,7 @@ bare_buffer_typed_write_base64(js_value_t *receiver, js_value_t *typedarray, js_
   err = js_release_string_view(env, str_view);
   assert(err == 0);
 
-  err = js_release_typedarray_view(env, buf_view);
+  err = js_close_handle_scope(env, scope);
   assert(err == 0);
 
   return buf_len;
@@ -507,11 +515,13 @@ bare_buffer_typed_write_hex(js_value_t *receiver, js_value_t *typedarray, js_val
   err = js_get_typed_callback_info(info, &env, NULL);
   assert(err == 0);
 
+  js_handle_scope_t *scope;
+  err = js_open_handle_scope(env, &scope);
+  assert(err == 0);
+
   void *buf;
   size_t buf_len;
-
-  js_typedarray_view_t *buf_view;
-  err = js_get_typedarray_view(env, typedarray, NULL, &buf, &buf_len, &buf_view);
+  err = js_get_typedarray_info(env, typedarray, NULL, &buf, &buf_len, NULL, NULL);
   assert(err == 0);
 
   js_string_encoding_t encoding;
@@ -533,7 +543,7 @@ bare_buffer_typed_write_hex(js_value_t *receiver, js_value_t *typedarray, js_val
   err = js_release_string_view(env, str_view);
   assert(err == 0);
 
-  err = js_release_typedarray_view(env, buf_view);
+  err = js_close_handle_scope(env, scope);
   assert(err == 0);
 
   return buf_len;
@@ -590,26 +600,23 @@ bare_buffer_typed_compare(js_value_t *receiver, js_value_t *source, js_value_t *
   err = js_get_typed_callback_info(info, &env, NULL);
   assert(err == 0);
 
+  js_handle_scope_t *scope;
+  err = js_open_handle_scope(env, &scope);
+  assert(err == 0);
+
   void *a;
   size_t a_len;
-
-  js_typedarray_view_t *a_view;
-  err = js_get_typedarray_view(env, source, NULL, &a, &a_len, &a_view);
+  err = js_get_typedarray_info(env, source, NULL, &a, &a_len, NULL, NULL);
   assert(err == 0);
 
   void *b;
   size_t b_len;
-
-  js_typedarray_view_t *b_view;
-  err = js_get_typedarray_view(env, target, NULL, &b, &b_len, &b_view);
+  err = js_get_typedarray_info(env, target, NULL, &b, &b_len, NULL, NULL);
   assert(err == 0);
 
   int result = bare_buffer__memcmp(a, a_len, b, b_len);
 
-  err = js_release_typedarray_view(env, a_view);
-  assert(err == 0);
-
-  err = js_release_typedarray_view(env, b_view);
+  err = js_close_handle_scope(env, scope);
   assert(err == 0);
 
   return result;
