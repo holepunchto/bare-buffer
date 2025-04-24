@@ -593,59 +593,71 @@ bare_buffer_write_hex(js_env_t *env, js_callback_info_t *info) {
 }
 
 static int32_t
-bare_buffer_typed_compare(js_value_t *receiver, js_value_t *source, js_value_t *target, js_typed_callback_info_t *info) {
+bare_buffer_typed_compare(
+  js_value_t *receiver,
+  js_value_t *a_handle,
+  uint32_t a_offset,
+  uint32_t a_len,
+  js_value_t *b_handle,
+  uint32_t b_offset,
+  uint32_t b_len,
+  js_typed_callback_info_t *info
+) {
   int err;
 
   js_env_t *env;
   err = js_get_typed_callback_info(info, &env, NULL);
   assert(err == 0);
 
-  js_handle_scope_t *scope;
-  err = js_open_handle_scope(env, &scope);
-  assert(err == 0);
-
   void *a;
-  size_t a_len;
-  err = js_get_typedarray_info(env, source, NULL, &a, &a_len, NULL, NULL);
+  err = js_get_arraybuffer_info(env, a_handle, &a, NULL);
   assert(err == 0);
 
   void *b;
-  size_t b_len;
-  err = js_get_typedarray_info(env, target, NULL, &b, &b_len, NULL, NULL);
+  err = js_get_arraybuffer_info(env, b_handle, &b, NULL);
   assert(err == 0);
 
-  int result = bare_buffer__memcmp(a, a_len, b, b_len);
-
-  err = js_close_handle_scope(env, scope);
-  assert(err == 0);
-
-  return result;
+  return bare_buffer__memcmp(&a[a_offset], a_len, &b[b_offset], b_len);
 }
 
 static js_value_t *
 bare_buffer_compare(js_env_t *env, js_callback_info_t *info) {
   int err;
 
-  size_t argc = 2;
-  js_value_t *argv[2];
+  size_t argc = 6;
+  js_value_t *argv[6];
 
   err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
   assert(err == 0);
 
-  assert(argc == 2);
+  assert(argc == 6);
 
   void *a;
-  size_t a_len;
-  err = js_get_typedarray_info(env, argv[0], NULL, &a, &a_len, NULL, NULL);
+  err = js_get_arraybuffer_info(env, argv[0], &a, NULL);
+  assert(err == 0);
+
+  uint32_t a_offset;
+  err = js_get_value_uint32(env, argv[1], &a_offset);
+  assert(err == 0);
+
+  uint32_t a_len;
+  err = js_get_value_uint32(env, argv[2], &a_len);
   assert(err == 0);
 
   void *b;
-  size_t b_len;
-  err = js_get_typedarray_info(env, argv[1], NULL, &b, &b_len, NULL, NULL);
+  err = js_get_arraybuffer_info(env, argv[3], &b, NULL);
+  assert(err == 0);
+
+  uint32_t b_offset;
+  err = js_get_value_uint32(env, argv[4], &b_offset);
+  assert(err == 0);
+
+  uint32_t b_len;
+  err = js_get_value_uint32(env, argv[5], &b_len);
   assert(err == 0);
 
   js_value_t *result;
-  err = js_create_int32(env, bare_buffer__memcmp(a, a_len, b, b_len), &result);
+  err = js_create_int32(env, bare_buffer__memcmp(&a[a_offset], a_len, &b[b_offset], b_len), &result);
   assert(err == 0);
 
   return result;
@@ -825,11 +837,15 @@ bare_buffer_exports(js_env_t *env, js_value_t *exports) {
     &((js_callback_signature_t) {
       .version = 0,
       .result = js_int32,
-      .args_len = 3,
+      .args_len = 7,
       .args = (int[]) {
         js_object,
         js_object,
+        js_uint32,
+        js_uint32,
         js_object,
+        js_uint32,
+        js_uint32,
       }
     }),
     bare_buffer_typed_compare
