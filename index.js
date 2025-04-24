@@ -545,6 +545,7 @@ function viewOf(buffer) {
 }
 
 exports.isBuffer = function isBuffer(value) {
+  if (value instanceof Buffer) return true
   if (typeof value !== 'object' || value === null) return false
 
   let constructor = value.constructor
