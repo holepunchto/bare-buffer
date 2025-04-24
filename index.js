@@ -104,7 +104,16 @@ module.exports = exports = class Buffer extends Uint8Array {
 
     if (source.byteLength !== target.byteLength) return false
 
-    return binding.compare(source, target) === 0
+    return (
+      binding.compare(
+        source.buffer,
+        source.byteOffset,
+        source.byteLength,
+        target.buffer,
+        target.byteOffset,
+        target.byteLength
+      ) === 0
+    )
   }
 
   compare(
@@ -118,29 +127,36 @@ module.exports = exports = class Buffer extends Uint8Array {
 
     if (source === target) return 0
 
-    if (arguments.length === 1) return binding.compare(source, target)
+    if (arguments.length > 1) {
+      if (targetStart < 0) targetStart = 0
+      if (targetStart > target.byteLength) targetStart = target.byteLength
 
-    if (targetStart < 0) targetStart = 0
-    if (targetStart > target.byteLength) targetStart = target.byteLength
+      if (targetEnd < targetStart) targetEnd = targetStart
+      if (targetEnd > target.byteLength) targetEnd = target.byteLength
 
-    if (targetEnd < targetStart) targetEnd = targetStart
-    if (targetEnd > target.byteLength) targetEnd = target.byteLength
+      if (sourceStart < 0) sourceStart = 0
+      if (sourceStart > source.byteLength) sourceStart = source.byteLength
 
-    if (sourceStart < 0) sourceStart = 0
-    if (sourceStart > source.byteLength) sourceStart = source.byteLength
+      if (sourceEnd < sourceStart) sourceEnd = sourceStart
+      if (sourceEnd > source.byteLength) sourceEnd = source.byteLength
 
-    if (sourceEnd < sourceStart) sourceEnd = sourceStart
-    if (sourceEnd > source.byteLength) sourceEnd = source.byteLength
+      if (sourceStart !== 0 || sourceEnd !== source.byteLength) {
+        source = source.subarray(sourceStart, sourceEnd)
+      }
 
-    if (sourceStart !== 0 || sourceEnd !== source.byteLength) {
-      source = source.subarray(sourceStart, sourceEnd)
+      if (targetStart !== 0 || targetEnd !== target.byteLength) {
+        target = target.subarray(targetStart, targetEnd)
+      }
     }
 
-    if (targetStart !== 0 || targetEnd !== target.byteLength) {
-      target = target.subarray(targetStart, targetEnd)
-    }
-
-    return binding.compare(source, target)
+    return binding.compare(
+      source.buffer,
+      source.byteOffset,
+      source.byteLength,
+      target.buffer,
+      target.byteOffset,
+      target.byteLength
+    )
   }
 
   fill(value, offset = 0, end = this.byteLength, encoding = 'utf8') {
@@ -591,7 +607,14 @@ exports.byteLength = function byteLength(string, encoding) {
 }
 
 exports.compare = function compare(a, b) {
-  return binding.compare(a, b)
+  return binding.compare(
+    a.buffer,
+    a.byteOffset,
+    a.byteLength,
+    b.buffer,
+    b.byteOffset,
+    b.byteLength
+  )
 }
 
 exports.concat = function concat(buffers, length) {
