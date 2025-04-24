@@ -7,11 +7,13 @@ const utf16le = require('./lib/utf16le')
 const latin1 = require('./lib/latin1')
 const binding = require('./binding')
 
+const kind = Symbol.for('bare.buffer.kind')
+
 let poolSize = 0
 
 module.exports = exports = class Buffer extends Uint8Array {
-  static {
-    binding.tag(this)
+  static get [kind]() {
+    return 0 // Compatibility version
   }
 
   static get poolSize() {
@@ -60,8 +62,8 @@ module.exports = exports = class Buffer extends Uint8Array {
     super(arrayBuffer, offset, length)
   }
 
-  [Symbol.species]() {
-    return Buffer
+  get [kind]() {
+    return Buffer[kind]
   }
 
   copy(target, targetStart = 0, sourceStart = 0, sourceEnd = this.byteLength) {
@@ -562,17 +564,10 @@ function viewOf(buffer) {
 
 exports.isBuffer = function isBuffer(value) {
   if (value instanceof Buffer) return true
-  if (typeof value !== 'object' || value === null) return false
 
-  let constructor = value.constructor
-
-  while (typeof constructor === 'function') {
-    if (binding.isTagged(constructor)) return true
-
-    constructor = Reflect.getPrototypeOf(constructor)
-  }
-
-  return false
+  return (
+    typeof value === 'object' && value !== null && value[kind] === Buffer[kind]
+  )
 }
 
 exports.isEncoding = function isEncoding(encoding) {
