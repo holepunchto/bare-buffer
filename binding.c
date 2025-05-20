@@ -21,7 +21,7 @@ bare_buffer__memcmp(void *a, size_t a_len, void *b, size_t b_len) {
 }
 
 static void
-bare_buffer__on_free_string(js_env_t *env, void *data, void *finalize_hint) {
+bare_buffer__on_finalize_string(js_env_t *env, void *data, void *finalize_hint) {
   free(data);
 }
 
@@ -113,48 +113,54 @@ static js_value_t *
 bare_buffer_to_string_utf8(js_env_t *env, js_callback_info_t *info) {
   int err;
 
-  size_t argc = 1;
-  js_value_t *argv[1];
+  size_t argc = 3;
+  js_value_t *argv[3];
 
   err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
   assert(err == 0);
 
-  assert(argc == 1);
+  assert(argc == 3);
 
   utf8_t *buf;
-  size_t buf_len;
-  err = js_get_typedarray_info(env, argv[0], NULL, (void **) &buf, &buf_len, NULL, NULL);
+  err = js_get_arraybuffer_info(env, argv[0], (void **) &buf, NULL);
+  assert(err == 0);
+
+  uint32_t offset;
+  err = js_get_value_uint32(env, argv[1], &offset);
+  assert(err == 0);
+
+  uint32_t len;
+  err = js_get_value_uint32(env, argv[2], &len);
   assert(err == 0);
 
   js_value_t *result;
-  err = js_create_string_utf8(env, buf, buf_len, &result);
+  err = js_create_string_utf8(env, &buf[offset], len, &result);
   assert(err == 0);
 
   return result;
 }
 
 static uint32_t
-bare_buffer_typed_write_utf8(js_value_t *receiver, js_value_t *typedarray, js_value_t *string, js_typed_callback_info_t *info) {
+bare_buffer_typed_write_utf8(
+  js_value_t *receiver,
+  js_value_t *handle,
+  uint32_t offset,
+  uint32_t len,
+  js_value_t *string,
+  js_typed_callback_info_t *info
+) {
   int err;
 
   js_env_t *env;
   err = js_get_typed_callback_info(info, &env, NULL);
   assert(err == 0);
 
-  js_handle_scope_t *scope;
-  err = js_open_handle_scope(env, &scope);
-  assert(err == 0);
-
-  void *buf;
-  size_t buf_len;
-  err = js_get_typedarray_info(env, typedarray, NULL, &buf, &buf_len, NULL, NULL);
+  utf8_t *buf;
+  err = js_get_arraybuffer_info(env, handle, (void **) &buf, NULL);
   assert(err == 0);
 
   size_t str_len;
-  err = js_get_value_string_utf8(env, string, buf, buf_len, &str_len);
-  assert(err == 0);
-
-  err = js_close_handle_scope(env, scope);
+  err = js_get_value_string_utf8(env, string, &buf[offset], len, &str_len);
   assert(err == 0);
 
   return (uint32_t) str_len;
@@ -164,21 +170,28 @@ static js_value_t *
 bare_buffer_write_utf8(js_env_t *env, js_callback_info_t *info) {
   int err;
 
-  size_t argc = 2;
-  js_value_t *argv[2];
+  size_t argc = 4;
+  js_value_t *argv[4];
 
   err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
   assert(err == 0);
 
-  assert(argc == 2);
+  assert(argc == 4);
 
-  void *buf;
-  size_t buf_len;
-  err = js_get_typedarray_info(env, argv[0], NULL, &buf, &buf_len, NULL, NULL);
+  utf8_t *buf;
+  err = js_get_arraybuffer_info(env, argv[0], (void **) &buf, NULL);
+  assert(err == 0);
+
+  uint32_t offset;
+  err = js_get_value_uint32(env, argv[1], &offset);
+  assert(err == 0);
+
+  uint32_t len;
+  err = js_get_value_uint32(env, argv[2], &len);
   assert(err == 0);
 
   size_t str_len;
-  err = js_get_value_string_utf8(env, argv[1], buf, buf_len, &str_len);
+  err = js_get_value_string_utf8(env, argv[3], &buf[offset], len, &str_len);
   assert(err == 0);
 
   js_value_t *result;
@@ -192,55 +205,63 @@ static js_value_t *
 bare_buffer_to_string_utf16le(js_env_t *env, js_callback_info_t *info) {
   int err;
 
-  size_t argc = 1;
-  js_value_t *argv[1];
+  size_t argc = 3;
+  js_value_t *argv[3];
 
   err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
   assert(err == 0);
 
-  assert(argc == 1);
+  assert(argc == 3);
 
   utf16_t *buf;
-  size_t buf_len;
-  err = js_get_typedarray_info(env, argv[0], NULL, (void **) &buf, &buf_len, NULL, NULL);
+  err = js_get_arraybuffer_info(env, argv[0], (void **) &buf, NULL);
   assert(err == 0);
 
-  buf_len /= sizeof(utf16_t);
+  uint32_t offset;
+  err = js_get_value_uint32(env, argv[1], &offset);
+  assert(err == 0);
+
+  uint32_t len;
+  err = js_get_value_uint32(env, argv[2], &len);
+  assert(err == 0);
+
+  offset /= sizeof(utf16_t);
+  len /= sizeof(utf16_t);
 
   js_value_t *result;
-  err = js_create_string_utf16le(env, buf, buf_len, &result);
+  err = js_create_string_utf16le(env, &buf[offset], len, &result);
   assert(err == 0);
 
   return result;
 }
 
 static uint32_t
-bare_buffer_typed_write_utf16le(js_value_t *receiver, js_value_t *typedarray, js_value_t *string, js_typed_callback_info_t *info) {
+bare_buffer_typed_write_utf16le(
+  js_value_t *receiver,
+  js_value_t *handle,
+  uint32_t offset,
+  uint32_t len,
+  js_value_t *string,
+  js_typed_callback_info_t *info
+) {
   int err;
 
   js_env_t *env;
   err = js_get_typed_callback_info(info, &env, NULL);
   assert(err == 0);
 
-  js_handle_scope_t *scope;
-  err = js_open_handle_scope(env, &scope);
+  utf16_t *buf;
+  err = js_get_arraybuffer_info(env, handle, (void **) &buf, NULL);
   assert(err == 0);
 
-  void *buf;
-  size_t buf_len;
-  err = js_get_typedarray_info(env, typedarray, NULL, &buf, &buf_len, NULL, NULL);
-  assert(err == 0);
-
-  buf_len /= sizeof(utf16_t);
+  offset /= sizeof(utf16_t);
+  len /= sizeof(utf16_t);
 
   size_t str_len;
-  err = js_get_value_string_utf16le(env, string, buf, buf_len, &str_len);
+  err = js_get_value_string_utf16le(env, string, &buf[offset], len, &str_len);
   assert(err == 0);
 
   str_len *= sizeof(utf16_t);
-
-  err = js_close_handle_scope(env, scope);
-  assert(err == 0);
 
   return (uint32_t) str_len;
 }
@@ -249,23 +270,31 @@ static js_value_t *
 bare_buffer_write_utf16le(js_env_t *env, js_callback_info_t *info) {
   int err;
 
-  size_t argc = 2;
-  js_value_t *argv[2];
+  size_t argc = 4;
+  js_value_t *argv[4];
 
   err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
   assert(err == 0);
 
-  assert(argc == 2);
+  assert(argc == 4);
 
-  void *buf;
-  size_t buf_len;
-  err = js_get_typedarray_info(env, argv[0], NULL, &buf, &buf_len, NULL, NULL);
+  utf16_t *buf;
+  err = js_get_arraybuffer_info(env, argv[0], (void **) &buf, NULL);
   assert(err == 0);
 
-  buf_len /= sizeof(utf16_t);
+  uint32_t offset;
+  err = js_get_value_uint32(env, argv[1], &offset);
+  assert(err == 0);
+
+  uint32_t len;
+  err = js_get_value_uint32(env, argv[2], &len);
+  assert(err == 0);
+
+  offset /= sizeof(utf16_t);
+  len /= sizeof(utf16_t);
 
   size_t str_len;
-  err = js_get_value_string_utf16le(env, argv[1], buf, buf_len, &str_len);
+  err = js_get_value_string_utf16le(env, argv[3], &buf[offset], len, &str_len);
   assert(err == 0);
 
   str_len *= sizeof(utf16_t);
@@ -281,48 +310,54 @@ static js_value_t *
 bare_buffer_to_string_latin1(js_env_t *env, js_callback_info_t *info) {
   int err;
 
-  size_t argc = 1;
-  js_value_t *argv[1];
+  size_t argc = 3;
+  js_value_t *argv[3];
 
   err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
   assert(err == 0);
 
-  assert(argc == 1);
+  assert(argc == 3);
 
   latin1_t *buf;
-  size_t buf_len;
-  err = js_get_typedarray_info(env, argv[0], NULL, (void **) &buf, &buf_len, NULL, NULL);
+  err = js_get_arraybuffer_info(env, argv[0], (void **) &buf, NULL);
+  assert(err == 0);
+
+  uint32_t offset;
+  err = js_get_value_uint32(env, argv[1], &offset);
+  assert(err == 0);
+
+  uint32_t len;
+  err = js_get_value_uint32(env, argv[2], &len);
   assert(err == 0);
 
   js_value_t *result;
-  err = js_create_string_latin1(env, buf, buf_len, &result);
+  err = js_create_string_latin1(env, &buf[offset], len, &result);
   assert(err == 0);
 
   return result;
 }
 
 static uint32_t
-bare_buffer_typed_write_latin1(js_value_t *receiver, js_value_t *typedarray, js_value_t *string, js_typed_callback_info_t *info) {
+bare_buffer_typed_write_latin1(
+  js_value_t *receiver,
+  js_value_t *handle,
+  uint32_t offset,
+  uint32_t len,
+  js_value_t *string,
+  js_typed_callback_info_t *info
+) {
   int err;
 
   js_env_t *env;
   err = js_get_typed_callback_info(info, &env, NULL);
   assert(err == 0);
 
-  js_handle_scope_t *scope;
-  err = js_open_handle_scope(env, &scope);
-  assert(err == 0);
-
-  void *buf;
-  size_t buf_len;
-  err = js_get_typedarray_info(env, typedarray, NULL, &buf, &buf_len, NULL, NULL);
+  latin1_t *buf;
+  err = js_get_arraybuffer_info(env, handle, (void **) &buf, NULL);
   assert(err == 0);
 
   size_t str_len;
-  err = js_get_value_string_latin1(env, string, buf, buf_len, &str_len);
-  assert(err == 0);
-
-  err = js_close_handle_scope(env, scope);
+  err = js_get_value_string_latin1(env, string, &buf[offset], len, &str_len);
   assert(err == 0);
 
   return (uint32_t) str_len;
@@ -332,21 +367,28 @@ static js_value_t *
 bare_buffer_write_latin1(js_env_t *env, js_callback_info_t *info) {
   int err;
 
-  size_t argc = 2;
-  js_value_t *argv[2];
+  size_t argc = 4;
+  js_value_t *argv[4];
 
   err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
   assert(err == 0);
 
-  assert(argc == 2);
+  assert(argc == 4);
 
-  void *buf;
-  size_t buf_len;
-  err = js_get_typedarray_info(env, argv[0], NULL, &buf, &buf_len, NULL, NULL);
+  latin1_t *buf;
+  err = js_get_arraybuffer_info(env, argv[0], (void **) &buf, NULL);
+  assert(err == 0);
+
+  uint32_t offset;
+  err = js_get_value_uint32(env, argv[1], &offset);
+  assert(err == 0);
+
+  uint32_t len;
+  err = js_get_value_uint32(env, argv[2], &len);
   assert(err == 0);
 
   size_t str_len;
-  err = js_get_value_string_latin1(env, argv[1], buf, buf_len, &str_len);
+  err = js_get_value_string_latin1(env, argv[3], &buf[offset], len, &str_len);
   assert(err == 0);
 
   js_value_t *result;
@@ -360,49 +402,58 @@ static js_value_t *
 bare_buffer_to_string_base64(js_env_t *env, js_callback_info_t *info) {
   int err;
 
-  size_t argc = 1;
-  js_value_t *argv[1];
+  size_t argc = 3;
+  js_value_t *argv[3];
 
   err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
   assert(err == 0);
 
-  assert(argc == 1);
+  assert(argc == 3);
 
-  void *buf;
-  size_t buf_len;
-  err = js_get_typedarray_info(env, argv[0], NULL, &buf, &buf_len, NULL, NULL);
+  utf8_t *buf;
+  err = js_get_arraybuffer_info(env, argv[0], (void **) &buf, NULL);
+  assert(err == 0);
+
+  uint32_t offset;
+  err = js_get_value_uint32(env, argv[1], &offset);
+  assert(err == 0);
+
+  uint32_t len;
+  err = js_get_value_uint32(env, argv[2], &len);
   assert(err == 0);
 
   size_t str_len;
-  err = base64_encode_utf8(buf, buf_len, NULL, &str_len);
+  err = base64_encode_utf8(&buf[offset], len, NULL, &str_len);
   assert(err == 0);
 
   utf8_t *str = malloc(str_len);
-  err = base64_encode_utf8(buf, buf_len, str, &str_len);
+  err = base64_encode_utf8(&buf[offset], len, str, &str_len);
   assert(err == 0);
 
   js_value_t *result;
-  err = js_create_external_string_latin1(env, str, str_len, bare_buffer__on_free_string, NULL, &result, NULL);
+  err = js_create_external_string_latin1(env, str, str_len, bare_buffer__on_finalize_string, NULL, &result, NULL);
   assert(err == 0);
 
   return result;
 }
 
 static uint32_t
-bare_buffer_typed_write_base64(js_value_t *receiver, js_value_t *typedarray, js_value_t *string, js_typed_callback_info_t *info) {
+bare_buffer_typed_write_base64(
+  js_value_t *receiver,
+  js_value_t *handle,
+  uint32_t offset,
+  uint32_t len,
+  js_value_t *string,
+  js_typed_callback_info_t *info
+) {
   int err;
 
   js_env_t *env;
   err = js_get_typed_callback_info(info, &env, NULL);
   assert(err == 0);
 
-  js_handle_scope_t *scope;
-  err = js_open_handle_scope(env, &scope);
-  assert(err == 0);
-
-  void *buf;
-  size_t buf_len;
-  err = js_get_typedarray_info(env, typedarray, NULL, &buf, &buf_len, NULL, NULL);
+  utf8_t *buf;
+  err = js_get_arraybuffer_info(env, handle, (void **) &buf, NULL);
   assert(err == 0);
 
   js_string_encoding_t encoding;
@@ -413,38 +464,44 @@ bare_buffer_typed_write_base64(js_value_t *receiver, js_value_t *typedarray, js_
   err = js_get_string_view(env, string, &encoding, &str, &str_len, &str_view);
   assert(err == 0);
 
+  size_t written = len;
+
   if (encoding == js_utf16le) {
-    err = base64_decode_utf16le(str, str_len, buf, &buf_len);
+    err = base64_decode_utf16le(str, str_len, &buf[offset], &written);
     assert(err == 0);
   } else {
-    err = base64_decode_utf8(str, str_len, buf, &buf_len);
+    err = base64_decode_utf8(str, str_len, &buf[offset], &written);
     assert(err == 0);
   }
 
   err = js_release_string_view(env, str_view);
   assert(err == 0);
 
-  err = js_close_handle_scope(env, scope);
-  assert(err == 0);
-
-  return buf_len;
+  return written;
 }
 
 static js_value_t *
 bare_buffer_write_base64(js_env_t *env, js_callback_info_t *info) {
   int err;
 
-  size_t argc = 2;
-  js_value_t *argv[2];
+  size_t argc = 4;
+  js_value_t *argv[4];
 
   err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
   assert(err == 0);
 
-  assert(argc == 2);
+  assert(argc == 4);
 
-  void *buf;
-  size_t buf_len;
-  err = js_get_typedarray_info(env, argv[0], NULL, &buf, &buf_len, NULL, NULL);
+  utf8_t *buf;
+  err = js_get_arraybuffer_info(env, argv[0], (void **) &buf, NULL);
+  assert(err == 0);
+
+  uint32_t offset;
+  err = js_get_value_uint32(env, argv[1], &offset);
+  assert(err == 0);
+
+  uint32_t len;
+  err = js_get_value_uint32(env, argv[2], &len);
   assert(err == 0);
 
   js_string_encoding_t encoding;
@@ -452,14 +509,16 @@ bare_buffer_write_base64(js_env_t *env, js_callback_info_t *info) {
   size_t str_len;
 
   js_string_view_t *str_view;
-  err = js_get_string_view(env, argv[1], &encoding, &str, &str_len, &str_view);
+  err = js_get_string_view(env, argv[3], &encoding, &str, &str_len, &str_view);
   assert(err == 0);
 
+  size_t written = len;
+
   if (encoding == js_utf16le) {
-    err = base64_decode_utf16le(str, str_len, buf, &buf_len);
+    err = base64_decode_utf16le(str, str_len, &buf[offset], &written);
     assert(err == 0);
   } else {
-    err = base64_decode_utf8(str, str_len, buf, &buf_len);
+    err = base64_decode_utf8(str, str_len, &buf[offset], &written);
     assert(err == 0);
   }
 
@@ -467,7 +526,7 @@ bare_buffer_write_base64(js_env_t *env, js_callback_info_t *info) {
   assert(err == 0);
 
   js_value_t *result;
-  err = js_create_uint32(env, (uint32_t) buf_len, &result);
+  err = js_create_uint32(env, (uint32_t) written, &result);
   assert(err == 0);
 
   return result;
@@ -477,49 +536,58 @@ static js_value_t *
 bare_buffer_to_string_hex(js_env_t *env, js_callback_info_t *info) {
   int err;
 
-  size_t argc = 1;
-  js_value_t *argv[1];
+  size_t argc = 3;
+  js_value_t *argv[3];
 
   err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
   assert(err == 0);
 
-  assert(argc == 1);
+  assert(argc == 3);
 
-  void *buf;
-  size_t buf_len;
-  err = js_get_typedarray_info(env, argv[0], NULL, &buf, &buf_len, NULL, NULL);
+  utf8_t *buf;
+  err = js_get_arraybuffer_info(env, argv[0], (void **) &buf, NULL);
+  assert(err == 0);
+
+  uint32_t offset;
+  err = js_get_value_uint32(env, argv[1], &offset);
+  assert(err == 0);
+
+  uint32_t len;
+  err = js_get_value_uint32(env, argv[2], &len);
   assert(err == 0);
 
   size_t str_len;
-  err = hex_encode_utf8(buf, buf_len, NULL, &str_len);
+  err = hex_encode_utf8(&buf[offset], len, NULL, &str_len);
   assert(err == 0);
 
   utf8_t *str = malloc(str_len);
-  err = hex_encode_utf8(buf, buf_len, str, &str_len);
+  err = hex_encode_utf8(&buf[offset], len, str, &str_len);
   assert(err == 0);
 
   js_value_t *result;
-  err = js_create_external_string_latin1(env, str, str_len, bare_buffer__on_free_string, NULL, &result, NULL);
+  err = js_create_external_string_latin1(env, str, str_len, bare_buffer__on_finalize_string, NULL, &result, NULL);
   assert(err == 0);
 
   return result;
 }
 
 static uint32_t
-bare_buffer_typed_write_hex(js_value_t *receiver, js_value_t *typedarray, js_value_t *string, js_typed_callback_info_t *info) {
+bare_buffer_typed_write_hex(
+  js_value_t *receiver,
+  js_value_t *handle,
+  uint32_t offset,
+  uint32_t len,
+  js_value_t *string,
+  js_typed_callback_info_t *info
+) {
   int err;
 
   js_env_t *env;
   err = js_get_typed_callback_info(info, &env, NULL);
   assert(err == 0);
 
-  js_handle_scope_t *scope;
-  err = js_open_handle_scope(env, &scope);
-  assert(err == 0);
-
-  void *buf;
-  size_t buf_len;
-  err = js_get_typedarray_info(env, typedarray, NULL, &buf, &buf_len, NULL, NULL);
+  utf8_t *buf;
+  err = js_get_arraybuffer_info(env, handle, (void **) &buf, NULL);
   assert(err == 0);
 
   js_string_encoding_t encoding;
@@ -530,38 +598,44 @@ bare_buffer_typed_write_hex(js_value_t *receiver, js_value_t *typedarray, js_val
   err = js_get_string_view(env, string, &encoding, &str, &str_len, &str_view);
   assert(err == 0);
 
+  size_t written = len;
+
   if (encoding == js_utf16le) {
-    err = hex_decode_utf16le(str, str_len, buf, &buf_len);
+    err = hex_decode_utf16le(str, str_len, &buf[offset], &written);
     assert(err == 0);
   } else {
-    err = hex_decode_utf8(str, str_len, buf, &buf_len);
+    err = hex_decode_utf8(str, str_len, &buf[offset], &written);
     assert(err == 0);
   }
 
   err = js_release_string_view(env, str_view);
   assert(err == 0);
 
-  err = js_close_handle_scope(env, scope);
-  assert(err == 0);
-
-  return buf_len;
+  return written;
 }
 
 static js_value_t *
 bare_buffer_write_hex(js_env_t *env, js_callback_info_t *info) {
   int err;
 
-  size_t argc = 2;
-  js_value_t *argv[2];
+  size_t argc = 4;
+  js_value_t *argv[4];
 
   err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
   assert(err == 0);
 
-  assert(argc == 2);
+  assert(argc == 4);
 
-  void *buf;
-  size_t buf_len;
-  err = js_get_typedarray_info(env, argv[0], NULL, &buf, &buf_len, NULL, NULL);
+  utf8_t *buf;
+  err = js_get_arraybuffer_info(env, argv[0], (void **) &buf, NULL);
+  assert(err == 0);
+
+  uint32_t offset;
+  err = js_get_value_uint32(env, argv[1], &offset);
+  assert(err == 0);
+
+  uint32_t len;
+  err = js_get_value_uint32(env, argv[2], &len);
   assert(err == 0);
 
   js_string_encoding_t encoding;
@@ -569,14 +643,16 @@ bare_buffer_write_hex(js_env_t *env, js_callback_info_t *info) {
   size_t str_len;
 
   js_string_view_t *str_view;
-  err = js_get_string_view(env, argv[1], &encoding, &str, &str_len, &str_view);
+  err = js_get_string_view(env, argv[3], &encoding, &str, &str_len, &str_view);
   assert(err == 0);
 
+  size_t written = len;
+
   if (encoding == js_utf16le) {
-    err = hex_decode_utf16le(str, str_len, buf, &buf_len);
+    err = hex_decode_utf16le(str, str_len, &buf[offset], &written);
     assert(err == 0);
   } else {
-    err = hex_decode_utf8(str, str_len, buf, &buf_len);
+    err = hex_decode_utf8(str, str_len, &buf[offset], &written);
     assert(err == 0);
   }
 
@@ -584,7 +660,7 @@ bare_buffer_write_hex(js_env_t *env, js_callback_info_t *info) {
   assert(err == 0);
 
   js_value_t *result;
-  err = js_create_uint32(env, (uint32_t) buf_len, &result);
+  err = js_create_uint32(env, (uint32_t) written, &result);
   assert(err == 0);
 
   return result;
@@ -607,12 +683,12 @@ bare_buffer_typed_compare(
   err = js_get_typed_callback_info(info, &env, NULL);
   assert(err == 0);
 
-  void *a;
-  err = js_get_arraybuffer_info(env, a_handle, &a, NULL);
+  uint8_t *a;
+  err = js_get_arraybuffer_info(env, a_handle, (void **) &a, NULL);
   assert(err == 0);
 
-  void *b;
-  err = js_get_arraybuffer_info(env, b_handle, &b, NULL);
+  uint8_t *b;
+  err = js_get_arraybuffer_info(env, b_handle, (void **) &b, NULL);
   assert(err == 0);
 
   return bare_buffer__memcmp(&a[a_offset], a_len, &b[b_offset], b_len);
@@ -630,8 +706,8 @@ bare_buffer_compare(js_env_t *env, js_callback_info_t *info) {
 
   assert(argc == 6);
 
-  void *a;
-  err = js_get_arraybuffer_info(env, argv[0], &a, NULL);
+  uint8_t *a;
+  err = js_get_arraybuffer_info(env, argv[0], (void **) &a, NULL);
   assert(err == 0);
 
   uint32_t a_offset;
@@ -642,8 +718,8 @@ bare_buffer_compare(js_env_t *env, js_callback_info_t *info) {
   err = js_get_value_uint32(env, argv[2], &a_len);
   assert(err == 0);
 
-  void *b;
-  err = js_get_arraybuffer_info(env, argv[3], &b, NULL);
+  uint8_t *b;
+  err = js_get_arraybuffer_info(env, argv[3], (void **) &b, NULL);
   assert(err == 0);
 
   uint32_t b_offset;
@@ -706,10 +782,12 @@ bare_buffer_exports(js_env_t *env, js_value_t *exports) {
     &((js_callback_signature_t) {
       .version = 0,
       .result = js_uint32,
-      .args_len = 3,
+      .args_len = 5,
       .args = (int[]) {
         js_object,
         js_object,
+        js_uint32,
+        js_uint32,
         js_string,
       }
     }),
@@ -742,10 +820,12 @@ bare_buffer_exports(js_env_t *env, js_value_t *exports) {
     &((js_callback_signature_t) {
       .version = 0,
       .result = js_uint32,
-      .args_len = 3,
+      .args_len = 5,
       .args = (int[]) {
         js_object,
         js_object,
+        js_uint32,
+        js_uint32,
         js_string,
       }
     }),
@@ -760,10 +840,12 @@ bare_buffer_exports(js_env_t *env, js_value_t *exports) {
     &((js_callback_signature_t) {
       .version = 0,
       .result = js_uint32,
-      .args_len = 3,
+      .args_len = 5,
       .args = (int[]) {
         js_object,
         js_object,
+        js_uint32,
+        js_uint32,
         js_string,
       }
     }),
@@ -778,10 +860,12 @@ bare_buffer_exports(js_env_t *env, js_value_t *exports) {
     &((js_callback_signature_t) {
       .version = 0,
       .result = js_uint32,
-      .args_len = 3,
+      .args_len = 5,
       .args = (int[]) {
         js_object,
         js_object,
+        js_uint32,
+        js_uint32,
         js_string,
       }
     }),
