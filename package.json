@@ -43,7 +43,7 @@
   },
   "homepage": "https://github.com/holepunchto/bare-buffer#readme",
   "engines": {
-    "bare": ">=1.13.0"
+    "bare": ">=1.20.0"
   },
   "devDependencies": {
     "brittle": "^3.1.1",
