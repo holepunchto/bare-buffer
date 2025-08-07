@@ -437,6 +437,45 @@ bare_buffer_to_string_base64(js_env_t *env, js_callback_info_t *info) {
   return result;
 }
 
+static js_value_t *
+bare_buffer_to_string_base64url(js_env_t *env, js_callback_info_t *info) {
+  int err;
+
+  size_t argc = 3;
+  js_value_t *argv[3];
+
+  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
+  assert(err == 0);
+
+  assert(argc == 3);
+
+  utf8_t *buf;
+  err = js_get_arraybuffer_info(env, argv[0], (void **) &buf, NULL);
+  assert(err == 0);
+
+  int64_t offset;
+  err = js_get_value_int64(env, argv[1], &offset);
+  assert(err == 0);
+
+  int64_t len;
+  err = js_get_value_int64(env, argv[2], &len);
+  assert(err == 0);
+
+  size_t str_len;
+  err = base64url_encode_utf8(&buf[offset], len, NULL, &str_len);
+  assert(err == 0);
+
+  utf8_t *str = malloc(str_len);
+  err = base64url_encode_utf8(&buf[offset], len, str, &str_len);
+  assert(err == 0);
+
+  js_value_t *result;
+  err = js_create_external_string_latin1(env, str, str_len, bare_buffer__on_finalize_string, NULL, &result, NULL);
+  assert(err == 0);
+
+  return result;
+}
+
 static int64_t
 bare_buffer_typed_write_base64(
   js_value_t *receiver,
@@ -468,14 +507,19 @@ bare_buffer_typed_write_base64(
 
   if (encoding == js_utf16le) {
     err = base64_decode_utf16le(str, str_len, &buf[offset], &written);
-    assert(err == 0);
   } else {
     err = base64_decode_utf8(str, str_len, &buf[offset], &written);
-    assert(err == 0);
   }
 
   err = js_release_string_view(env, str_view);
   assert(err == 0);
+
+  if (err != 0) {
+    err = js_throw_error(env, NULL, "Invalid input");
+    assert(err == 0);
+
+    return 0;
+  }
 
   return written;
 }
@@ -516,14 +560,19 @@ bare_buffer_write_base64(js_env_t *env, js_callback_info_t *info) {
 
   if (encoding == js_utf16le) {
     err = base64_decode_utf16le(str, str_len, &buf[offset], &written);
-    assert(err == 0);
   } else {
     err = base64_decode_utf8(str, str_len, &buf[offset], &written);
-    assert(err == 0);
   }
 
   err = js_release_string_view(env, str_view);
   assert(err == 0);
+
+  if (err != 0) {
+    err = js_throw_error(env, NULL, "Invalid input");
+    assert(err == 0);
+
+    return NULL;
+  }
 
   js_value_t *result;
   err = js_create_int64(env, written, &result);
@@ -602,14 +651,19 @@ bare_buffer_typed_write_hex(
 
   if (encoding == js_utf16le) {
     err = hex_decode_utf16le(str, str_len, &buf[offset], &written);
-    assert(err == 0);
   } else {
     err = hex_decode_utf8(str, str_len, &buf[offset], &written);
-    assert(err == 0);
   }
 
   err = js_release_string_view(env, str_view);
   assert(err == 0);
+
+  if (err != 0) {
+    err = js_throw_error(env, NULL, "Invalid input");
+    assert(err == 0);
+
+    return 0;
+  }
 
   return written;
 }
@@ -650,14 +704,19 @@ bare_buffer_write_hex(js_env_t *env, js_callback_info_t *info) {
 
   if (encoding == js_utf16le) {
     err = hex_decode_utf16le(str, str_len, &buf[offset], &written);
-    assert(err == 0);
   } else {
     err = hex_decode_utf8(str, str_len, &buf[offset], &written);
-    assert(err == 0);
   }
 
   err = js_release_string_view(env, str_view);
   assert(err == 0);
+
+  if (err != 0) {
+    err = js_throw_error(env, NULL, "Invalid input");
+    assert(err == 0);
+
+    return NULL;
+  }
 
   js_value_t *result;
   err = js_create_int64(env, written, &result);
@@ -864,6 +923,7 @@ bare_buffer_exports(js_env_t *env, js_value_t *exports) {
   );
 
   V("toStringBase64", bare_buffer_to_string_base64, NULL, NULL);
+  V("toStringBase64URL", bare_buffer_to_string_base64url, NULL, NULL);
 
   V(
     "writeBase64",
