@@ -511,15 +511,18 @@ bare_buffer_typed_write_base64(
     err = base64_decode_utf8(str, str_len, &buf[offset], &written);
   }
 
-  err = js_release_string_view(env, str_view);
-  assert(err == 0);
-
   if (err != 0) {
     err = js_throw_error(env, NULL, "Invalid input");
     assert(err == 0);
 
+    err = js_release_string_view(env, str_view);
+    assert(err == 0);
+
     return 0;
   }
+
+  err = js_release_string_view(env, str_view);
+  assert(err == 0);
 
   return written;
 }
@@ -564,15 +567,18 @@ bare_buffer_write_base64(js_env_t *env, js_callback_info_t *info) {
     err = base64_decode_utf8(str, str_len, &buf[offset], &written);
   }
 
-  err = js_release_string_view(env, str_view);
-  assert(err == 0);
-
   if (err != 0) {
     err = js_throw_error(env, NULL, "Invalid input");
     assert(err == 0);
 
+    err = js_release_string_view(env, str_view);
+    assert(err == 0);
+
     return NULL;
   }
+
+  err = js_release_string_view(env, str_view);
+  assert(err == 0);
 
   js_value_t *result;
   err = js_create_int64(env, written, &result);
@@ -655,15 +661,18 @@ bare_buffer_typed_write_hex(
     err = hex_decode_utf8(str, str_len, &buf[offset], &written);
   }
 
-  err = js_release_string_view(env, str_view);
-  assert(err == 0);
-
   if (err != 0) {
     err = js_throw_error(env, NULL, "Invalid input");
     assert(err == 0);
 
+    err = js_release_string_view(env, str_view);
+    assert(err == 0);
+
     return 0;
   }
+
+  err = js_release_string_view(env, str_view);
+  assert(err == 0);
 
   return written;
 }
@@ -708,15 +717,18 @@ bare_buffer_write_hex(js_env_t *env, js_callback_info_t *info) {
     err = hex_decode_utf8(str, str_len, &buf[offset], &written);
   }
 
-  err = js_release_string_view(env, str_view);
-  assert(err == 0);
-
   if (err != 0) {
     err = js_throw_error(env, NULL, "Invalid input");
     assert(err == 0);
 
+    err = js_release_string_view(env, str_view);
+    assert(err == 0);
+
     return NULL;
   }
+
+  err = js_release_string_view(env, str_view);
+  assert(err == 0);
 
   js_value_t *result;
   err = js_create_int64(env, written, &result);
