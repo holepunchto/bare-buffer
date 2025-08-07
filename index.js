@@ -1,6 +1,7 @@
 const constants = require('./lib/constants')
 const ascii = require('./lib/ascii')
 const base64 = require('./lib/base64')
+const base64url = require('./lib/base64url')
 const hex = require('./lib/hex')
 const utf8 = require('./lib/utf8')
 const utf16le = require('./lib/utf16le')
@@ -536,6 +537,7 @@ const codecs = Object.create(null)
 
 codecs.ascii = ascii
 codecs.base64 = base64
+codecs.base64url = base64url
 codecs.hex = hex
 codecs.utf8 = codecs['utf-8'] = utf8
 codecs.utf16le = codecs.ucs2 = codecs['utf-16le'] = codecs['ucs-2'] = utf16le
@@ -548,7 +550,7 @@ function codecFor(encoding = 'utf8') {
 
   if (encoding in codecs) return codecs[encoding]
 
-  throw new Error(`Unknown encoding: ${encoding}`)
+  throw new Error(`Unknown encoding '${encoding}'`)
 }
 
 const views = new WeakMap()
