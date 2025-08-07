@@ -550,7 +550,7 @@ function codecFor(encoding = 'utf8') {
 
   if (encoding in codecs) return codecs[encoding]
 
-  throw new Error(`Unknown encoding: ${encoding}`)
+  throw new Error(`Unknown encoding '${encoding}'`)
 }
 
 const views = new WeakMap()
