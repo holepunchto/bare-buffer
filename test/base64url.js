@@ -12,7 +12,7 @@ test('base64url toString', (t) => {
 test('base64url write', (t) => {
   const buffer = Buffer.alloc(Buffer.byteLength('aGVsbG8gd29ybGQ', 'base64url'))
 
-  t.is(buffer.write('aGVsbG8gd29ybGQ', 'base64'), 11)
+  t.is(buffer.write('aGVsbG8gd29ybGQ', 'base64url'), 11)
 
   t.alike(buffer, Buffer.from('hello world'))
 })
