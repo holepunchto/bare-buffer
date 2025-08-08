@@ -9,8 +9,7 @@ test('base64url toString', (t) => {
   t.is(Buffer.from('hello world').toString('base64url'), 'aGVsbG8gd29ybGQ')
 })
 
-// TODO Reenable when Bare uses latest `bare-buffer`
-test.skip('base64url write', (t) => {
+test('base64url write', (t) => {
   const buffer = Buffer.alloc(Buffer.byteLength('aGVsbG8gd29ybGQ', 'base64url'))
 
   t.is(buffer.write('aGVsbG8gd29ybGQ', 'base64url'), 11)
