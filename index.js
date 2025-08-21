@@ -744,8 +744,6 @@ function swap(buffer, n, m) {
 }
 
 exports.atob = function atob(data) {
-  if (typeof data !== 'string') data = String(data)
-
   return Buffer.from(data, 'base64').toString('latin1')
 }
 
