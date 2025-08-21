@@ -213,6 +213,14 @@ test('isBuffer', (t) => {
   t.ok(Buffer.isBuffer(global.Buffer.alloc(4)))
 })
 
+test('atob + btoa', (t) => {
+  const encoded = Buffer.btoa('hello world')
+  t.is(encoded, 'aGVsbG8gd29ybGQ=')
+
+  const decoded = Buffer.atob(encoded)
+  t.is(decoded, 'hello world')
+})
+
 test('readInt8', (t) => assertRead(t, { byteSize: 8, signed: false }))
 test('readUInt8', (t) => assertRead(t, { byteSize: 8, signed: true }))
 

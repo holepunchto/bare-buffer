@@ -742,3 +742,11 @@ function swap(buffer, n, m) {
   buffer[n] = buffer[m]
   buffer[m] = i
 }
+
+exports.atob = function atob(data) {
+  return Buffer.from(data, 'base64').toString('latin1')
+}
+
+exports.btoa = function btoa(data) {
+  return Buffer.from(data, 'latin1').toString('base64')
+}
