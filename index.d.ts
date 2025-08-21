@@ -181,6 +181,9 @@ declare namespace Buffer {
     length?: number
   ): Buffer
 
+  export function atob(data: unknown): string
+  export function btoa(data: unknown): string
+
   export { Buffer, type BufferEncoding, constants }
 }
 

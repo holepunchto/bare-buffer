@@ -6,4 +6,7 @@ declare global {
   type Buffer = buffer.Buffer
 
   const Buffer: BufferConstructor
+
+  const atob: typeof buffer.atob
+  const atob: typeof buffer.btoa
 }
