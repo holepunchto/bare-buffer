@@ -214,11 +214,21 @@ test('isBuffer', (t) => {
 })
 
 test('atob + btoa', (t) => {
-  const encoded = Buffer.btoa('hello world')
-  t.is(encoded, 'aGVsbG8gd29ybGQ=')
+  t.test('string', function (t) {
+    const encoded = Buffer.btoa('hello world')
+    t.is(encoded, 'aGVsbG8gd29ybGQ=')
 
-  const decoded = Buffer.atob(encoded)
-  t.is(decoded, 'hello world')
+    const decoded = Buffer.atob(encoded)
+    t.is(decoded, 'hello world')
+  })
+
+  t.test('string coercion', function (t) {
+    const encoded = Buffer.btoa([1, 2, 3])
+    t.is(encoded, 'MSwyLDM=')
+
+    const decoded = Buffer.atob(encoded)
+    t.is(decoded, '1,2,3')
+  })
 })
 
 test('readInt8', (t) => assertRead(t, { byteSize: 8, signed: false }))
