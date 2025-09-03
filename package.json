@@ -1,6 +1,6 @@
 {
   "name": "bare-buffer",
-  "version": "3.3.0",
+  "version": "3.3.1-0",
   "description": "Native buffers for JavaScript",
   "exports": {
     "./package": "./package.json",
