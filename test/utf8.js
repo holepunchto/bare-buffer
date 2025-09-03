@@ -28,3 +28,15 @@ test('utf8 write', (t) => {
 
   t.alike(buffer, Buffer.from('hello world'))
 })
+
+test('utf8 write + toString, shared buffer', (t) => {
+  const buffer = Buffer.from(
+    new SharedArrayBuffer(Buffer.byteLength('hello world'))
+  )
+
+  buffer.write('hello world')
+
+  t.alike(buffer, Buffer.from('hello world'))
+
+  t.is(buffer.toString(), 'hello world')
+})

@@ -7,22 +7,26 @@
 #include <string.h>
 #include <utf.h>
 
-static inline int
-bare_buffer__memcmp(void *a, size_t a_len, void *b, size_t b_len) {
-  int r = memcmp(a, b, a_len < b_len ? a_len : b_len);
-
-  if (r == 0) {
-    if (a_len < b_len) return -1;
-    if (a_len > b_len) return 1;
-    return 0;
-  }
-
-  return r < 0 ? -1 : 1;
-}
-
 static void
 bare_buffer__on_finalize_string(js_env_t *env, void *data, void *finalize_hint) {
   free(data);
+}
+
+static inline int
+bare_buffer__get_info(js_env_t *env, js_value_t *buffer, void **data, size_t *len) {
+  int err;
+
+  bool is_shared;
+  err = js_is_sharedarraybuffer(env, buffer, &is_shared);
+  if (err < 0) return err;
+
+  if (is_shared) {
+    err = js_get_sharedarraybuffer_info(env, buffer, data, len);
+  } else {
+    err = js_get_arraybuffer_info(env, buffer, data, len);
+  }
+
+  return err;
 }
 
 static js_value_t *
@@ -122,7 +126,7 @@ bare_buffer_to_string_utf8(js_env_t *env, js_callback_info_t *info) {
   assert(argc == 3);
 
   utf8_t *buf;
-  err = js_get_arraybuffer_info(env, argv[0], (void **) &buf, NULL);
+  err = bare_buffer__get_info(env, argv[0], (void **) &buf, NULL);
   assert(err == 0);
 
   int64_t offset;
@@ -156,7 +160,7 @@ bare_buffer_typed_write_utf8(
   assert(err == 0);
 
   utf8_t *buf;
-  err = js_get_arraybuffer_info(env, handle, (void **) &buf, NULL);
+  err = bare_buffer__get_info(env, handle, (void **) &buf, NULL);
   assert(err == 0);
 
   size_t str_len;
@@ -179,7 +183,7 @@ bare_buffer_write_utf8(js_env_t *env, js_callback_info_t *info) {
   assert(argc == 4);
 
   utf8_t *buf;
-  err = js_get_arraybuffer_info(env, argv[0], (void **) &buf, NULL);
+  err = bare_buffer__get_info(env, argv[0], (void **) &buf, NULL);
   assert(err == 0);
 
   int64_t offset;
@@ -214,7 +218,7 @@ bare_buffer_to_string_utf16le(js_env_t *env, js_callback_info_t *info) {
   assert(argc == 3);
 
   utf16_t *buf;
-  err = js_get_arraybuffer_info(env, argv[0], (void **) &buf, NULL);
+  err = bare_buffer__get_info(env, argv[0], (void **) &buf, NULL);
   assert(err == 0);
 
   int64_t offset;
@@ -251,7 +255,7 @@ bare_buffer_typed_write_utf16le(
   assert(err == 0);
 
   utf16_t *buf;
-  err = js_get_arraybuffer_info(env, handle, (void **) &buf, NULL);
+  err = bare_buffer__get_info(env, handle, (void **) &buf, NULL);
   assert(err == 0);
 
   offset /= sizeof(utf16_t);
@@ -279,7 +283,7 @@ bare_buffer_write_utf16le(js_env_t *env, js_callback_info_t *info) {
   assert(argc == 4);
 
   utf16_t *buf;
-  err = js_get_arraybuffer_info(env, argv[0], (void **) &buf, NULL);
+  err = bare_buffer__get_info(env, argv[0], (void **) &buf, NULL);
   assert(err == 0);
 
   int64_t offset;
@@ -319,7 +323,7 @@ bare_buffer_to_string_latin1(js_env_t *env, js_callback_info_t *info) {
   assert(argc == 3);
 
   latin1_t *buf;
-  err = js_get_arraybuffer_info(env, argv[0], (void **) &buf, NULL);
+  err = bare_buffer__get_info(env, argv[0], (void **) &buf, NULL);
   assert(err == 0);
 
   int64_t offset;
@@ -353,7 +357,7 @@ bare_buffer_typed_write_latin1(
   assert(err == 0);
 
   latin1_t *buf;
-  err = js_get_arraybuffer_info(env, handle, (void **) &buf, NULL);
+  err = bare_buffer__get_info(env, handle, (void **) &buf, NULL);
   assert(err == 0);
 
   size_t str_len;
@@ -376,7 +380,7 @@ bare_buffer_write_latin1(js_env_t *env, js_callback_info_t *info) {
   assert(argc == 4);
 
   latin1_t *buf;
-  err = js_get_arraybuffer_info(env, argv[0], (void **) &buf, NULL);
+  err = bare_buffer__get_info(env, argv[0], (void **) &buf, NULL);
   assert(err == 0);
 
   int64_t offset;
@@ -411,7 +415,7 @@ bare_buffer_to_string_base64(js_env_t *env, js_callback_info_t *info) {
   assert(argc == 3);
 
   utf8_t *buf;
-  err = js_get_arraybuffer_info(env, argv[0], (void **) &buf, NULL);
+  err = bare_buffer__get_info(env, argv[0], (void **) &buf, NULL);
   assert(err == 0);
 
   int64_t offset;
@@ -450,7 +454,7 @@ bare_buffer_to_string_base64url(js_env_t *env, js_callback_info_t *info) {
   assert(argc == 3);
 
   utf8_t *buf;
-  err = js_get_arraybuffer_info(env, argv[0], (void **) &buf, NULL);
+  err = bare_buffer__get_info(env, argv[0], (void **) &buf, NULL);
   assert(err == 0);
 
   int64_t offset;
@@ -492,7 +496,7 @@ bare_buffer_typed_write_base64(
   assert(err == 0);
 
   utf8_t *buf;
-  err = js_get_arraybuffer_info(env, handle, (void **) &buf, NULL);
+  err = bare_buffer__get_info(env, handle, (void **) &buf, NULL);
   assert(err == 0);
 
   js_string_encoding_t encoding;
@@ -540,7 +544,7 @@ bare_buffer_write_base64(js_env_t *env, js_callback_info_t *info) {
   assert(argc == 4);
 
   utf8_t *buf;
-  err = js_get_arraybuffer_info(env, argv[0], (void **) &buf, NULL);
+  err = bare_buffer__get_info(env, argv[0], (void **) &buf, NULL);
   assert(err == 0);
 
   int64_t offset;
@@ -600,7 +604,7 @@ bare_buffer_to_string_hex(js_env_t *env, js_callback_info_t *info) {
   assert(argc == 3);
 
   utf8_t *buf;
-  err = js_get_arraybuffer_info(env, argv[0], (void **) &buf, NULL);
+  err = bare_buffer__get_info(env, argv[0], (void **) &buf, NULL);
   assert(err == 0);
 
   int64_t offset;
@@ -642,7 +646,7 @@ bare_buffer_typed_write_hex(
   assert(err == 0);
 
   utf8_t *buf;
-  err = js_get_arraybuffer_info(env, handle, (void **) &buf, NULL);
+  err = bare_buffer__get_info(env, handle, (void **) &buf, NULL);
   assert(err == 0);
 
   js_string_encoding_t encoding;
@@ -690,7 +694,7 @@ bare_buffer_write_hex(js_env_t *env, js_callback_info_t *info) {
   assert(argc == 4);
 
   utf8_t *buf;
-  err = js_get_arraybuffer_info(env, argv[0], (void **) &buf, NULL);
+  err = bare_buffer__get_info(env, argv[0], (void **) &buf, NULL);
   assert(err == 0);
 
   int64_t offset;
@@ -737,6 +741,19 @@ bare_buffer_write_hex(js_env_t *env, js_callback_info_t *info) {
   return result;
 }
 
+static inline int
+bare_buffer__memcmp(void *a, size_t a_len, void *b, size_t b_len) {
+  int r = memcmp(a, b, a_len < b_len ? a_len : b_len);
+
+  if (r == 0) {
+    if (a_len < b_len) return -1;
+    if (a_len > b_len) return 1;
+    return 0;
+  }
+
+  return r < 0 ? -1 : 1;
+}
+
 static int32_t
 bare_buffer_typed_compare(
   js_value_t *receiver,
@@ -755,11 +772,11 @@ bare_buffer_typed_compare(
   assert(err == 0);
 
   uint8_t *a;
-  err = js_get_arraybuffer_info(env, a_handle, (void **) &a, NULL);
+  err = bare_buffer__get_info(env, a_handle, (void **) &a, NULL);
   assert(err == 0);
 
   uint8_t *b;
-  err = js_get_arraybuffer_info(env, b_handle, (void **) &b, NULL);
+  err = bare_buffer__get_info(env, b_handle, (void **) &b, NULL);
   assert(err == 0);
 
   return bare_buffer__memcmp(&a[a_offset], a_len, &b[b_offset], b_len);
@@ -778,7 +795,7 @@ bare_buffer_compare(js_env_t *env, js_callback_info_t *info) {
   assert(argc == 6);
 
   uint8_t *a;
-  err = js_get_arraybuffer_info(env, argv[0], (void **) &a, NULL);
+  err = bare_buffer__get_info(env, argv[0], (void **) &a, NULL);
   assert(err == 0);
 
   int64_t a_offset;
@@ -790,7 +807,7 @@ bare_buffer_compare(js_env_t *env, js_callback_info_t *info) {
   assert(err == 0);
 
   uint8_t *b;
-  err = js_get_arraybuffer_info(env, argv[3], (void **) &b, NULL);
+  err = bare_buffer__get_info(env, argv[3], (void **) &b, NULL);
   assert(err == 0);
 
   int64_t b_offset;
