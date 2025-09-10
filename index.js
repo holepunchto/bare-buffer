@@ -164,14 +164,13 @@ module.exports = exports = class Buffer extends Uint8Array {
 
   fill(value, offset = 0, end = this.byteLength, encoding = 'utf8') {
     if (typeof value === 'string') {
-      // fill(string, encoding)
       if (typeof offset === 'string') {
+        // fill(string, encoding)
         encoding = offset
         offset = 0
         end = this.byteLength
-
-        // fill(string, offset, encoding)
       } else if (typeof end === 'string') {
+        // fill(string, offset, encoding)
         encoding = end
         end = this.byteLength
       }
@@ -299,14 +298,13 @@ module.exports = exports = class Buffer extends Uint8Array {
     // write(string)
     if (arguments.length === 1) return utf8.write(this, string)
 
-    // write(string, encoding)
     if (typeof offset === 'string') {
+      // write(string, encoding)
       encoding = offset
       offset = 0
       length = this.byteLength
-
-      // write(string, offset, encoding)
     } else if (typeof length === 'string') {
+      // write(string, offset, encoding)
       encoding = length
       length = this.byteLength - offset
     }
@@ -630,7 +628,6 @@ exports.concat = function concat(buffers, length) {
     }
 
     result.set(buffer, offset)
-
     offset += buffer.byteLength
   }
 
