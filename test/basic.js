@@ -414,7 +414,59 @@ test('writeDoubleBE', (t) => {
   t.alike(buffer, expectedBuffer)
 })
 
-const inferMethodName = ({ prefix, byteSize, signed, littleEndian }) => {
+test('writeIntBE + readIntBE', (t) => {
+  const buf = Buffer.alloc(6)
+
+  buf.writeIntBE(-0x123456, 0, 3)
+  t.is(buf.readIntBE(0, 3), -0x123456)
+
+  buf.writeIntBE(-5000000000, 0, 5)
+  t.is(buf.readIntBE(0, 5), -5000000000)
+
+  buf.writeIntBE(-1234567890123, 0, 6)
+  t.is(buf.readIntBE(0, 6), -1234567890123)
+})
+
+test('writeIntLE + readIntLE', (t) => {
+  const buf = Buffer.alloc(6)
+
+  buf.writeIntLE(-0x654321, 0, 3)
+  t.is(buf.readIntLE(0, 3), -0x654321)
+
+  buf.writeIntLE(-4000000001, 0, 5)
+  t.is(buf.readIntLE(0, 5), -4000000001)
+
+  buf.writeIntLE(-987654321987, 0, 6)
+  t.is(buf.readIntLE(0, 6), -987654321987)
+})
+
+test('writeUintBE + readUintBE', (t) => {
+  const buf = Buffer.alloc(6)
+
+  buf.writeUintBE(0xabcdef, 0, 3)
+  t.is(buf.readUintBE(0, 3), 0xabcdef)
+
+  buf.writeUintBE(0x123456789a, 0, 5)
+  t.is(buf.readUintBE(0, 5), 0x123456789a)
+
+  buf.writeUintBE(0xfedcba987654, 0, 6)
+  t.is(buf.readUintBE(0, 6), 0xfedcba987654)
+})
+
+test('writeUintLE + readUintLE', (t) => {
+  const buf = Buffer.alloc(6)
+
+  buf.writeUintLE(0xabcdef, 0, 3)
+  t.is(buf.readUintLE(0, 3), 0xabcdef)
+
+  buf.writeUintLE(0x9876543210, 0, 5)
+  t.is(buf.readUintLE(0, 5), 0x9876543210)
+
+  buf.writeUintLE(0x123456789abc, 0, 6)
+  t.is(buf.readUintLE(0, 6), 0x123456789abc)
+})
+
+function inferMethodName({ prefix, byteSize, signed, littleEndian }) {
   const b = byteSize === 64 ? 'Big' : ''
   const s = signed ? '' : 'U'
   const e = byteSize === 8 ? '' : littleEndian ? 'LE' : 'BE'
@@ -422,7 +474,7 @@ const inferMethodName = ({ prefix, byteSize, signed, littleEndian }) => {
   return prefix + b + s + 'Int' + byteSize + e
 }
 
-const assertRead = (t, { byteSize, signed, littleEndian }) => {
+function assertRead(t, { byteSize, signed, littleEndian }) {
   const method = inferMethodName({
     prefix: 'read',
     byteSize,
@@ -456,7 +508,7 @@ const assertRead = (t, { byteSize, signed, littleEndian }) => {
   })
 }
 
-const assertWrite = (t, { byteSize, signed, littleEndian }) => {
+function assertWrite(t, { byteSize, signed, littleEndian }) {
   const method = inferMethodName({
     prefix: 'write',
     byteSize,
