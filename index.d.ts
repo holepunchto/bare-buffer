@@ -73,6 +73,9 @@ interface Buffer extends Uint8Array {
   readInt32BE(offset?: number): number
   readInt32LE(offset?: number): number
 
+  readIntBE(offset: number, byteLength: number): number
+  readIntLE(offset: number, byteLength: number): number
+
   readBigInt64BE(offset?: number): bigint
   readBigInt64LE(offset?: number): bigint
 
@@ -88,6 +91,11 @@ interface Buffer extends Uint8Array {
   readUint32BE(offset?: number): number
   readUInt32LE(offset?: number): number
   readUint32LE(offset?: number): number
+
+  readUIntBE(offset: number, byteLength: number): number
+  readUintBE(offset: number, byteLength: number): number
+  readUIntLE(offset: number, byteLength: number): number
+  readUintLE(offset: number, byteLength: number): number
 
   readBigUInt64BE(offset?: number): bigint
   readBigUint64BE(offset?: number): bigint
@@ -117,6 +125,9 @@ interface Buffer extends Uint8Array {
   writeInt32BE(value: number, offset?: number): number
   writeInt32LE(value: number, offset?: number): number
 
+  writeIntBE(value: number, offset: number, byteLength: number): number
+  writeIntLE(value: number, offset: number, byteLength: number): number
+
   writeBigInt64BE(value: bigint, offset?: number): number
   writeBigInt64LE(value: bigint, offset?: number): number
 
@@ -132,6 +143,11 @@ interface Buffer extends Uint8Array {
   writeUint32BE(value: number, offset?: number): number
   writeUInt32LE(value: number, offset?: number): number
   writeUint32LE(value: number, offset?: number): number
+
+  writeUIntBE(value: number, offset: number, byteLength: number): number
+  writeUintBE(value: number, offset: number, byteLength: number): number
+  writeUIntLE(value: number, offset: number, byteLength: number): number
+  writeUintLE(value: number, offset: number, byteLength: number): number
 
   writeBigUint64BE(value: bigint, offset?: number): number
   writeBigUInt64BE(value: bigint, offset?: number): number
