@@ -35,19 +35,13 @@ module.exports = exports = class Buffer extends Uint8Array {
       length = arrayBuffer
 
       if (length > constants.MAX_LENGTH) {
-        throw new RangeError(
-          `Buffer length must be at most ${constants.MAX_LENGTH}`
-        )
+        throw new RangeError(`Buffer length must be at most ${constants.MAX_LENGTH}`)
       }
 
-      arrayBuffer = uninitialized
-        ? binding.allocUnsafe(length)
-        : binding.alloc(length)
+      arrayBuffer = uninitialized ? binding.allocUnsafe(length) : binding.alloc(length)
     } else {
       if (length > constants.MAX_LENGTH) {
-        throw new RangeError(
-          `Buffer length must be at most ${constants.MAX_LENGTH}`
-        )
+        throw new RangeError(`Buffer length must be at most ${constants.MAX_LENGTH}`)
       }
 
       if (typeof offset === 'object' && offset !== null) {
@@ -288,12 +282,7 @@ module.exports = exports = class Buffer extends Uint8Array {
     return codecFor(encoding).toString(buffer)
   }
 
-  write(
-    string,
-    offset = 0,
-    length = this.byteLength - offset,
-    encoding = 'utf8'
-  ) {
+  write(string, offset = 0, length = this.byteLength - offset, encoding = 'utf8') {
     // write(string)
     if (arguments.length === 1) return utf8.write(this, string)
 
@@ -658,9 +647,7 @@ function viewOf(buffer) {
 exports.isBuffer = function isBuffer(value) {
   if (value instanceof Buffer) return true
 
-  return (
-    typeof value === 'object' && value !== null && value[kind] === Buffer[kind]
-  )
+  return typeof value === 'object' && value !== null && value[kind] === Buffer[kind]
 }
 
 exports.isEncoding = function isEncoding(encoding) {
@@ -695,14 +682,7 @@ exports.byteLength = function byteLength(string, encoding) {
 }
 
 exports.compare = function compare(a, b) {
-  return binding.compare(
-    a.buffer,
-    a.byteOffset,
-    a.byteLength,
-    b.buffer,
-    b.byteOffset,
-    b.byteLength
-  )
+  return binding.compare(a.buffer, a.byteOffset, a.byteLength, b.buffer, b.byteOffset, b.byteLength)
 }
 
 exports.concat = function concat(buffers, length) {
@@ -877,17 +857,13 @@ function readInt40LE(view, offset) {
 
 function readInt24BE(view, offset) {
   const value =
-    (view.getUint8(offset) << 16) |
-    (view.getUint8(offset + 1) << 8) |
-    view.getUint8(offset + 2)
+    (view.getUint8(offset) << 16) | (view.getUint8(offset + 1) << 8) | view.getUint8(offset + 2)
   return value & 0x800000 ? value - 0x1000000 : value
 }
 
 function readInt24LE(view, offset) {
   const value =
-    view.getUint8(offset) |
-    (view.getUint8(offset + 1) << 8) |
-    (view.getUint8(offset + 2) << 16)
+    view.getUint8(offset) | (view.getUint8(offset + 1) << 8) | (view.getUint8(offset + 2) << 16)
   return value & 0x800000 ? value - 0x1000000 : value
 }
 
@@ -917,17 +893,13 @@ function readUint40LE(view, offset) {
 
 function readUint24BE(view, offset) {
   return (
-    (view.getUint8(offset) << 16) |
-    (view.getUint8(offset + 1) << 8) |
-    view.getUint8(offset + 2)
+    (view.getUint8(offset) << 16) | (view.getUint8(offset + 1) << 8) | view.getUint8(offset + 2)
   )
 }
 
 function readUint24LE(view, offset) {
   return (
-    view.getUint8(offset) |
-    (view.getUint8(offset + 1) << 8) |
-    (view.getUint8(offset + 2) << 16)
+    view.getUint8(offset) | (view.getUint8(offset + 1) << 8) | (view.getUint8(offset + 2) << 16)
   )
 }
 

@@ -30,9 +30,7 @@ test('utf8 write', (t) => {
 })
 
 test('utf8 write + toString, shared buffer', (t) => {
-  const buffer = Buffer.from(
-    new SharedArrayBuffer(Buffer.byteLength('hello world'))
-  )
+  const buffer = Buffer.from(new SharedArrayBuffer(Buffer.byteLength('hello world')))
 
   buffer.write('hello world')
 

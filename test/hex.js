@@ -10,9 +10,7 @@ test('hex toString', (t) => {
 })
 
 test('hex write', (t) => {
-  const buffer = Buffer.alloc(
-    Buffer.byteLength('68656c6c6f20776f726c64', 'hex')
-  )
+  const buffer = Buffer.alloc(Buffer.byteLength('68656c6c6f20776f726c64', 'hex'))
 
   t.is(buffer.write('68656c6c6f20776f726c64', 'hex'), 11)
 
