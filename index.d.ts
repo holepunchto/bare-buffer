@@ -22,23 +22,13 @@ interface Buffer extends Uint8Array {
     sourceEnd?: number
   ): number
 
-  copy(
-    target: Buffer,
-    targetStart?: number,
-    sourceStart?: number,
-    sourceEnd?: number
-  ): number
+  copy(target: Buffer, targetStart?: number, sourceStart?: number, sourceEnd?: number): number
 
   equals(target: Buffer): boolean
 
   fill(value: string, encoding?: BufferEncoding): this
   fill(value: string, offset?: number, encoding?: BufferEncoding): this
-  fill(
-    value: string,
-    offset?: number,
-    end?: number,
-    encoding?: BufferEncoding
-  ): this
+  fill(value: string, offset?: number, end?: number, encoding?: BufferEncoding): this
   fill(value: Buffer | number | boolean, offset?: number, end?: number): this
 
   includes(value: string, encoding?: BufferEncoding): boolean
@@ -104,12 +94,7 @@ interface Buffer extends Uint8Array {
 
   write(string: string, encoding?: BufferEncoding): number
   write(string: string, offset?: number, encoding?: BufferEncoding): number
-  write(
-    string: string,
-    offset?: number,
-    length?: number,
-    encoding?: BufferEncoding
-  ): number
+  write(string: string, offset?: number, length?: number, encoding?: BufferEncoding): number
 
   writeDoubleBE(value: number, offset?: number): number
   writeDoubleLE(value: number, offset?: number): number
@@ -166,11 +151,7 @@ declare namespace Buffer {
 
   export function isEncoding(encoding: string): encoding is BufferEncoding
 
-  export function alloc(
-    size: number,
-    fill: string,
-    encoding?: BufferEncoding
-  ): Buffer
+  export function alloc(size: number, fill: string, encoding?: BufferEncoding): Buffer
   export function alloc(size: number, fill?: Buffer | number | boolean): Buffer
 
   export function allocUnsafe(size: number): Buffer
@@ -191,11 +172,7 @@ declare namespace Buffer {
   export function from(data: Iterable<number>): Buffer
   export function from(data: ArrayLike<number>): Buffer
   export function from(string: string, encoding?: BufferEncoding): Buffer
-  export function from(
-    arrayBuffer: ArrayBufferLike,
-    offset?: number,
-    length?: number
-  ): Buffer
+  export function from(arrayBuffer: ArrayBufferLike, offset?: number, length?: number): Buffer
 
   export function atob(data: unknown): string
   export function btoa(data: unknown): string
