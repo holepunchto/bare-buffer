@@ -13,7 +13,7 @@ type BufferEncoding =
   | 'utf16le'
   | 'utf8'
 
-interface Buffer extends Uint8Array {
+interface Buffer extends Uint8Array<ArrayBuffer> {
   compare(
     target: Buffer,
     targetStart?: number,
@@ -140,7 +140,7 @@ interface Buffer extends Uint8Array {
   writeBigUInt64LE(value: bigint, offset?: number): number
 }
 
-declare class Buffer extends Uint8Array {
+declare class Buffer extends Uint8Array<ArrayBuffer> {
   constructor(arrayBuffer: ArrayBuffer, offset?: number, length?: number)
 }
 
