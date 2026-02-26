@@ -282,6 +282,14 @@ module.exports = exports = class Buffer extends Uint8Array {
     return codecFor(encoding).toString(buffer)
   }
 
+  toJSON() {
+    const data = new Array(this.length)
+
+    for (let i = 0; i < this.length; i++) data[i] = this[i]
+
+    return { type: 'Buffer', data }
+  }
+
   write(string, offset = 0, length = this.byteLength - offset, encoding = 'utf8') {
     // write(string)
     if (arguments.length === 1) return utf8.write(this, string)
@@ -721,6 +729,9 @@ exports.from = function from(value, encodingOrOffset, length) {
 
   // from(buffer)
   if (ArrayBuffer.isView(value)) return fromBuffer(value)
+
+  // from toJSON()
+  if (value.type === 'Buffer' && Array.isArray(value.data)) return fromArray(value.data)
 
   // from(arrayBuffer[, offset[, length]])
   return fromArrayBuffer(value, encodingOrOffset, length)

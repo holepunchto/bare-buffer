@@ -2,10 +2,15 @@ const test = require('brittle')
 const Buffer = require('..')
 
 test('from', (t) => {
-  t.ok(Buffer.from('123'), 'from string')
-  t.ok(Buffer.from([1, 2, 3]), 'from array')
-  t.ok(Buffer.from(Buffer.from([1, 2, 3])), 'from buffer')
-  t.ok(Buffer.from(new ArrayBuffer(8)), 'from arraybuffer')
+  t.is(Buffer.from('123').byteLength, 3, 'from string')
+
+  t.is(Buffer.from([1, 2, 3]).byteLength, 3, 'from array')
+
+  t.is(Buffer.from(Buffer.from([1, 2, 3])).byteLength, 3, 'from buffer')
+
+  t.is(Buffer.from(new ArrayBuffer(8)).byteLength, 8, 'from arraybuffer')
+
+  t.is(Buffer.from(Buffer.from('123').toJSON()).byteLength, 3, 'from toJSON')
 })
 
 test('alloc', (t) => {
@@ -222,6 +227,12 @@ test('atob + btoa', (t) => {
     const decoded = Buffer.atob(encoded)
     t.is(decoded, '1,2,3')
   })
+})
+
+test('toJSON', (t) => {
+  const buffer = Buffer.from([1, 2, 3])
+
+  t.alike(buffer.toJSON(), { type: 'Buffer', data: [1, 2, 3] })
 })
 
 test('readInt8', (t) => assertRead(t, { byteSize: 8, signed: false }))
