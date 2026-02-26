@@ -232,7 +232,7 @@ test('atob + btoa', (t) => {
 test('toJSON', (t) => {
   const buffer = Buffer.from([1, 2, 3])
 
-  t.alike(buffer.toJSON(), { type: 'Buffer', data: [1, 2, 3] })
+  t.alike(buffer.toJSON(), [1, 2, 3])
 })
 
 test('readInt8', (t) => assertRead(t, { byteSize: 8, signed: false }))
