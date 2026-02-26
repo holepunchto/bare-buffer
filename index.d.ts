@@ -49,6 +49,8 @@ interface Buffer extends Uint8Array<ArrayBuffer> {
 
   toString(encoding?: BufferEncoding, start?: number, end?: number): string
 
+  toJSON(): number[]
+
   readDoubleBE(offset?: number): number
   readDoubleLE(offset?: number): number
 
