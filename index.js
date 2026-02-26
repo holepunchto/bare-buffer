@@ -670,6 +670,10 @@ exports.isASCII = function isASCII(buffer) {
 // for Node.js compatibily
 exports.isAscii = exports.isASCII
 
+exports.isUtf8 = function isUtf8(buffer) {
+  return utf8.validate(buffer)
+}
+
 exports.alloc = function alloc(size, fill, encoding) {
   const buffer = new Buffer(size)
   if (fill !== undefined) buffer.fill(fill, 0, buffer.byteLength, encoding)
@@ -832,10 +836,6 @@ exports.btoa = function btoa(data) {
   if (typeof data !== 'string') data = String(data)
 
   return Buffer.from(data, 'latin1').toString('base64')
-}
-
-exports.isUtf8 = function isUtf8(input) {
-  return utf8.validate(Buffer.from(input))
 }
 
 function readInt48BE(view, offset) {
