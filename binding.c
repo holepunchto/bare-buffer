@@ -741,6 +741,33 @@ bare_buffer_write_hex(js_env_t *env, js_callback_info_t *info) {
   return result;
 }
 
+static js_value_t *
+bare_buffer_validate_ascii(js_env_t *env, js_callback_info_t *info) {
+  int err;
+
+  size_t argc = 2;
+  js_value_t *argv[2];
+
+  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
+  assert(err == 0);
+
+  assert(argc == 2);
+
+  ascii_t *buf;
+  err = bare_buffer__get_info(env, argv[0], (void **) &buf, NULL);
+  assert(err == 0);
+
+  int64_t len;
+  err = js_get_value_int64(env, argv[1], &len);
+  assert(err == 0);
+
+  js_value_t *result;
+  err = js_get_boolean(env, ascii_validate(buf, len), &result);
+  assert(err == 0);
+
+  return result;
+}
+
 static inline int
 bare_buffer__memcmp(void *a, size_t a_len, void *b, size_t b_len) {
   int r = memcmp(a, b, a_len < b_len ? a_len : b_len);
@@ -991,6 +1018,8 @@ bare_buffer_exports(js_env_t *env, js_value_t *exports) {
     }),
     bare_buffer_typed_write_hex
   );
+
+  V("validateAscii", bare_buffer_validate_ascii, NULL, NULL);
 
   V(
     "compare",
