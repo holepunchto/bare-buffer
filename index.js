@@ -670,9 +670,12 @@ exports.isASCII = function isASCII(buffer) {
 // for Node.js compatibily
 exports.isAscii = exports.isASCII
 
-exports.isUtf8 = function isUtf8(buffer) {
+exports.isUTF8 = function isUTF8(buffer) {
   return utf8.validate(buffer)
 }
+
+// for Node.js compatibility
+exports.isUtf8 = exports.isUTF8
 
 exports.alloc = function alloc(size, fill, encoding) {
   const buffer = new Buffer(size)
