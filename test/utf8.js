@@ -38,3 +38,8 @@ test('utf8 write + toString, shared buffer', (t) => {
 
   t.is(buffer.toString(), 'hello world')
 })
+
+test('isUTF8', (t) => {
+  t.is(Buffer.isUTF8(Buffer.from('foo')), true)
+  t.is(Buffer.isUTF8(Buffer.of(0x80)), false)
+})

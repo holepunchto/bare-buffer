@@ -144,6 +144,33 @@ bare_buffer_to_string_utf8(js_env_t *env, js_callback_info_t *info) {
   return result;
 }
 
+static js_value_t *
+bare_buffer_validate_utf8(js_env_t *env, js_callback_info_t *info) {
+  int err;
+
+  size_t argc = 2;
+  js_value_t *argv[2];
+
+  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
+  assert(err == 0);
+
+  assert(argc == 2);
+
+  utf8_t *buf;
+  err = bare_buffer__get_info(env, argv[0], (void **) &buf, NULL);
+  assert(err == 0);
+
+  int64_t len;
+  err = js_get_value_int64(env, argv[1], &len);
+  assert(err == 0);
+
+  js_value_t *result;
+  err = js_get_boolean(env, utf8_validate(buf, len), &result);
+  assert(err == 0);
+
+  return result;
+}
+
 static int64_t
 bare_buffer_typed_write_utf8(
   js_value_t *receiver,
@@ -921,6 +948,8 @@ bare_buffer_exports(js_env_t *env, js_value_t *exports) {
   );
 
   V("toStringUTF8", bare_buffer_to_string_utf8, NULL, NULL);
+
+  V("validateUTF8", bare_buffer_validate_utf8, NULL, NULL);
 
   V(
     "writeUTF8",

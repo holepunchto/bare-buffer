@@ -156,6 +156,9 @@ declare namespace Buffer {
   export function isASCII(buffer: Buffer): boolean
   export function isAscii(buffer: Buffer): boolean
 
+  export function isUTF8(buffer: Buffer): boolean
+  export function isUtf8(buffer: Buffer): boolean
+
   export function alloc(size: number, fill: string, encoding?: BufferEncoding): Buffer
   export function alloc(size: number, fill?: Buffer | number | boolean): Buffer
 
