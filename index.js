@@ -283,11 +283,7 @@ module.exports = exports = class Buffer extends Uint8Array {
   }
 
   toJSON() {
-    const data = new Array(this.length)
-
-    for (let i = 0; i < this.length; i++) data[i] = this[i]
-
-    return data
+    return Array.from(this)
   }
 
   write(string, offset = 0, length = this.byteLength - offset, encoding = 'utf8') {
