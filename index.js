@@ -659,9 +659,12 @@ exports.isEncoding = function isEncoding(encoding) {
   }
 }
 
-exports.isAscii = function isAscii(buffer) {
+exports.isASCII = function isASCII(buffer) {
   return ascii.validate(buffer)
 }
+
+// for Node.js compatibily
+exports.isAscii = exports.isASCII
 
 exports.alloc = function alloc(size, fill, encoding) {
   const buffer = new Buffer(size)
