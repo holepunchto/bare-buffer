@@ -282,6 +282,10 @@ module.exports = exports = class Buffer extends Uint8Array {
     return codecFor(encoding).toString(buffer)
   }
 
+  toJSON() {
+    return Array.from(this)
+  }
+
   write(string, offset = 0, length = this.byteLength - offset, encoding = 'utf8') {
     // write(string)
     if (arguments.length === 1) return utf8.write(this, string)
