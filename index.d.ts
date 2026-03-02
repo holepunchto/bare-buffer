@@ -177,6 +177,8 @@ declare namespace Buffer {
 
   export function coerce(buffer: Buffer): Buffer
 
+  export function copyBytesFrom(view: ArrayBufferLike, offset?: number, length?: number): Buffer
+
   export function from(data: Iterable<number>): Buffer
   export function from(data: ArrayLike<number>): Buffer
   export function from(string: string, encoding?: BufferEncoding): Buffer

@@ -730,6 +730,16 @@ exports.coerce = function coerce(buffer) {
   return new Buffer(buffer.buffer, buffer.byteOffset, buffer.byteLength)
 }
 
+exports.copyBytesFrom = function copyBytesFrom(view, offset = 0, length) {
+  if (offset || length) {
+    const sliceEnd = length ? (length += offset) : view.length
+
+    view = view.slice(offset, sliceEnd)
+  }
+
+  return fromArrayBuffer(view.buffer, view.byteOffset, view.byteLength)
+}
+
 exports.from = function from(value, encodingOrOffset, length) {
   // from(string, encoding)
   if (typeof value === 'string') return fromString(value, encodingOrOffset)
