@@ -72,6 +72,8 @@ test('concat', (t) => {
 test('copyBytesFrom', (t) => {
   const u16 = new Uint16Array([0, 0xffff])
 
+  Buffer.copyBytesFrom(u16)[0] = 42
+
   t.alike(Buffer.copyBytesFrom(u16), Buffer.from([0, 0, 255, 255]))
   t.alike(Buffer.copyBytesFrom(u16, 1, 1), Buffer.from([255, 255]))
 })

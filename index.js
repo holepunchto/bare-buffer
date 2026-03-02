@@ -737,7 +737,7 @@ exports.copyBytesFrom = function copyBytesFrom(view, offset = 0, length) {
     view = view.slice(offset, sliceEnd)
   }
 
-  return fromArrayBuffer(view.buffer, view.byteOffset, view.byteLength)
+  return fromArrayBuffer(new Uint8Array(view.buffer, view.byteOffset, view.byteLength))
 }
 
 exports.from = function from(value, encodingOrOffset, length) {
