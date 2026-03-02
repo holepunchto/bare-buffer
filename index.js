@@ -841,6 +841,10 @@ exports.btoa = function btoa(data) {
   return Buffer.from(data, 'latin1').toString('base64')
 }
 
+exports.transcode = function transcode(buffer, from, to) {
+  return Buffer.from(buffer.toString(from), to)
+}
+
 function readInt48BE(view, offset) {
   const hi = view.getUint16(offset, false)
   const lo = view.getUint32(offset + 2, false)
