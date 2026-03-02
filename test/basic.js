@@ -235,6 +235,50 @@ test('toJSON', (t) => {
   t.alike(buffer.toJSON(), [1, 2, 3])
 })
 
+test('transcode', (t) => {
+  t.alike(
+    Buffer.transcode(Buffer.of(0x21, 0x30), 'ascii', 'latin1'),
+    Buffer.of(0x21, 0x30),
+    'ascii to latin1'
+  )
+
+  t.alike(
+    Buffer.transcode(Buffer.of(0x21, 0x30), 'ascii', 'utf8'),
+    Buffer.of(0x21, 0x30),
+    'ascii to utf8'
+  )
+
+  t.alike(
+    Buffer.transcode(Buffer.of(0x21, 0x30), 'ascii', 'utf16le'),
+    Buffer.of(0x21, 0x00, 0x30, 0x00),
+    'ascii to utf16le'
+  )
+
+  t.alike(
+    Buffer.transcode(Buffer.of(0xe7, 0xf8), 'latin1', 'utf8'),
+    Buffer.of(0xc3, 0xa7, 0xc3, 0xb8),
+    'latin1 to utf8'
+  )
+
+  t.alike(
+    Buffer.transcode(Buffer.of(0xe7, 0xf8), 'latin1', 'utf16le'),
+    Buffer.of(0xe7, 0x00, 0xf8, 0x00),
+    'latin1 to utf16le'
+  )
+
+  t.alike(
+    Buffer.transcode(Buffer.of(0xd0, 0x96), 'utf8', 'utf16le'),
+    Buffer.of(0x16, 0x04),
+    'utf8 to utf16le'
+  )
+
+  t.alike(
+    Buffer.transcode(Buffer.of(0x16, 0x04), 'utf16le', 'utf8'),
+    Buffer.of(0xd0, 0x96),
+    'utf16le to utf8'
+  )
+})
+
 test('readInt8', (t) => assertRead(t, { byteSize: 8, signed: false }))
 test('readUInt8', (t) => assertRead(t, { byteSize: 8, signed: true }))
 

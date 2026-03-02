@@ -185,6 +185,8 @@ declare namespace Buffer {
   export function atob(data: unknown): string
   export function btoa(data: unknown): string
 
+  export function transcode(buffer: Buffer, from: BufferEncoding, to: BufferEncoding): Buffer
+
   export { Buffer, type BufferEncoding, constants }
 }
 
