@@ -730,14 +730,16 @@ exports.coerce = function coerce(buffer) {
   return new Buffer(buffer.buffer, buffer.byteOffset, buffer.byteLength)
 }
 
-exports.copyBytesFrom = function copyBytesFrom(view, offset = 0, length) {
-  if (offset || length) {
-    const sliceEnd = length ? (length += offset) : view.length
-
-    view = view.slice(offset, sliceEnd)
+exports.copyBytesFrom = function copyBytesFrom(view, offset = 0, length = view.length - offset) {
+  if (offset + length > view.length) {
+    throw new RangeError('View length is out of range')
   }
 
-  return fromArrayBuffer(new Uint8Array(view.buffer, view.byteOffset, view.byteLength))
+  if (offset !== 0 || length !== view.length) {
+    view = view.subarray(offset, offset + length)
+  }
+
+  return new Buffer(view.buffer.slice(view.byteOffset, view.byteOffset + view.byteLength))
 }
 
 exports.from = function from(value, encodingOrOffset, length) {
