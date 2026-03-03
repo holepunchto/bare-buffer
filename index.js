@@ -730,6 +730,18 @@ exports.coerce = function coerce(buffer) {
   return new Buffer(buffer.buffer, buffer.byteOffset, buffer.byteLength)
 }
 
+exports.copyBytesFrom = function copyBytesFrom(view, offset = 0, length = view.length - offset) {
+  if (offset + length > view.length) {
+    throw new RangeError('View length is out of range')
+  }
+
+  if (offset !== 0 || length !== view.length) {
+    view = view.subarray(offset, offset + length)
+  }
+
+  return new Buffer(view.buffer.slice(view.byteOffset, view.byteOffset + view.byteLength))
+}
+
 exports.from = function from(value, encodingOrOffset, length) {
   // from(string, encoding)
   if (typeof value === 'string') return fromString(value, encodingOrOffset)

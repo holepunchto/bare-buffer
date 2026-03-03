@@ -69,6 +69,23 @@ test('concat', (t) => {
   )
 })
 
+test('copyBytesFrom', (t) => {
+  const u16 = new Uint16Array([0, 0xffff])
+
+  t.alike(Buffer.copyBytesFrom(u16), Buffer.from([0, 0, 255, 255]))
+  t.alike(Buffer.copyBytesFrom(u16, 0, 0), Buffer.from([]))
+  t.alike(Buffer.copyBytesFrom(u16, 0, 1), Buffer.from([0, 0]))
+  t.alike(Buffer.copyBytesFrom(u16, 1, 1), Buffer.from([255, 255]))
+  t.exception.all(() => Buffer.copyBytesFrom(u16, 2, 1), /RangeError/)
+
+  const i32 = new Int32Array([21, 31])
+
+  Buffer.copyBytesFrom(i32)[0] = 42 // Mutate copy data, original data must remain the same
+
+  t.alike(Buffer.copyBytesFrom(i32, 0, 1), Buffer.from([21, 0, 0, 0]))
+  t.alike(Buffer.copyBytesFrom(i32, 1, 1), Buffer.from([31, 0, 0, 0]))
+})
+
 test('concat with length', (t) => {
   t.alike(
     Buffer.concat([Buffer.from([1, 2, 3]), Buffer.from([4, 5, 6])], 5),
