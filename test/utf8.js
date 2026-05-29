@@ -43,3 +43,18 @@ test('isUTF8', (t) => {
   t.is(Buffer.isUTF8(Buffer.from('foo')), true)
   t.is(Buffer.isUTF8(Buffer.of(0x80)), false)
 })
+
+test('utf8 lone surrogate write stays within byteLength', (t) => {
+  // byteLength must predict at least as many bytes as write produces;
+  // otherwise Buffer.alloc(byteLength).write(s) writes past the buffer.
+  for (const s of ['\uD800', '\uDC00', '\uD800A', '\uDC00\uD800', 'A\uD800B']) {
+    const len = Buffer.byteLength(s, 'utf8')
+    const guard = 4
+    const buffer = Buffer.alloc(len + guard, 0xaa)
+    const written = buffer.write(s, 0, len, 'utf8')
+    t.is(written, len, `write of ${JSON.stringify(s)} returns predicted length`)
+    for (let i = len; i < buffer.byteLength; i++) {
+      t.is(buffer[i], 0xaa, `byte ${i} after write of ${JSON.stringify(s)} untouched`)
+    }
+  }
+})

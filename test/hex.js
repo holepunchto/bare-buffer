@@ -16,3 +16,15 @@ test('hex write', (t) => {
 
   t.alike(buffer, Buffer.from('hello world'))
 })
+
+test('hex write odd length throws', (t) => {
+  const buffer = Buffer.alloc(Buffer.byteLength('abc', 'hex'))
+
+  t.exception(() => buffer.write('abc', 'hex'))
+})
+
+test('hex write non-ascii utf16 code unit throws', (t) => {
+  const buffer = Buffer.alloc(Buffer.byteLength('6€', 'hex'))
+
+  t.exception(() => buffer.write('6€', 'hex'))
+})
