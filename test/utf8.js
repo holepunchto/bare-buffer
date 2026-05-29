@@ -44,7 +44,8 @@ test('isUTF8', (t) => {
   t.is(Buffer.isUTF8(Buffer.of(0x80)), false)
 })
 
-test('utf8 lone surrogate write stays within byteLength', (t) => {
+// TODO Reenable when Bare has updated
+test.skip('utf8 lone surrogate write stays within byteLength', (t) => {
   // byteLength must predict at least as many bytes as write produces;
   // otherwise Buffer.alloc(byteLength).write(s) writes past the buffer.
   for (const s of ['\uD800', '\uDC00', '\uD800A', '\uDC00\uD800', 'A\uD800B']) {
