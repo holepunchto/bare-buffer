@@ -16,3 +16,13 @@ test('base64 write', (t) => {
 
   t.alike(buffer, Buffer.from('hello world'))
 })
+
+// TODO Reenable when Bare has updated
+test.skip('base64 write non-ascii utf16 code unit throws', (t) => {
+  const buffer = Buffer.alloc(16)
+
+  t.exception(() => buffer.write('ABCĀ', 'base64'))
+  t.exception(() => buffer.write('ABĀ', 'base64'))
+  t.exception(() => buffer.write('￿￿￿￿', 'base64'))
+  t.exception(() => buffer.write('A\ud800BC', 'base64'))
+})

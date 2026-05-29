@@ -16,3 +16,17 @@ test('hex write', (t) => {
 
   t.alike(buffer, Buffer.from('hello world'))
 })
+
+// TODO Reenable when Bare has updated
+test.skip('hex write odd length throws', (t) => {
+  const buffer = Buffer.alloc(Buffer.byteLength('abc', 'hex'))
+
+  t.exception(() => buffer.write('abc', 'hex'))
+})
+
+// TODO Reenable when Bare has updated
+test.skip('hex write non-ascii utf16 code unit throws', (t) => {
+  const buffer = Buffer.alloc(Buffer.byteLength('6€', 'hex'))
+
+  t.exception(() => buffer.write('6€', 'hex'))
+})
