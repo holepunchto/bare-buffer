@@ -8,5 +8,5 @@ declare global {
   const Buffer: BufferConstructor
 
   const atob: typeof buffer.atob
-  const atob: typeof buffer.btoa
+  const btoa: typeof buffer.btoa
 }
