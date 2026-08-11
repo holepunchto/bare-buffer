@@ -156,6 +156,35 @@ test('fill', (t) => {
   t.alike(Buffer.alloc(3).fill('abcd', 'hex'), Buffer.from([0xab, 0xcd, 0xab]))
   t.alike(Buffer.alloc(3).fill('abcd', 1, 'hex'), Buffer.from([0, 0xab, 0xcd]))
   t.alike(Buffer.alloc(3).fill('ab', 1, 2, 'hex'), Buffer.from([0, 0xab, 0]))
+
+  t.alike(Buffer.alloc(3).fill(''), Buffer.alloc(3), 'empty pattern')
+  t.alike(Buffer.alloc(3).fill('abcdef'), Buffer.from('abc'), 'pattern longer than range')
+
+  t.test('pattern repeats across the range', (t) => {
+    // Ranges either side of the point where filling switches to doubling the
+    // pattern in place, including lengths that are not a multiple of it.
+    for (const pattern of ['ab', 'abc', 'abcdefgh', 'abcdefgh'.repeat(9)]) {
+      for (const size of [1, 2, 3, 7, 8, 63, 64, 65, 127, 128, 1000]) {
+        const expected = Buffer.alloc(size)
+        for (let i = 0; i < size; i++) expected[i] = pattern.charCodeAt(i % pattern.length)
+
+        t.alike(Buffer.alloc(size).fill(pattern), expected, `${pattern} into ${size}`)
+
+        if (size > 3) {
+          const offset = Buffer.alloc(size)
+          for (let i = 2; i < size - 1; i++) {
+            offset[i] = pattern.charCodeAt((i - 2) % pattern.length)
+          }
+
+          t.alike(
+            Buffer.alloc(size).fill(pattern, 2, size - 1),
+            offset,
+            `${pattern} into ${size} at [2, ${size - 1})`
+          )
+        }
+      }
+    }
+  })
 })
 
 test('indexOf', (t) => {
@@ -304,6 +333,39 @@ test('transcode', (t) => {
     Buffer.of(0xd0, 0x96),
     'utf16le to utf8'
   )
+})
+
+test('read and write reject bad offsets', (t) => {
+  const buffer = Buffer.alloc(16)
+
+  for (const method of ['readUint8', 'readUint16LE', 'readUint32BE', 'readDoubleLE']) {
+    t.exception.all(() => buffer[method](1.5), /RangeError/, `${method} fractional offset`)
+    t.exception.all(() => buffer[method](-1), /RangeError/, `${method} negative offset`)
+    t.exception.all(() => buffer[method](16), /RangeError/, `${method} offset past the end`)
+  }
+
+  for (const method of ['writeUint8', 'writeUint16LE', 'writeUint32BE', 'writeDoubleLE']) {
+    t.exception.all(() => buffer[method](1, 1.5), /RangeError/, `${method} fractional offset`)
+    t.exception.all(() => buffer[method](1, -1), /RangeError/, `${method} negative offset`)
+    t.exception.all(() => buffer[method](1, 16), /RangeError/, `${method} offset past the end`)
+  }
+
+  t.exception.all(() => buffer.readUintLE(1.5, 6), /RangeError/, 'readUintLE fractional offset')
+  t.exception.all(() => buffer.readUintLE(11, 6), /RangeError/, 'readUintLE offset past the end')
+  t.exception.all(() => buffer.writeUintLE(1, 11, 6), /RangeError/, 'writeUintLE past the end')
+
+  t.test('a numeric string is not a number', (t) => {
+    for (let i = 0; i < 16; i++) buffer[i] = i
+
+    t.exception.all(() => buffer.readUint16LE('1'), /TypeError/)
+    t.exception.all(() => buffer.readUint32LE('1'), /TypeError/)
+    t.exception.all(() => buffer.readUintLE('1', 6), /TypeError/)
+    t.exception.all(() => buffer.writeUint16LE(0xffff, '1'), /TypeError/)
+    t.exception.all(() => buffer.readUint8(null), /TypeError/)
+    t.exception.all(() => buffer.readDoubleLE('1'), /TypeError/)
+
+    t.alike([...buffer.subarray(0, 4)], [0, 1, 2, 3], 'nothing was written')
+  })
 })
 
 test('readInt8', (t) => assertRead(t, { byteSize: 8, signed: false }))
