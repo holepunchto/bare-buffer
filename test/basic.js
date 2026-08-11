@@ -335,6 +335,39 @@ test('transcode', (t) => {
   )
 })
 
+test('read and write reject bad offsets', (t) => {
+  const buffer = Buffer.alloc(16)
+
+  for (const method of ['readUint8', 'readUint16LE', 'readUint32BE', 'readDoubleLE']) {
+    t.exception.all(() => buffer[method](1.5), /RangeError/, `${method} fractional offset`)
+    t.exception.all(() => buffer[method](-1), /RangeError/, `${method} negative offset`)
+    t.exception.all(() => buffer[method](16), /RangeError/, `${method} offset past the end`)
+  }
+
+  for (const method of ['writeUint8', 'writeUint16LE', 'writeUint32BE', 'writeDoubleLE']) {
+    t.exception.all(() => buffer[method](1, 1.5), /RangeError/, `${method} fractional offset`)
+    t.exception.all(() => buffer[method](1, -1), /RangeError/, `${method} negative offset`)
+    t.exception.all(() => buffer[method](1, 16), /RangeError/, `${method} offset past the end`)
+  }
+
+  t.exception.all(() => buffer.readUintLE(1.5, 6), /RangeError/, 'readUintLE fractional offset')
+  t.exception.all(() => buffer.readUintLE(11, 6), /RangeError/, 'readUintLE offset past the end')
+  t.exception.all(() => buffer.writeUintLE(1, 11, 6), /RangeError/, 'writeUintLE past the end')
+
+  t.test('a numeric string is not a number', (t) => {
+    for (let i = 0; i < 16; i++) buffer[i] = i
+
+    t.exception.all(() => buffer.readUint16LE('1'), /TypeError/)
+    t.exception.all(() => buffer.readUint32LE('1'), /TypeError/)
+    t.exception.all(() => buffer.readUintLE('1', 6), /TypeError/)
+    t.exception.all(() => buffer.writeUint16LE(0xffff, '1'), /TypeError/)
+    t.exception.all(() => buffer.readUint8(null), /TypeError/)
+    t.exception.all(() => buffer.readDoubleLE('1'), /TypeError/)
+
+    t.alike([...buffer.subarray(0, 4)], [0, 1, 2, 3], 'nothing was written')
+  })
+})
+
 test('readInt8', (t) => assertRead(t, { byteSize: 8, signed: false }))
 test('readUInt8', (t) => assertRead(t, { byteSize: 8, signed: true }))
 

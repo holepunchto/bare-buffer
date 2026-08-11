@@ -325,55 +325,83 @@ module.exports = exports = class Buffer extends Uint8Array {
   }
 
   readBigInt64BE(offset = 0) {
+    if (!Number.isInteger(offset)) offsetError(offset)
     return viewOf(this).getBigInt64(offset, false)
   }
   readBigInt64LE(offset = 0) {
+    if (!Number.isInteger(offset)) offsetError(offset)
     return viewOf(this).getBigInt64(offset, true)
   }
 
   readBigUint64BE(offset = 0) {
+    if (!Number.isInteger(offset)) offsetError(offset)
     return viewOf(this).getBigUint64(offset, false)
   }
   readBigUint64LE(offset = 0) {
+    if (!Number.isInteger(offset)) offsetError(offset)
     return viewOf(this).getBigUint64(offset, true)
   }
 
   readDoubleBE(offset = 0) {
+    if (!Number.isInteger(offset)) offsetError(offset)
     return viewOf(this).getFloat64(offset, false)
   }
   readDoubleLE(offset = 0) {
+    if (!Number.isInteger(offset)) offsetError(offset)
     return viewOf(this).getFloat64(offset, true)
   }
 
   readFloatBE(offset = 0) {
+    if (!Number.isInteger(offset)) offsetError(offset)
     return viewOf(this).getFloat32(offset, false)
   }
   readFloatLE(offset = 0) {
+    if (!Number.isInteger(offset)) offsetError(offset)
     return viewOf(this).getFloat32(offset, true)
   }
 
   readInt8(offset = 0) {
-    return viewOf(this).getInt8(offset)
+    if (!Number.isInteger(offset)) offsetError(offset)
+    const value = this[offset]
+    if (value === undefined) boundsError()
+    return (value << 24) >> 24
   }
 
   readInt16BE(offset = 0) {
-    return viewOf(this).getInt16(offset, false)
+    if (!Number.isInteger(offset)) offsetError(offset)
+    const first = this[offset]
+    const last = this[offset + 1]
+    if (first === undefined || last === undefined) boundsError()
+    return (((first << 8) | last) << 16) >> 16
   }
   readInt16LE(offset = 0) {
-    return viewOf(this).getInt16(offset, true)
+    if (!Number.isInteger(offset)) offsetError(offset)
+    const first = this[offset]
+    const last = this[offset + 1]
+    if (first === undefined || last === undefined) boundsError()
+    return (((last << 8) | first) << 16) >> 16
   }
 
   readInt32BE(offset = 0) {
-    return viewOf(this).getInt32(offset, false)
+    if (!Number.isInteger(offset)) offsetError(offset)
+    const first = this[offset]
+    const last = this[offset + 3]
+    if (first === undefined || last === undefined) boundsError()
+    return (first << 24) | (this[offset + 1] << 16) | (this[offset + 2] << 8) | last
   }
   readInt32LE(offset = 0) {
-    return viewOf(this).getInt32(offset, true)
+    if (!Number.isInteger(offset)) offsetError(offset)
+    const first = this[offset]
+    const last = this[offset + 3]
+    if (first === undefined || last === undefined) boundsError()
+    return first | (this[offset + 1] << 8) | (this[offset + 2] << 16) | (last << 24)
   }
 
   readIntBE(offset, byteLength) {
-    if (byteLength === 6) return readInt48BE(viewOf(this), offset)
-    if (byteLength === 5) return readInt40BE(viewOf(this), offset)
-    if (byteLength === 3) return readInt24BE(viewOf(this), offset)
+    if (!Number.isInteger(offset)) offsetError(offset)
+    if (byteLength === 6) return readInt48BE(this, offset)
+    if (byteLength === 5) return readInt40BE(this, offset)
+    if (byteLength === 3) return readInt24BE(this, offset)
     if (byteLength === 4) return this.readInt32BE(offset)
     if (byteLength === 2) return this.readInt16BE(offset)
     if (byteLength === 1) return this.readInt8(offset)
@@ -381,9 +409,10 @@ module.exports = exports = class Buffer extends Uint8Array {
   }
 
   readIntLE(offset, byteLength) {
-    if (byteLength === 6) return readInt48LE(viewOf(this), offset)
-    if (byteLength === 5) return readInt40LE(viewOf(this), offset)
-    if (byteLength === 3) return readInt24LE(viewOf(this), offset)
+    if (!Number.isInteger(offset)) offsetError(offset)
+    if (byteLength === 6) return readInt48LE(this, offset)
+    if (byteLength === 5) return readInt40LE(this, offset)
+    if (byteLength === 3) return readInt24LE(this, offset)
     if (byteLength === 4) return this.readInt32LE(offset)
     if (byteLength === 2) return this.readInt16LE(offset)
     if (byteLength === 1) return this.readInt8(offset)
@@ -391,27 +420,47 @@ module.exports = exports = class Buffer extends Uint8Array {
   }
 
   readUint8(offset = 0) {
-    return viewOf(this).getUint8(offset)
+    if (!Number.isInteger(offset)) offsetError(offset)
+    const value = this[offset]
+    if (value === undefined) boundsError()
+    return value
   }
 
   readUint16BE(offset = 0) {
-    return viewOf(this).getUint16(offset, false)
+    if (!Number.isInteger(offset)) offsetError(offset)
+    const first = this[offset]
+    const last = this[offset + 1]
+    if (first === undefined || last === undefined) boundsError()
+    return (first << 8) | last
   }
   readUint16LE(offset = 0) {
-    return viewOf(this).getUint16(offset, true)
+    if (!Number.isInteger(offset)) offsetError(offset)
+    const first = this[offset]
+    const last = this[offset + 1]
+    if (first === undefined || last === undefined) boundsError()
+    return (last << 8) | first
   }
 
   readUint32BE(offset = 0) {
-    return viewOf(this).getUint32(offset, false)
+    if (!Number.isInteger(offset)) offsetError(offset)
+    const first = this[offset]
+    const last = this[offset + 3]
+    if (first === undefined || last === undefined) boundsError()
+    return first * 0x1000000 + ((this[offset + 1] << 16) | (this[offset + 2] << 8) | last)
   }
   readUint32LE(offset = 0) {
-    return viewOf(this).getUint32(offset, true)
+    if (!Number.isInteger(offset)) offsetError(offset)
+    const first = this[offset]
+    const last = this[offset + 3]
+    if (first === undefined || last === undefined) boundsError()
+    return last * 0x1000000 + ((this[offset + 2] << 16) | (this[offset + 1] << 8) | first)
   }
 
   readUintBE(offset, byteLength) {
-    if (byteLength === 6) return readUint48BE(viewOf(this), offset)
-    if (byteLength === 5) return readUint40BE(viewOf(this), offset)
-    if (byteLength === 3) return readUint24BE(viewOf(this), offset)
+    if (!Number.isInteger(offset)) offsetError(offset)
+    if (byteLength === 6) return readUint48BE(this, offset)
+    if (byteLength === 5) return readUint40BE(this, offset)
+    if (byteLength === 3) return readUint24BE(this, offset)
     if (byteLength === 4) return this.readUint32BE(offset)
     if (byteLength === 2) return this.readUint16BE(offset)
     if (byteLength === 1) return this.readUint8(offset)
@@ -419,110 +468,83 @@ module.exports = exports = class Buffer extends Uint8Array {
   }
 
   readUintLE(offset, byteLength) {
-    if (byteLength === 6) return readUint48LE(viewOf(this), offset)
-    if (byteLength === 5) return readUint40LE(viewOf(this), offset)
-    if (byteLength === 3) return readUint24LE(viewOf(this), offset)
+    if (!Number.isInteger(offset)) offsetError(offset)
+    if (byteLength === 6) return readUint48LE(this, offset)
+    if (byteLength === 5) return readUint40LE(this, offset)
+    if (byteLength === 3) return readUint24LE(this, offset)
     if (byteLength === 4) return this.readUint32LE(offset)
     if (byteLength === 2) return this.readUint16LE(offset)
     if (byteLength === 1) return this.readUint8(offset)
     throw new RangeError(`Byte length must be between 1 and 6`)
   }
 
-  readBigUInt64BE(...args) {
-    return this.readBigUint64BE(...args)
-  }
-  readBigUInt64LE(...args) {
-    return this.readBigUint64LE(...args)
-  }
-
-  readUInt8(...args) {
-    return this.readUint8(...args)
-  }
-
-  readUInt16BE(...args) {
-    return this.readUint16BE(...args)
-  }
-  readUInt16LE(...args) {
-    return this.readUint16LE(...args)
-  }
-
-  readUInt32BE(...args) {
-    return this.readUint32BE(...args)
-  }
-  readUInt32LE(...args) {
-    return this.readUint32LE(...args)
-  }
-
-  readUIntBE(...args) {
-    return this.readUintBE(...args)
-  }
-  readUIntLE(...args) {
-    return this.readUintLE(...args)
-  }
-
   writeBigInt64BE(value, offset = 0) {
+    if (!Number.isInteger(offset)) offsetError(offset)
     viewOf(this).setBigInt64(offset, value, false)
     return offset + 8
   }
   writeBigInt64LE(value, offset = 0) {
+    if (!Number.isInteger(offset)) offsetError(offset)
     viewOf(this).setBigInt64(offset, value, true)
     return offset + 8
   }
 
   writeBigUint64BE(value, offset = 0) {
+    if (!Number.isInteger(offset)) offsetError(offset)
     viewOf(this).setBigUint64(offset, value, false)
     return offset + 8
   }
   writeBigUint64LE(value, offset = 0) {
+    if (!Number.isInteger(offset)) offsetError(offset)
     viewOf(this).setBigUint64(offset, value, true)
     return offset + 8
   }
 
   writeDoubleBE(value, offset = 0) {
+    if (!Number.isInteger(offset)) offsetError(offset)
     viewOf(this).setFloat64(offset, value, false)
     return offset + 8
   }
   writeDoubleLE(value, offset = 0) {
+    if (!Number.isInteger(offset)) offsetError(offset)
     viewOf(this).setFloat64(offset, value, true)
     return offset + 8
   }
 
   writeFloatBE(value, offset = 0) {
+    if (!Number.isInteger(offset)) offsetError(offset)
     viewOf(this).setFloat32(offset, value, false)
     return offset + 4
   }
   writeFloatLE(value, offset = 0) {
+    if (!Number.isInteger(offset)) offsetError(offset)
     viewOf(this).setFloat32(offset, value, true)
     return offset + 4
   }
 
   writeInt8(value, offset = 0) {
-    viewOf(this).setInt8(offset, value)
-    return offset + 1
+    return this.writeUint8(value, offset)
   }
 
   writeInt16BE(value, offset = 0) {
-    viewOf(this).setInt16(offset, value, false)
-    return offset + 2
+    return this.writeUint16BE(value, offset)
   }
   writeInt16LE(value, offset = 0) {
-    viewOf(this).setInt16(offset, value, true)
-    return offset + 2
+    return this.writeUint16LE(value, offset)
   }
 
   writeInt32BE(value, offset = 0) {
-    viewOf(this).setInt32(offset, value, false)
-    return offset + 4
+    return this.writeUint32BE(value, offset)
   }
   writeInt32LE(value, offset = 0) {
-    viewOf(this).setInt32(offset, value, true)
-    return offset + 4
+    return this.writeUint32LE(value, offset)
   }
 
   writeIntBE(value, offset, byteLength) {
-    if (byteLength === 6) return writeInt48BE(value, viewOf(this), offset)
-    if (byteLength === 5) return writeInt40BE(value, viewOf(this), offset)
-    if (byteLength === 3) return writeInt24BE(value, viewOf(this), offset)
+    if (!Number.isInteger(offset)) offsetError(offset)
+    if (byteLength === 6) return writeInt48BE(this, value, offset)
+    if (byteLength === 5) return writeInt40BE(this, value, offset)
+    if (byteLength === 3) return writeInt24BE(this, value, offset)
     if (byteLength === 4) return this.writeInt32BE(value, offset)
     if (byteLength === 2) return this.writeInt16BE(value, offset)
     if (byteLength === 1) return this.writeInt8(value, offset)
@@ -530,9 +552,10 @@ module.exports = exports = class Buffer extends Uint8Array {
   }
 
   writeIntLE(value, offset, byteLength) {
-    if (byteLength === 6) return writeInt48LE(value, viewOf(this), offset)
-    if (byteLength === 5) return writeInt40LE(value, viewOf(this), offset)
-    if (byteLength === 3) return writeInt24LE(value, viewOf(this), offset)
+    if (!Number.isInteger(offset)) offsetError(offset)
+    if (byteLength === 6) return writeInt48LE(this, value, offset)
+    if (byteLength === 5) return writeInt40LE(this, value, offset)
+    if (byteLength === 3) return writeInt24LE(this, value, offset)
     if (byteLength === 4) return this.writeInt32LE(value, offset)
     if (byteLength === 2) return this.writeInt16LE(value, offset)
     if (byteLength === 1) return this.writeInt8(value, offset)
@@ -540,32 +563,51 @@ module.exports = exports = class Buffer extends Uint8Array {
   }
 
   writeUint8(value, offset = 0) {
-    viewOf(this).setUint8(offset, value, true)
+    if (!Number.isInteger(offset)) offsetError(offset)
+    if (this[offset] === undefined) boundsError()
+    this[offset] = value
     return offset + 1
   }
 
   writeUint16BE(value, offset = 0) {
-    viewOf(this).setUint16(offset, value, false)
+    if (!Number.isInteger(offset)) offsetError(offset)
+    if (this[offset] === undefined || this[offset + 1] === undefined) boundsError()
+    this[offset] = value >>> 8
+    this[offset + 1] = value
     return offset + 2
   }
   writeUint16LE(value, offset = 0) {
-    viewOf(this).setUint16(offset, value, true)
+    if (!Number.isInteger(offset)) offsetError(offset)
+    if (this[offset] === undefined || this[offset + 1] === undefined) boundsError()
+    this[offset] = value
+    this[offset + 1] = value >>> 8
     return offset + 2
   }
 
   writeUint32LE(value, offset = 0) {
-    viewOf(this).setUint32(offset, value, true)
+    if (!Number.isInteger(offset)) offsetError(offset)
+    if (this[offset] === undefined || this[offset + 3] === undefined) boundsError()
+    this[offset] = value
+    this[offset + 1] = value >>> 8
+    this[offset + 2] = value >>> 16
+    this[offset + 3] = value >>> 24
     return offset + 4
   }
   writeUint32BE(value, offset = 0) {
-    viewOf(this).setUint32(offset, value, false)
+    if (!Number.isInteger(offset)) offsetError(offset)
+    if (this[offset] === undefined || this[offset + 3] === undefined) boundsError()
+    this[offset] = value >>> 24
+    this[offset + 1] = value >>> 16
+    this[offset + 2] = value >>> 8
+    this[offset + 3] = value
     return offset + 4
   }
 
   writeUintBE(value, offset, byteLength) {
-    if (byteLength === 6) return writeUint48BE(value, viewOf(this), offset)
-    if (byteLength === 5) return writeUint40BE(value, viewOf(this), offset)
-    if (byteLength === 3) return writeUint24BE(value, viewOf(this), offset)
+    if (!Number.isInteger(offset)) offsetError(offset)
+    if (byteLength === 6) return writeUint48BE(this, value, offset)
+    if (byteLength === 5) return writeUint40BE(this, value, offset)
+    if (byteLength === 3) return writeUint24BE(this, value, offset)
     if (byteLength === 4) return this.writeUint32BE(value, offset)
     if (byteLength === 2) return this.writeUint16BE(value, offset)
     if (byteLength === 1) return this.writeUint8(value, offset)
@@ -573,46 +615,42 @@ module.exports = exports = class Buffer extends Uint8Array {
   }
 
   writeUintLE(value, offset, byteLength) {
-    if (byteLength === 6) return writeUint48LE(value, viewOf(this), offset)
-    if (byteLength === 5) return writeUint40LE(value, viewOf(this), offset)
-    if (byteLength === 3) return writeUint24LE(value, viewOf(this), offset)
+    if (!Number.isInteger(offset)) offsetError(offset)
+    if (byteLength === 6) return writeUint48LE(this, value, offset)
+    if (byteLength === 5) return writeUint40LE(this, value, offset)
+    if (byteLength === 3) return writeUint24LE(this, value, offset)
     if (byteLength === 4) return this.writeUint32LE(value, offset)
     if (byteLength === 2) return this.writeUint16LE(value, offset)
     if (byteLength === 1) return this.writeUint8(value, offset)
     throw new RangeError(`Byte length must be between 1 and 6`)
   }
+}
 
-  writeBigUInt64BE(...args) {
-    return this.writeBigUint64BE(...args)
-  }
-  writeBigUInt64LE(...args) {
-    return this.writeBigUint64LE(...args)
-  }
-
-  writeUInt8(...args) {
-    return this.writeUint8(...args)
-  }
-
-  writeUInt16BE(...args) {
-    return this.writeUint16BE(...args)
-  }
-  writeUInt16LE(...args) {
-    return this.writeUint16LE(...args)
-  }
-
-  writeUInt32BE(...args) {
-    return this.writeUint32BE(...args)
-  }
-  writeUInt32LE(...args) {
-    return this.writeUint32LE(...args)
-  }
-
-  writeUIntBE(...args) {
-    return this.writeUintBE(...args)
-  }
-  writeUIntLE(...args) {
-    return this.writeUintLE(...args)
-  }
+for (const [alias, name] of [
+  ['readBigUInt64BE', 'readBigUint64BE'],
+  ['readBigUInt64LE', 'readBigUint64LE'],
+  ['readUInt8', 'readUint8'],
+  ['readUInt16BE', 'readUint16BE'],
+  ['readUInt16LE', 'readUint16LE'],
+  ['readUInt32BE', 'readUint32BE'],
+  ['readUInt32LE', 'readUint32LE'],
+  ['readUIntBE', 'readUintBE'],
+  ['readUIntLE', 'readUintLE'],
+  ['writeBigUInt64BE', 'writeBigUint64BE'],
+  ['writeBigUInt64LE', 'writeBigUint64LE'],
+  ['writeUInt8', 'writeUint8'],
+  ['writeUInt16BE', 'writeUint16BE'],
+  ['writeUInt16LE', 'writeUint16LE'],
+  ['writeUInt32BE', 'writeUint32BE'],
+  ['writeUInt32LE', 'writeUint32LE'],
+  ['writeUIntBE', 'writeUintBE'],
+  ['writeUIntLE', 'writeUintLE']
+]) {
+  Object.defineProperty(Buffer.prototype, alias, {
+    value: Buffer.prototype[name],
+    writable: true,
+    configurable: true
+  })
 }
 
 const Buffer = exports
@@ -890,180 +928,204 @@ exports.transcode = function transcode(buffer, from, to) {
   return Buffer.from(buffer.toString(from), to)
 }
 
-function readInt48BE(view, offset) {
-  const hi = view.getUint16(offset, false)
-  const lo = view.getUint32(offset + 2, false)
-  let value = lo + hi * 0x100000000
-  if (hi & 0x8000) value -= 0x1000000000000
-  return value
+function boundsError() {
+  throw new RangeError('Offset is outside the bounds of the buffer')
 }
 
-function readInt48LE(view, offset) {
-  const lo = view.getUint32(offset, true)
-  const hi = view.getUint16(offset + 4, true)
-  let value = lo + hi * 0x100000000
-  if (hi & 0x8000) value -= 0x1000000000000
-  return value
+function offsetError(offset) {
+  if (typeof offset !== 'number') {
+    throw new TypeError(`Offset must be a number, received type ${typeof offset}`)
+  }
+
+  throw new RangeError('Offset is outside the bounds of the buffer')
 }
 
-function readInt40BE(view, offset) {
-  const hi = view.getUint8(offset)
-  const lo = view.getUint32(offset + 1, false)
-  let value = lo + hi * 0x100000000
-  if (hi & 0x80) value -= 0x10000000000
-  return value
+function readInt48BE(buffer, offset) {
+  const value = readUint48BE(buffer, offset)
+  return value >= 0x800000000000 ? value - 0x1000000000000 : value
 }
 
-function readInt40LE(view, offset) {
-  const lo = view.getUint32(offset, true)
-  const hi = view.getUint8(offset + 4)
-  let value = lo + hi * 0x100000000
-  if (hi & 0x80) value -= 0x10000000000
-  return value
+function readInt48LE(buffer, offset) {
+  const value = readUint48LE(buffer, offset)
+  return value >= 0x800000000000 ? value - 0x1000000000000 : value
 }
 
-function readInt24BE(view, offset) {
-  const value =
-    (view.getUint8(offset) << 16) | (view.getUint8(offset + 1) << 8) | view.getUint8(offset + 2)
+function readInt40BE(buffer, offset) {
+  const value = readUint40BE(buffer, offset)
+  return value >= 0x8000000000 ? value - 0x10000000000 : value
+}
+
+function readInt40LE(buffer, offset) {
+  const value = readUint40LE(buffer, offset)
+  return value >= 0x8000000000 ? value - 0x10000000000 : value
+}
+
+function readInt24BE(buffer, offset) {
+  const value = readUint24BE(buffer, offset)
   return value & 0x800000 ? value - 0x1000000 : value
 }
 
-function readInt24LE(view, offset) {
-  const value =
-    view.getUint8(offset) | (view.getUint8(offset + 1) << 8) | (view.getUint8(offset + 2) << 16)
+function readInt24LE(buffer, offset) {
+  const value = readUint24LE(buffer, offset)
   return value & 0x800000 ? value - 0x1000000 : value
 }
 
-function readUint48BE(view, offset) {
-  const hi = view.getUint16(offset, false)
-  const lo = view.getUint32(offset + 2, false)
-  return lo + hi * 0x100000000
-}
-
-function readUint48LE(view, offset) {
-  const lo = view.getUint32(offset, true)
-  const hi = view.getUint16(offset + 4, true)
-  return lo + hi * 0x100000000
-}
-
-function readUint40BE(view, offset) {
-  const hi = view.getUint8(offset)
-  const lo = view.getUint32(offset + 1, false)
-  return lo + hi * 0x100000000
-}
-
-function readUint40LE(view, offset) {
-  const lo = view.getUint32(offset, true)
-  const hi = view.getUint8(offset + 4)
-  return lo + hi * 0x100000000
-}
-
-function readUint24BE(view, offset) {
+function readUint48BE(buffer, offset) {
+  const first = buffer[offset]
+  const last = buffer[offset + 5]
+  if (first === undefined || last === undefined) boundsError()
   return (
-    (view.getUint8(offset) << 16) | (view.getUint8(offset + 1) << 8) | view.getUint8(offset + 2)
+    (first * 0x100 + buffer[offset + 1]) * 0x100000000 +
+    ((buffer[offset + 2] << 24) >>> 0) +
+    (buffer[offset + 3] << 16) +
+    (buffer[offset + 4] << 8) +
+    last
   )
 }
 
-function readUint24LE(view, offset) {
+function readUint48LE(buffer, offset) {
+  const first = buffer[offset]
+  const last = buffer[offset + 5]
+  if (first === undefined || last === undefined) boundsError()
   return (
-    view.getUint8(offset) | (view.getUint8(offset + 1) << 8) | (view.getUint8(offset + 2) << 16)
+    (buffer[offset + 4] + last * 0x100) * 0x100000000 +
+    ((buffer[offset + 3] << 24) >>> 0) +
+    (buffer[offset + 2] << 16) +
+    (buffer[offset + 1] << 8) +
+    first
   )
 }
 
-function writeInt48BE(value, view, offset) {
+function readUint40BE(buffer, offset) {
+  const first = buffer[offset]
+  const last = buffer[offset + 4]
+  if (first === undefined || last === undefined) boundsError()
+  return (
+    first * 0x100000000 +
+    ((buffer[offset + 1] << 24) >>> 0) +
+    (buffer[offset + 2] << 16) +
+    (buffer[offset + 3] << 8) +
+    last
+  )
+}
+
+function readUint40LE(buffer, offset) {
+  const first = buffer[offset]
+  const last = buffer[offset + 4]
+  if (first === undefined || last === undefined) boundsError()
+  return (
+    last * 0x100000000 +
+    ((buffer[offset + 3] << 24) >>> 0) +
+    (buffer[offset + 2] << 16) +
+    (buffer[offset + 1] << 8) +
+    first
+  )
+}
+
+function readUint24BE(buffer, offset) {
+  const first = buffer[offset]
+  const last = buffer[offset + 2]
+  if (first === undefined || last === undefined) boundsError()
+  return (first << 16) | (buffer[offset + 1] << 8) | last
+}
+
+function readUint24LE(buffer, offset) {
+  const first = buffer[offset]
+  const last = buffer[offset + 2]
+  if (first === undefined || last === undefined) boundsError()
+  return (last << 16) | (buffer[offset + 1] << 8) | first
+}
+
+function writeInt48BE(buffer, value, offset) {
   if (value < 0) value += 0x1000000000000
-  const hi = Math.floor(value / 0x100000000)
-  const lo = value >>> 0
-  view.setUint16(offset, hi, false)
-  view.setUint32(offset + 2, lo, false)
-  return offset + 6
+  return writeUint48BE(buffer, value, offset)
 }
 
-function writeInt48LE(value, view, offset) {
+function writeInt48LE(buffer, value, offset) {
   if (value < 0) value += 0x1000000000000
-  const hi = Math.floor(value / 0x100000000)
-  const lo = value >>> 0
-  view.setUint32(offset, lo, true)
-  view.setUint16(offset + 4, hi, true)
-  return offset + 6
+  return writeUint48LE(buffer, value, offset)
 }
 
-function writeInt40BE(value, view, offset) {
+function writeInt40BE(buffer, value, offset) {
   if (value < 0) value += 0x10000000000
-  const hi = Math.floor(value / 0x100000000)
-  const lo = value >>> 0
-  view.setUint8(offset, hi)
-  view.setUint32(offset + 1, lo, false)
-  return offset + 5
+  return writeUint40BE(buffer, value, offset)
 }
 
-function writeInt40LE(value, view, offset) {
+function writeInt40LE(buffer, value, offset) {
   if (value < 0) value += 0x10000000000
+  return writeUint40LE(buffer, value, offset)
+}
+
+function writeInt24BE(buffer, value, offset) {
+  if (value < 0) value += 0x1000000
+  return writeUint24BE(buffer, value, offset)
+}
+
+function writeInt24LE(buffer, value, offset) {
+  if (value < 0) value += 0x1000000
+  return writeUint24LE(buffer, value, offset)
+}
+
+function writeUint48BE(buffer, value, offset) {
+  if (buffer[offset] === undefined || buffer[offset + 5] === undefined) boundsError()
   const hi = Math.floor(value / 0x100000000)
   const lo = value >>> 0
-  view.setUint32(offset, lo, true)
-  view.setUint8(offset + 4, hi)
-  return offset + 5
-}
-
-function writeInt24BE(value, view, offset) {
-  if (value < 0) value += 0x1000000
-  view.setUint8(offset, (value >> 16) & 0xff)
-  view.setUint8(offset + 1, (value >> 8) & 0xff)
-  view.setUint8(offset + 2, value & 0xff)
-  return offset + 3
-}
-
-function writeInt24LE(value, view, offset) {
-  if (value < 0) value += 0x1000000
-  view.setUint8(offset, value & 0xff)
-  view.setUint8(offset + 1, (value >> 8) & 0xff)
-  view.setUint8(offset + 2, (value >> 16) & 0xff)
-  return offset + 3
-}
-
-function writeUint48BE(value, view, offset) {
-  const hi = Math.floor(value / 0x100000000)
-  const lo = value >>> 0
-  view.setUint16(offset, hi, false)
-  view.setUint32(offset + 2, lo, false)
+  buffer[offset] = hi >>> 8
+  buffer[offset + 1] = hi
+  buffer[offset + 2] = lo >>> 24
+  buffer[offset + 3] = lo >>> 16
+  buffer[offset + 4] = lo >>> 8
+  buffer[offset + 5] = lo
   return offset + 6
 }
 
-function writeUint48LE(value, view, offset) {
+function writeUint48LE(buffer, value, offset) {
+  if (buffer[offset] === undefined || buffer[offset + 5] === undefined) boundsError()
   const hi = Math.floor(value / 0x100000000)
   const lo = value >>> 0
-  view.setUint32(offset, lo, true)
-  view.setUint16(offset + 4, hi, true)
+  buffer[offset] = lo
+  buffer[offset + 1] = lo >>> 8
+  buffer[offset + 2] = lo >>> 16
+  buffer[offset + 3] = lo >>> 24
+  buffer[offset + 4] = hi
+  buffer[offset + 5] = hi >>> 8
   return offset + 6
 }
 
-function writeUint40BE(value, view, offset) {
-  const hi = Math.floor(value / 0x100000000)
+function writeUint40BE(buffer, value, offset) {
+  if (buffer[offset] === undefined || buffer[offset + 4] === undefined) boundsError()
   const lo = value >>> 0
-  view.setUint8(offset, hi)
-  view.setUint32(offset + 1, lo, false)
+  buffer[offset] = Math.floor(value / 0x100000000)
+  buffer[offset + 1] = lo >>> 24
+  buffer[offset + 2] = lo >>> 16
+  buffer[offset + 3] = lo >>> 8
+  buffer[offset + 4] = lo
   return offset + 5
 }
 
-function writeUint40LE(value, view, offset) {
-  const hi = Math.floor(value / 0x100000000)
+function writeUint40LE(buffer, value, offset) {
+  if (buffer[offset] === undefined || buffer[offset + 4] === undefined) boundsError()
   const lo = value >>> 0
-  view.setUint32(offset, lo, true)
-  view.setUint8(offset + 4, hi)
+  buffer[offset] = lo
+  buffer[offset + 1] = lo >>> 8
+  buffer[offset + 2] = lo >>> 16
+  buffer[offset + 3] = lo >>> 24
+  buffer[offset + 4] = Math.floor(value / 0x100000000)
   return offset + 5
 }
 
-function writeUint24BE(value, view, offset) {
-  view.setUint8(offset, (value >> 16) & 0xff)
-  view.setUint8(offset + 1, (value >> 8) & 0xff)
-  view.setUint8(offset + 2, value & 0xff)
+function writeUint24BE(buffer, value, offset) {
+  if (buffer[offset] === undefined || buffer[offset + 2] === undefined) boundsError()
+  buffer[offset] = value >>> 16
+  buffer[offset + 1] = value >>> 8
+  buffer[offset + 2] = value
   return offset + 3
 }
 
-function writeUint24LE(value, view, offset) {
-  view.setUint8(offset, value & 0xff)
-  view.setUint8(offset + 1, (value >> 8) & 0xff)
-  view.setUint8(offset + 2, (value >> 16) & 0xff)
+function writeUint24LE(buffer, value, offset) {
+  if (buffer[offset] === undefined || buffer[offset + 2] === undefined) boundsError()
+  buffer[offset] = value
+  buffer[offset + 1] = value >>> 8
+  buffer[offset + 2] = value >>> 16
   return offset + 3
 }
