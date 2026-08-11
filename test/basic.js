@@ -27,6 +27,22 @@ test('alloc', (t) => {
   t.is(Buffer.alloc(42).byteLength, 42)
 })
 
+test('alloc rejects lengths outside the buffer range', (t) => {
+  const { MAX_LENGTH } = Buffer.constants
+
+  for (const size of [-1, -MAX_LENGTH, NaN, Infinity, -Infinity, MAX_LENGTH + 1, 2 ** 53]) {
+    for (const method of ['alloc', 'allocUnsafe', 'allocUnsafeSlow']) {
+      t.exception.all(() => Buffer[method](size), /RangeError/, `${method}(${size})`)
+    }
+
+    t.exception.all(() => new Buffer(size), /RangeError/, `new Buffer(${size})`)
+  }
+
+  t.is(Buffer.alloc(1.5).byteLength, 1)
+  t.is(Buffer.allocUnsafe(1.5).byteLength, 1)
+  t.is(Buffer.alloc(0).byteLength, 0, 'zero is allowed')
+})
+
 test('alloc with fill', (t) => {
   const buf = Buffer.alloc(5, 0xff)
   t.is(buf.byteLength, 5)
