@@ -148,24 +148,28 @@ static js_value_t *
 bare_buffer_validate_utf8(js_env_t *env, js_callback_info_t *info) {
   int err;
 
-  size_t argc = 2;
-  js_value_t *argv[2];
+  size_t argc = 3;
+  js_value_t *argv[3];
 
   err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
   assert(err == 0);
 
-  assert(argc == 2);
+  assert(argc == 3);
 
   utf8_t *buf;
   err = bare_buffer__get_info(env, argv[0], (void **) &buf, NULL);
   assert(err == 0);
 
+  int64_t offset;
+  err = js_get_value_int64(env, argv[1], &offset);
+  assert(err == 0);
+
   int64_t len;
-  err = js_get_value_int64(env, argv[1], &len);
+  err = js_get_value_int64(env, argv[2], &len);
   assert(err == 0);
 
   js_value_t *result;
-  err = js_get_boolean(env, utf8_validate(buf, len), &result);
+  err = js_get_boolean(env, utf8_validate(&buf[offset], len), &result);
   assert(err == 0);
 
   return result;
@@ -772,24 +776,28 @@ static js_value_t *
 bare_buffer_validate_ascii(js_env_t *env, js_callback_info_t *info) {
   int err;
 
-  size_t argc = 2;
-  js_value_t *argv[2];
+  size_t argc = 3;
+  js_value_t *argv[3];
 
   err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
   assert(err == 0);
 
-  assert(argc == 2);
+  assert(argc == 3);
 
   ascii_t *buf;
   err = bare_buffer__get_info(env, argv[0], (void **) &buf, NULL);
   assert(err == 0);
 
+  int64_t offset;
+  err = js_get_value_int64(env, argv[1], &offset);
+  assert(err == 0);
+
   int64_t len;
-  err = js_get_value_int64(env, argv[1], &len);
+  err = js_get_value_int64(env, argv[2], &len);
   assert(err == 0);
 
   js_value_t *result;
-  err = js_get_boolean(env, ascii_validate(buf, len), &result);
+  err = js_get_boolean(env, ascii_validate(&buf[offset], len), &result);
   assert(err == 0);
 
   return result;
@@ -977,10 +985,12 @@ bare_buffer_exports(js_env_t *env, js_value_t *exports) {
     &((js_callback_signature_t) {
       .version = 0,
       .result = js_int64,
-      .args_len = 3,
+      .args_len = 5,
       .args = (int[]) {
         js_object,
         js_object,
+        js_int64,
+        js_int64,
         js_string,
       }
     }),
