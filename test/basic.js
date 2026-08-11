@@ -49,6 +49,43 @@ test('alloc with fill', (t) => {
   for (let i = 0; i < 5; i++) t.is(buf[i], 0xff)
 })
 
+test('alloc with fill leaves no byte uninitialized', (t) => {
+  // A buffer that is filled is not zeroed first, so every fill has to cover the
+  // whole of it. Memory is churned beforehand to make reused pages dirty.
+  for (let i = 0; i < 100; i++) Buffer.allocUnsafeSlow(4096).fill(0xdd)
+
+  const fills = [1, 255, 256, -1, true, false, '', 'a', 'ab', 'abcdefgh', Buffer.from('ab')]
+
+  for (const size of [0, 1, 3, 8, 63, 64, 65, 200, 5000]) {
+    for (const fill of fills) {
+      const expected = Buffer.alloc(size)
+      expected.fill(fill, 0, size)
+
+      t.alike(Buffer.alloc(size, fill), expected, `alloc(${size}, ${JSON.stringify(fill)})`)
+    }
+  }
+
+  t.test('and is still zeroed without a fill', (t) => {
+    for (const size of [1, 64, 4096]) {
+      for (const fill of [undefined, 0]) {
+        t.alike(Buffer.alloc(size, fill), Buffer.alloc(size), `alloc(${size}, ${fill})`)
+      }
+    }
+  })
+
+  t.test('and is never pooled', (t) => {
+    for (const fill of [undefined, 0, 1, 'ab']) {
+      const buffer = Buffer.alloc(64, fill)
+      t.is(
+        buffer.buffer.byteLength,
+        64,
+        `alloc(64, ${JSON.stringify(fill)}) owns its backing store`
+      )
+      t.is(buffer.byteOffset, 0)
+    }
+  })
+})
+
 test('allocUnsafe', (t) => {
   t.is(Buffer.allocUnsafe(42).byteLength, 42)
 })
