@@ -835,12 +835,43 @@ bare_buffer__swap64(uint8_t *data, size_t len) {
   }
 }
 
-/**
- * Scans for candidates on the needle's first byte, which is cheap while
- * candidates are sparse. If too many candidates are rejected the first byte is
- * evidently common in the haystack, so switch to Boyer-Moore-Horspool, whose skip
- * table costs more to build but advances more than one byte at a time.
- */
+static const uint8_t *
+bare_buffer__memrchr(const uint8_t *data, uint8_t c, size_t len) {
+  const size_t chunk_len = 512;
+
+  while (len > 0) {
+    size_t take = len < chunk_len ? len : chunk_len;
+
+    const uint8_t *chunk = &data[len - take];
+
+    // When matches are dense the last one is within a few bytes of the end,
+    // which is far cheaper to find by looking than by narrowing.
+    size_t probe = take < 8 ? take : 8;
+
+    for (size_t i = 0; i < probe; i++) {
+      if (chunk[take - 1 - i] == c) return &chunk[take - 1 - i];
+    }
+
+    if (memchr(chunk, c, take - probe) != NULL) {
+      size_t lo = 0;
+      size_t hi = take - probe;
+
+      while (hi - lo > 1) {
+        size_t mid = lo + (hi - lo) / 2;
+
+        if (memchr(&chunk[mid], c, hi - mid) != NULL) lo = mid;
+        else hi = mid;
+      }
+
+      return &chunk[lo];
+    }
+
+    len -= take;
+  }
+
+  return NULL;
+}
+
 static int64_t
 bare_buffer__index_of(const uint8_t *data, size_t len, const uint8_t *needle, size_t needle_len, size_t from) {
   if (needle_len == 0 || needle_len > len || from > len - needle_len) return -1;
@@ -873,9 +904,13 @@ bare_buffer__index_of(const uint8_t *data, size_t len, const uint8_t *needle, si
 
   size_t skip[256];
 
-  for (size_t j = 0; j < 256; j++) skip[j] = needle_len;
+  for (size_t j = 0; j < 256; j++) {
+    skip[j] = needle_len;
+  }
 
-  for (size_t j = 0; j < needle_len - 1; j++) skip[needle[j]] = needle_len - 1 - j;
+  for (size_t j = 0; j < needle_len - 1; j++) {
+    skip[needle[j]] = needle_len - 1 - j;
+  }
 
   size_t last = needle_len - 1;
 
@@ -896,13 +931,51 @@ bare_buffer__last_index_of(const uint8_t *data, size_t len, const uint8_t *needl
 
   if (from > len - needle_len) from = len - needle_len;
 
-  for (size_t i = from + 1; i-- > 0;) {
-    if (data[i] == needle[0] && memcmp(&data[i], needle, needle_len) == 0) {
-      return (int64_t) i;
-    }
+  if (needle_len == 1) {
+    const uint8_t *at = bare_buffer__memrchr(data, needle[0], from + 1);
+
+    return at == NULL ? -1 : (int64_t) (at - data);
   }
 
-  return -1;
+  size_t i = from;
+  size_t rejected = 0;
+
+  while (rejected < 32) {
+    const uint8_t *at = bare_buffer__memrchr(data, needle[0], i + 1);
+
+    if (at == NULL) return -1;
+
+    i = (size_t) (at - data);
+
+    if (memcmp(&data[i + 1], &needle[1], needle_len - 1) == 0) return (int64_t) i;
+
+    if (i == 0) return -1;
+
+    i--;
+    rejected++;
+  }
+
+  size_t skip[256];
+
+  for (size_t j = 0; j < 256; j++) {
+    skip[j] = needle_len;
+  }
+
+  for (size_t j = needle_len - 1; j >= 1; j--) {
+    skip[needle[j]] = j;
+  }
+
+  while (true) {
+    if (data[i] == needle[0] && memcmp(&data[i + 1], &needle[1], needle_len - 1) == 0) {
+      return (int64_t) i;
+    }
+
+    size_t shift = skip[data[i]];
+
+    if (i < shift) return -1;
+
+    i -= shift;
+  }
 }
 
 static inline int
@@ -1353,11 +1426,11 @@ bare_buffer_exports(js_env_t *env, js_value_t *exports) {
   V(
     "byteLengthUTF8",
     bare_buffer_byte_length_utf8,
-    &((js_callback_signature_t) {
+    &((js_callback_signature_t){
       .version = 0,
       .result = js_int64,
       .args_len = 2,
-      .args = (int[]) {
+      .args = (int[]){
         js_object,
         js_string,
       }
@@ -1372,11 +1445,11 @@ bare_buffer_exports(js_env_t *env, js_value_t *exports) {
   V(
     "writeUTF8",
     bare_buffer_write_utf8,
-    &((js_callback_signature_t) {
+    &((js_callback_signature_t){
       .version = 0,
       .result = js_int64,
       .args_len = 5,
-      .args = (int[]) {
+      .args = (int[]){
         js_object,
         js_object,
         js_int64,
@@ -1392,11 +1465,11 @@ bare_buffer_exports(js_env_t *env, js_value_t *exports) {
   V(
     "writeUTF16LE",
     bare_buffer_write_utf16le,
-    &((js_callback_signature_t) {
+    &((js_callback_signature_t){
       .version = 0,
       .result = js_int64,
       .args_len = 5,
-      .args = (int[]) {
+      .args = (int[]){
         js_object,
         js_object,
         js_int64,
@@ -1412,11 +1485,11 @@ bare_buffer_exports(js_env_t *env, js_value_t *exports) {
   V(
     "writeLatin1",
     bare_buffer_write_latin1,
-    &((js_callback_signature_t) {
+    &((js_callback_signature_t){
       .version = 0,
       .result = js_int64,
       .args_len = 5,
-      .args = (int[]) {
+      .args = (int[]){
         js_object,
         js_object,
         js_int64,
@@ -1433,11 +1506,11 @@ bare_buffer_exports(js_env_t *env, js_value_t *exports) {
   V(
     "writeBase64",
     bare_buffer_write_base64,
-    &((js_callback_signature_t) {
+    &((js_callback_signature_t){
       .version = 0,
       .result = js_int64,
       .args_len = 5,
-      .args = (int[]) {
+      .args = (int[]){
         js_object,
         js_object,
         js_int64,
@@ -1453,11 +1526,11 @@ bare_buffer_exports(js_env_t *env, js_value_t *exports) {
   V(
     "writeHex",
     bare_buffer_write_hex,
-    &((js_callback_signature_t) {
+    &((js_callback_signature_t){
       .version = 0,
       .result = js_int64,
       .args_len = 5,
-      .args = (int[]) {
+      .args = (int[]){
         js_object,
         js_object,
         js_int64,
@@ -1473,11 +1546,11 @@ bare_buffer_exports(js_env_t *env, js_value_t *exports) {
   V(
     "swap16",
     bare_buffer_swap16,
-    &((js_callback_signature_t) {
+    &((js_callback_signature_t){
       .version = 0,
       .result = js_int32,
       .args_len = 4,
-      .args = (int[]) {
+      .args = (int[]){
         js_object,
         js_object,
         js_int64,
@@ -1490,11 +1563,11 @@ bare_buffer_exports(js_env_t *env, js_value_t *exports) {
   V(
     "swap32",
     bare_buffer_swap32,
-    &((js_callback_signature_t) {
+    &((js_callback_signature_t){
       .version = 0,
       .result = js_int32,
       .args_len = 4,
-      .args = (int[]) {
+      .args = (int[]){
         js_object,
         js_object,
         js_int64,
@@ -1507,11 +1580,11 @@ bare_buffer_exports(js_env_t *env, js_value_t *exports) {
   V(
     "swap64",
     bare_buffer_swap64,
-    &((js_callback_signature_t) {
+    &((js_callback_signature_t){
       .version = 0,
       .result = js_int32,
       .args_len = 4,
-      .args = (int[]) {
+      .args = (int[]){
         js_object,
         js_object,
         js_int64,
@@ -1524,11 +1597,11 @@ bare_buffer_exports(js_env_t *env, js_value_t *exports) {
   V(
     "indexOf",
     bare_buffer_index_of,
-    &((js_callback_signature_t) {
+    &((js_callback_signature_t){
       .version = 0,
       .result = js_int64,
       .args_len = 8,
-      .args = (int[]) {
+      .args = (int[]){
         js_object,
         js_object,
         js_int64,
@@ -1545,11 +1618,11 @@ bare_buffer_exports(js_env_t *env, js_value_t *exports) {
   V(
     "lastIndexOf",
     bare_buffer_last_index_of,
-    &((js_callback_signature_t) {
+    &((js_callback_signature_t){
       .version = 0,
       .result = js_int64,
       .args_len = 8,
-      .args = (int[]) {
+      .args = (int[]){
         js_object,
         js_object,
         js_int64,
@@ -1566,11 +1639,11 @@ bare_buffer_exports(js_env_t *env, js_value_t *exports) {
   V(
     "compare",
     bare_buffer_compare,
-    &((js_callback_signature_t) {
+    &((js_callback_signature_t){
       .version = 0,
       .result = js_int32,
       .args_len = 7,
-      .args = (int[]) {
+      .args = (int[]){
         js_object,
         js_object,
         js_int64,
