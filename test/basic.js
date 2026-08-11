@@ -13,6 +13,16 @@ test('from', (t) => {
   t.is(Buffer.from(Buffer.from('123').toJSON()).byteLength, 3, 'from toJSON')
 })
 
+test('constructor with options', (t) => {
+  const arrayBuffer = new ArrayBuffer(8)
+
+  t.is(new Buffer(arrayBuffer, {}).byteLength, 8, 'options in place of offset')
+
+  t.is(new Buffer(arrayBuffer, 2, {}).byteLength, 6, 'options in place of length')
+
+  t.is(new Buffer(arrayBuffer, 2, 4, {}).byteLength, 4, 'options after length')
+})
+
 test('alloc', (t) => {
   t.is(Buffer.alloc(42).byteLength, 42)
 })

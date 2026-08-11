@@ -48,7 +48,7 @@ module.exports = exports = class Buffer extends Uint8Array {
         opts = offset
         offset = 0
         length = arrayBuffer.byteLength
-      } else if (typeof length === 'length' && length !== null) {
+      } else if (typeof length === 'object' && length !== null) {
         opts = length
         length = arrayBuffer.byteLength - offset
       }
