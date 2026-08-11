@@ -12,7 +12,7 @@ const kind = Symbol.for('bare.buffer.kind')
 
 let poolSize = 0
 
-module.exports = exports = class Buffer extends Uint8Array {
+class Buffer extends Uint8Array {
   static get [kind]() {
     return 0 // Compatibility version
   }
@@ -653,7 +653,7 @@ for (const [alias, name] of [
   })
 }
 
-const Buffer = exports
+module.exports = exports = Buffer
 
 exports.Buffer = Buffer // For Node.js compatibility
 
