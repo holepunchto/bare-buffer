@@ -868,8 +868,6 @@ function bidirectionalIndexOf(buffer, value, offset, encoding, first) {
   while (j < needleLength && buffer[offset + j] === value[j]) j++
   if (j === needleLength) return offset
 
-  // Called as a property of the binding so the receiver matches the declared
-  // signature and the typed path is taken.
   if (first) {
     if (offset === last) return -1
 
