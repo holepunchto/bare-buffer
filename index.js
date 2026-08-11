@@ -12,7 +12,10 @@ const kind = Symbol.for('bare.buffer.kind')
 
 const SWAP_MIN_LENGTH = 128
 
-let poolSize = 0
+let poolSize = 65536
+let pool = null
+let poolLength = 0
+let poolOffset = 0
 
 class Buffer extends Uint8Array {
   static get [kind]() {
@@ -728,11 +731,11 @@ exports.alloc = function alloc(size, fill, encoding) {
 }
 
 exports.allocUnsafe = function allocUnsafe(size) {
-  return new Buffer(size, { uninitialized: true })
+  return allocate(size)
 }
 
 exports.allocUnsafeSlow = function allocUnsafeSlow(size) {
-  return exports.allocUnsafe(size)
+  return new Buffer(size, { uninitialized: true })
 }
 
 exports.byteLength = function byteLength(string, encoding) {
@@ -748,26 +751,31 @@ exports.compare = function compare(a, b) {
 }
 
 exports.concat = function concat(buffers, length) {
+  const n = buffers.length
+
   if (length === undefined) {
-    length = buffers.reduce((length, buffer) => length + buffer.byteLength, 0)
+    length = 0
+    for (let i = 0; i < n; i++) length += buffers[i].byteLength
   }
 
-  const result = new Buffer(length)
+  const result = allocate(length)
 
-  for (let i = 0, n = buffers.length, offset = 0; i < n; i++) {
+  let offset = 0
+
+  for (let i = 0; i < n; i++) {
     const buffer = buffers[i]
 
-    if (offset + buffer.byteLength > result.byteLength) {
-      result.set(
-        new Uint8Array(buffer.buffer, buffer.byteOffset, result.byteLength - offset),
-        offset
-      )
+    if (offset + buffer.byteLength > length) {
+      result.set(new Uint8Array(buffer.buffer, buffer.byteOffset, length - offset), offset)
       return result
     }
 
     result.set(buffer, offset)
     offset += buffer.byteLength
   }
+
+  // Only the bytes the inputs did not reach need initializing.
+  if (offset < length) result.fill(0, offset, length)
 
   return result
 }
@@ -805,19 +813,25 @@ exports.from = function from(value, encodingOrOffset, length) {
 
 function fromString(string, encoding) {
   const codec = codecFor(encoding)
-  const buffer = new Buffer(codec.byteLength(string))
-  codec.write(buffer, string)
+  const length = codec.byteLength(string)
+  const buffer = allocate(length)
+  const written = codec.write(buffer, string, 0, length)
+
+  // Some codecs only know an upper bound before encoding, and the remainder is
+  // uninitialized rather than zeroed.
+  if (written < length) return buffer.subarray(0, written)
+
   return buffer
 }
 
 function fromArray(array) {
-  const buffer = new Buffer(array.length)
+  const buffer = allocate(array.length)
   buffer.set(array)
   return buffer
 }
 
 function fromBuffer(buffer) {
-  const copy = new Buffer(buffer.byteLength)
+  const copy = allocate(buffer.byteLength)
   copy.set(buffer)
   return copy
 }
@@ -918,6 +932,26 @@ function fillPattern(buffer, value, length, offset, end) {
 
     filled += copy
   }
+
+  return buffer
+}
+
+function allocate(size) {
+  if (size <= 0 || size >= poolSize >>> 1) {
+    return new Buffer(size, { uninitialized: true })
+  }
+
+  if (pool === null || poolLength !== poolSize || poolLength - poolOffset < size) {
+    pool = binding.allocUnsafe(poolSize)
+    poolLength = poolSize
+    poolOffset = 0
+  }
+
+  const buffer = new Buffer(pool, poolOffset, size)
+
+  // Keep the next buffer 8 byte aligned so the wider accessors are not needlessly
+  // reading across word boundaries.
+  poolOffset = (poolOffset + size + 7) & ~7
 
   return buffer
 }
