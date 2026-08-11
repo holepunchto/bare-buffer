@@ -144,6 +144,27 @@ bare_buffer_to_string_utf8(js_env_t *env, js_callback_info_t *info) {
   return result;
 }
 
+static bool
+bare_buffer_typed_validate_utf8(
+  js_value_t *receiver,
+  js_value_t *handle,
+  int64_t offset,
+  int64_t len,
+  js_typed_callback_info_t *info
+) {
+  int err;
+
+  js_env_t *env;
+  err = js_get_typed_callback_info(info, &env, NULL);
+  assert(err == 0);
+
+  utf8_t *buf;
+  err = bare_buffer__get_info(env, handle, (void **) &buf, NULL);
+  assert(err == 0);
+
+  return utf8_validate(&buf[offset], len);
+}
+
 static js_value_t *
 bare_buffer_validate_utf8(js_env_t *env, js_callback_info_t *info) {
   int err;
@@ -785,6 +806,27 @@ bare_buffer_write_hex(js_env_t *env, js_callback_info_t *info) {
   assert(err == 0);
 
   return result;
+}
+
+static bool
+bare_buffer_typed_validate_ascii(
+  js_value_t *receiver,
+  js_value_t *handle,
+  int64_t offset,
+  int64_t len,
+  js_typed_callback_info_t *info
+) {
+  int err;
+
+  js_env_t *env;
+  err = js_get_typed_callback_info(info, &env, NULL);
+  assert(err == 0);
+
+  ascii_t *buf;
+  err = bare_buffer__get_info(env, handle, (void **) &buf, NULL);
+  assert(err == 0);
+
+  return ascii_validate(&buf[offset], len);
 }
 
 static js_value_t *
@@ -1455,7 +1497,22 @@ bare_buffer_exports(js_env_t *env, js_value_t *exports) {
 
   V("toStringUTF8", bare_buffer_to_string_utf8, NULL, NULL);
 
-  V("validateUTF8", bare_buffer_validate_utf8, NULL, NULL);
+  V(
+    "validateUTF8",
+    bare_buffer_validate_utf8,
+    &((js_callback_signature_t){
+      .version = 0,
+      .result = js_boolean,
+      .args_len = 4,
+      .args = (int[]){
+        js_object,
+        js_object,
+        js_int64,
+        js_int64,
+      }
+    }),
+    bare_buffer_typed_validate_utf8
+  );
 
   V(
     "writeUTF8",
@@ -1556,7 +1613,22 @@ bare_buffer_exports(js_env_t *env, js_value_t *exports) {
     bare_buffer_typed_write_hex
   );
 
-  V("validateAscii", bare_buffer_validate_ascii, NULL, NULL);
+  V(
+    "validateAscii",
+    bare_buffer_validate_ascii,
+    &((js_callback_signature_t){
+      .version = 0,
+      .result = js_boolean,
+      .args_len = 4,
+      .args = (int[]){
+        js_object,
+        js_object,
+        js_int64,
+        js_int64,
+      }
+    }),
+    bare_buffer_typed_validate_ascii
+  );
 
   V(
     "swap16",
