@@ -10,6 +10,8 @@ const binding = require('./binding')
 
 const kind = Symbol.for('bare.buffer.kind')
 
+const SWAP_MIN_LENGTH = 128
+
 let poolSize = 0
 
 class Buffer extends Uint8Array {
@@ -220,7 +222,11 @@ class Buffer extends Uint8Array {
       throw new RangeError('Buffer size must be a multiple of 16-bits')
     }
 
-    for (let i = 0; i < length; i += 2) swap(this, i, i + 1)
+    if (length < SWAP_MIN_LENGTH) {
+      for (let i = 0; i < length; i += 2) swap(this, i, i + 1)
+    } else {
+      binding.swap16(this.buffer, this.byteOffset, length)
+    }
 
     return this
   }
@@ -232,9 +238,13 @@ class Buffer extends Uint8Array {
       throw new RangeError('Buffer size must be a multiple of 32-bits')
     }
 
-    for (let i = 0; i < length; i += 4) {
-      swap(this, i, i + 3)
-      swap(this, i + 1, i + 2)
+    if (length < SWAP_MIN_LENGTH) {
+      for (let i = 0; i < length; i += 4) {
+        swap(this, i, i + 3)
+        swap(this, i + 1, i + 2)
+      }
+    } else {
+      binding.swap32(this.buffer, this.byteOffset, length)
     }
 
     return this
@@ -247,11 +257,15 @@ class Buffer extends Uint8Array {
       throw new RangeError('Buffer size must be a multiple of 64-bits')
     }
 
-    for (let i = 0; i < length; i += 8) {
-      swap(this, i, i + 7)
-      swap(this, i + 1, i + 6)
-      swap(this, i + 2, i + 5)
-      swap(this, i + 3, i + 4)
+    if (length < SWAP_MIN_LENGTH) {
+      for (let i = 0; i < length; i += 8) {
+        swap(this, i, i + 7)
+        swap(this, i + 1, i + 6)
+        swap(this, i + 2, i + 5)
+        swap(this, i + 3, i + 4)
+      }
+    } else {
+      binding.swap64(this.buffer, this.byteOffset, length)
     }
 
     return this
@@ -834,40 +848,51 @@ function bidirectionalIndexOf(buffer, value, offset, encoding, first) {
 
   if (typeof value === 'string') value = exports.from(value, encoding)
 
-  if (value.byteLength === 0) return -1
+  const needleLength = value.byteLength
+
+  if (needleLength === 0) return -1
+
+  const length = buffer.byteLength
+  const last = length - needleLength
 
   if (first) {
-    let foundIndex = -1
-
-    for (let i = offset; i < buffer.byteLength; i++) {
-      if (buffer[i] === value[foundIndex === -1 ? 0 : i - foundIndex]) {
-        if (foundIndex === -1) foundIndex = i
-        if (i - foundIndex + 1 === value.byteLength) return foundIndex
-      } else {
-        if (foundIndex !== -1) i -= i - foundIndex
-        foundIndex = -1
-      }
-    }
+    if (offset > last) return -1
   } else {
-    if (offset + value.byteLength > buffer.byteLength) {
-      offset = buffer.byteLength - value.byteLength
-    }
-
-    for (let i = offset; i >= 0; i--) {
-      let found = true
-
-      for (let j = 0; j < value.byteLength; j++) {
-        if (buffer[i + j] !== value[j]) {
-          found = false
-          break
-        }
-      }
-
-      if (found) return i
-    }
+    if (offset > last) offset = last
+    if (offset < 0) return -1
   }
 
-  return -1
+  // Confirming a match at the position the search starts from costs a handful
+  // of comparisons, and keeps prefix checks off the native path entirely.
+  let j = 0
+  while (j < needleLength && buffer[offset + j] === value[j]) j++
+  if (j === needleLength) return offset
+
+  if (first) {
+    if (offset === last) return -1
+
+    return binding.indexOf(
+      buffer.buffer,
+      buffer.byteOffset,
+      length,
+      value.buffer,
+      value.byteOffset,
+      needleLength,
+      offset + 1
+    )
+  }
+
+  if (offset === 0) return -1
+
+  return binding.lastIndexOf(
+    buffer.buffer,
+    buffer.byteOffset,
+    length,
+    value.buffer,
+    value.byteOffset,
+    needleLength,
+    offset - 1
+  )
 }
 
 // Writes the pattern once and then repeatedly doubles it in place, so the byte
