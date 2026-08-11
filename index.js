@@ -725,9 +725,13 @@ exports.isUTF8 = function isUTF8(buffer) {
 exports.isUtf8 = exports.isUTF8
 
 exports.alloc = function alloc(size, fill, encoding) {
-  const buffer = new Buffer(size)
-  if (fill !== undefined) buffer.fill(fill, 0, buffer.byteLength, encoding)
-  return buffer
+  if (fill !== undefined && fill !== 0) {
+    const buffer = new Buffer(size, { uninitialized: true })
+
+    return buffer.fill(fill, 0, buffer.byteLength, encoding)
+  }
+
+  return new Buffer(size)
 }
 
 exports.allocUnsafe = function allocUnsafe(size) {
