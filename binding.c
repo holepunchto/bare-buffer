@@ -803,6 +803,108 @@ bare_buffer_validate_ascii(js_env_t *env, js_callback_info_t *info) {
   return result;
 }
 
+static inline void
+bare_buffer__swap16(uint8_t *data, size_t len) {
+  for (size_t i = 0; i + 1 < len; i += 2) {
+    uint8_t a = data[i];
+    data[i] = data[i + 1];
+    data[i + 1] = a;
+  }
+}
+
+static inline void
+bare_buffer__swap32(uint8_t *data, size_t len) {
+  for (size_t i = 0; i + 3 < len; i += 4) {
+    uint8_t a = data[i];
+    uint8_t b = data[i + 1];
+    data[i] = data[i + 3];
+    data[i + 1] = data[i + 2];
+    data[i + 2] = b;
+    data[i + 3] = a;
+  }
+}
+
+static inline void
+bare_buffer__swap64(uint8_t *data, size_t len) {
+  for (size_t i = 0; i + 7 < len; i += 8) {
+    for (size_t j = 0; j < 4; j++) {
+      uint8_t a = data[i + j];
+      data[i + j] = data[i + 7 - j];
+      data[i + 7 - j] = a;
+    }
+  }
+}
+
+/**
+ * Scans for candidates on the needle's first byte, which is cheap while
+ * candidates are sparse. If too many candidates are rejected the first byte is
+ * evidently common in the haystack, so switch to Boyer-Moore-Horspool, whose skip
+ * table costs more to build but advances more than one byte at a time.
+ */
+static int64_t
+bare_buffer__index_of(const uint8_t *data, size_t len, const uint8_t *needle, size_t needle_len, size_t from) {
+  if (needle_len == 0 || needle_len > len || from > len - needle_len) return -1;
+
+  if (needle_len == 1) {
+    const uint8_t *at = memchr(&data[from], needle[0], len - from);
+
+    return at == NULL ? -1 : (int64_t) (at - data);
+  }
+
+  size_t end = len - needle_len + 1;
+  size_t i = from;
+  size_t rejected = 0;
+
+  while (i < end) {
+    const uint8_t *at = memchr(&data[i], needle[0], end - i);
+
+    if (at == NULL) return -1;
+
+    i = (size_t) (at - data);
+
+    if (memcmp(&data[i + 1], &needle[1], needle_len - 1) == 0) return (int64_t) i;
+
+    i++;
+
+    if (++rejected == 32) break;
+  }
+
+  if (i >= end) return -1;
+
+  size_t skip[256];
+
+  for (size_t j = 0; j < 256; j++) skip[j] = needle_len;
+
+  for (size_t j = 0; j < needle_len - 1; j++) skip[needle[j]] = needle_len - 1 - j;
+
+  size_t last = needle_len - 1;
+
+  while (i < end) {
+    if (data[i + last] == needle[last] && memcmp(&data[i], needle, last) == 0) {
+      return (int64_t) i;
+    }
+
+    i += skip[data[i + last]];
+  }
+
+  return -1;
+}
+
+static int64_t
+bare_buffer__last_index_of(const uint8_t *data, size_t len, const uint8_t *needle, size_t needle_len, size_t from) {
+  if (needle_len == 0 || needle_len > len) return -1;
+
+  if (from > len - needle_len) from = len - needle_len;
+
+  for (size_t i = from + 1; i-- > 0;) {
+    if (data[i] == needle[0] && memcmp(&data[i], needle, needle_len) == 0) {
+      return (int64_t) i;
+    }
+  }
+
+  return -1;
+}
+
 static inline int
 bare_buffer__memcmp(void *a, size_t a_len, void *b, size_t b_len) {
   int r = memcmp(a, b, a_len < b_len ? a_len : b_len);
@@ -882,6 +984,314 @@ bare_buffer_compare(js_env_t *env, js_callback_info_t *info) {
 
   js_value_t *result;
   err = js_create_int32(env, bare_buffer__memcmp(&a[a_offset], a_len, &b[b_offset], b_len), &result);
+  assert(err == 0);
+
+  return result;
+}
+
+static int32_t
+bare_buffer_typed_swap16(
+  js_value_t *receiver,
+  js_value_t *handle,
+  int64_t offset,
+  int64_t len,
+  js_typed_callback_info_t *info
+) {
+  int err;
+
+  js_env_t *env;
+  err = js_get_typed_callback_info(info, &env, NULL);
+  assert(err == 0);
+
+  uint8_t *buf;
+  err = bare_buffer__get_info(env, handle, (void **) &buf, NULL);
+  assert(err == 0);
+
+  bare_buffer__swap16(&buf[offset], len);
+
+  return 0;
+}
+
+static js_value_t *
+bare_buffer_swap16(js_env_t *env, js_callback_info_t *info) {
+  int err;
+
+  size_t argc = 3;
+  js_value_t *argv[3];
+
+  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
+  assert(err == 0);
+
+  assert(argc == 3);
+
+  uint8_t *buf;
+  err = bare_buffer__get_info(env, argv[0], (void **) &buf, NULL);
+  assert(err == 0);
+
+  int64_t offset;
+  err = js_get_value_int64(env, argv[1], &offset);
+  assert(err == 0);
+
+  int64_t len;
+  err = js_get_value_int64(env, argv[2], &len);
+  assert(err == 0);
+
+  bare_buffer__swap16(&buf[offset], len);
+
+  return NULL;
+}
+
+static int32_t
+bare_buffer_typed_swap32(
+  js_value_t *receiver,
+  js_value_t *handle,
+  int64_t offset,
+  int64_t len,
+  js_typed_callback_info_t *info
+) {
+  int err;
+
+  js_env_t *env;
+  err = js_get_typed_callback_info(info, &env, NULL);
+  assert(err == 0);
+
+  uint8_t *buf;
+  err = bare_buffer__get_info(env, handle, (void **) &buf, NULL);
+  assert(err == 0);
+
+  bare_buffer__swap32(&buf[offset], len);
+
+  return 0;
+}
+
+static js_value_t *
+bare_buffer_swap32(js_env_t *env, js_callback_info_t *info) {
+  int err;
+
+  size_t argc = 3;
+  js_value_t *argv[3];
+
+  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
+  assert(err == 0);
+
+  assert(argc == 3);
+
+  uint8_t *buf;
+  err = bare_buffer__get_info(env, argv[0], (void **) &buf, NULL);
+  assert(err == 0);
+
+  int64_t offset;
+  err = js_get_value_int64(env, argv[1], &offset);
+  assert(err == 0);
+
+  int64_t len;
+  err = js_get_value_int64(env, argv[2], &len);
+  assert(err == 0);
+
+  bare_buffer__swap32(&buf[offset], len);
+
+  return NULL;
+}
+
+static int32_t
+bare_buffer_typed_swap64(
+  js_value_t *receiver,
+  js_value_t *handle,
+  int64_t offset,
+  int64_t len,
+  js_typed_callback_info_t *info
+) {
+  int err;
+
+  js_env_t *env;
+  err = js_get_typed_callback_info(info, &env, NULL);
+  assert(err == 0);
+
+  uint8_t *buf;
+  err = bare_buffer__get_info(env, handle, (void **) &buf, NULL);
+  assert(err == 0);
+
+  bare_buffer__swap64(&buf[offset], len);
+
+  return 0;
+}
+
+static js_value_t *
+bare_buffer_swap64(js_env_t *env, js_callback_info_t *info) {
+  int err;
+
+  size_t argc = 3;
+  js_value_t *argv[3];
+
+  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
+  assert(err == 0);
+
+  assert(argc == 3);
+
+  uint8_t *buf;
+  err = bare_buffer__get_info(env, argv[0], (void **) &buf, NULL);
+  assert(err == 0);
+
+  int64_t offset;
+  err = js_get_value_int64(env, argv[1], &offset);
+  assert(err == 0);
+
+  int64_t len;
+  err = js_get_value_int64(env, argv[2], &len);
+  assert(err == 0);
+
+  bare_buffer__swap64(&buf[offset], len);
+
+  return NULL;
+}
+
+static int64_t
+bare_buffer_typed_index_of(
+  js_value_t *receiver,
+  js_value_t *handle,
+  int64_t offset,
+  int64_t len,
+  js_value_t *needle_handle,
+  int64_t needle_offset,
+  int64_t needle_len,
+  int64_t from,
+  js_typed_callback_info_t *info
+) {
+  int err;
+
+  js_env_t *env;
+  err = js_get_typed_callback_info(info, &env, NULL);
+  assert(err == 0);
+
+  uint8_t *buf;
+  err = bare_buffer__get_info(env, handle, (void **) &buf, NULL);
+  assert(err == 0);
+
+  uint8_t *needle;
+  err = bare_buffer__get_info(env, needle_handle, (void **) &needle, NULL);
+  assert(err == 0);
+
+  return bare_buffer__index_of(&buf[offset], len, &needle[needle_offset], needle_len, from);
+}
+
+static js_value_t *
+bare_buffer_index_of(js_env_t *env, js_callback_info_t *info) {
+  int err;
+
+  size_t argc = 7;
+  js_value_t *argv[7];
+
+  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
+  assert(err == 0);
+
+  assert(argc == 7);
+
+  uint8_t *buf;
+  err = bare_buffer__get_info(env, argv[0], (void **) &buf, NULL);
+  assert(err == 0);
+
+  int64_t offset;
+  err = js_get_value_int64(env, argv[1], &offset);
+  assert(err == 0);
+
+  int64_t len;
+  err = js_get_value_int64(env, argv[2], &len);
+  assert(err == 0);
+
+  uint8_t *needle;
+  err = bare_buffer__get_info(env, argv[3], (void **) &needle, NULL);
+  assert(err == 0);
+
+  int64_t needle_offset;
+  err = js_get_value_int64(env, argv[4], &needle_offset);
+  assert(err == 0);
+
+  int64_t needle_len;
+  err = js_get_value_int64(env, argv[5], &needle_len);
+  assert(err == 0);
+
+  int64_t from;
+  err = js_get_value_int64(env, argv[6], &from);
+  assert(err == 0);
+
+  js_value_t *result;
+  err = js_create_int64(env, bare_buffer__index_of(&buf[offset], len, &needle[needle_offset], needle_len, from), &result);
+  assert(err == 0);
+
+  return result;
+}
+
+static int64_t
+bare_buffer_typed_last_index_of(
+  js_value_t *receiver,
+  js_value_t *handle,
+  int64_t offset,
+  int64_t len,
+  js_value_t *needle_handle,
+  int64_t needle_offset,
+  int64_t needle_len,
+  int64_t from,
+  js_typed_callback_info_t *info
+) {
+  int err;
+
+  js_env_t *env;
+  err = js_get_typed_callback_info(info, &env, NULL);
+  assert(err == 0);
+
+  uint8_t *buf;
+  err = bare_buffer__get_info(env, handle, (void **) &buf, NULL);
+  assert(err == 0);
+
+  uint8_t *needle;
+  err = bare_buffer__get_info(env, needle_handle, (void **) &needle, NULL);
+  assert(err == 0);
+
+  return bare_buffer__last_index_of(&buf[offset], len, &needle[needle_offset], needle_len, from);
+}
+
+static js_value_t *
+bare_buffer_last_index_of(js_env_t *env, js_callback_info_t *info) {
+  int err;
+
+  size_t argc = 7;
+  js_value_t *argv[7];
+
+  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
+  assert(err == 0);
+
+  assert(argc == 7);
+
+  uint8_t *buf;
+  err = bare_buffer__get_info(env, argv[0], (void **) &buf, NULL);
+  assert(err == 0);
+
+  int64_t offset;
+  err = js_get_value_int64(env, argv[1], &offset);
+  assert(err == 0);
+
+  int64_t len;
+  err = js_get_value_int64(env, argv[2], &len);
+  assert(err == 0);
+
+  uint8_t *needle;
+  err = bare_buffer__get_info(env, argv[3], (void **) &needle, NULL);
+  assert(err == 0);
+
+  int64_t needle_offset;
+  err = js_get_value_int64(env, argv[4], &needle_offset);
+  assert(err == 0);
+
+  int64_t needle_len;
+  err = js_get_value_int64(env, argv[5], &needle_len);
+  assert(err == 0);
+
+  int64_t from;
+  err = js_get_value_int64(env, argv[6], &from);
+  assert(err == 0);
+
+  js_value_t *result;
+  err = js_create_int64(env, bare_buffer__last_index_of(&buf[offset], len, &needle[needle_offset], needle_len, from), &result);
   assert(err == 0);
 
   return result;
@@ -1059,6 +1469,99 @@ bare_buffer_exports(js_env_t *env, js_value_t *exports) {
   );
 
   V("validateAscii", bare_buffer_validate_ascii, NULL, NULL);
+
+  V(
+    "swap16",
+    bare_buffer_swap16,
+    &((js_callback_signature_t) {
+      .version = 0,
+      .result = js_int32,
+      .args_len = 4,
+      .args = (int[]) {
+        js_object,
+        js_object,
+        js_int64,
+        js_int64,
+      }
+    }),
+    bare_buffer_typed_swap16
+  );
+
+  V(
+    "swap32",
+    bare_buffer_swap32,
+    &((js_callback_signature_t) {
+      .version = 0,
+      .result = js_int32,
+      .args_len = 4,
+      .args = (int[]) {
+        js_object,
+        js_object,
+        js_int64,
+        js_int64,
+      }
+    }),
+    bare_buffer_typed_swap32
+  );
+
+  V(
+    "swap64",
+    bare_buffer_swap64,
+    &((js_callback_signature_t) {
+      .version = 0,
+      .result = js_int32,
+      .args_len = 4,
+      .args = (int[]) {
+        js_object,
+        js_object,
+        js_int64,
+        js_int64,
+      }
+    }),
+    bare_buffer_typed_swap64
+  );
+
+  V(
+    "indexOf",
+    bare_buffer_index_of,
+    &((js_callback_signature_t) {
+      .version = 0,
+      .result = js_int64,
+      .args_len = 8,
+      .args = (int[]) {
+        js_object,
+        js_object,
+        js_int64,
+        js_int64,
+        js_object,
+        js_int64,
+        js_int64,
+        js_int64,
+      }
+    }),
+    bare_buffer_typed_index_of
+  );
+
+  V(
+    "lastIndexOf",
+    bare_buffer_last_index_of,
+    &((js_callback_signature_t) {
+      .version = 0,
+      .result = js_int64,
+      .args_len = 8,
+      .args = (int[]) {
+        js_object,
+        js_object,
+        js_int64,
+        js_int64,
+        js_object,
+        js_int64,
+        js_int64,
+        js_int64,
+      }
+    }),
+    bare_buffer_typed_last_index_of
+  );
 
   V(
     "compare",
