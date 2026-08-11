@@ -39,8 +39,8 @@ class Buffer extends Uint8Array {
       offset = 0
       length = arrayBuffer
 
-      if (length > constants.MAX_LENGTH) {
-        throw new RangeError(`Buffer length must be at most ${constants.MAX_LENGTH}`)
+      if (Number.isNaN(length) || length < 0 || length > constants.MAX_LENGTH) {
+        throw new RangeError(`Buffer length must be between 0 and ${constants.MAX_LENGTH}`)
       }
 
       arrayBuffer = uninitialized ? binding.allocUnsafe(length) : binding.alloc(length)
@@ -937,7 +937,7 @@ function fillPattern(buffer, value, length, offset, end) {
 }
 
 function allocate(size) {
-  if (size <= 0 || size >= poolSize >>> 1) {
+  if (Number.isNaN(size) || size <= 0 || size >= poolSize >>> 1) {
     return new Buffer(size, { uninitialized: true })
   }
 

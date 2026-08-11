@@ -47,7 +47,7 @@ bare_buffer_alloc(js_env_t *env, js_callback_info_t *info) {
 
   js_value_t *result;
   err = js_create_arraybuffer(env, len, NULL, &result);
-  assert(err == 0);
+  if (err < 0) return NULL;
 
   return result;
 }
@@ -70,7 +70,7 @@ bare_buffer_alloc_unsafe(js_env_t *env, js_callback_info_t *info) {
 
   js_value_t *result;
   err = js_create_unsafe_arraybuffer(env, len, NULL, &result);
-  assert(err == 0);
+  if (err < 0) return NULL;
 
   return result;
 }
