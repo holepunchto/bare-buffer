@@ -7,10 +7,10 @@
 #include <string.h>
 #include <utf.h>
 
-static void
-bare_buffer__on_finalize_string(js_env_t *env, void *data, void *finalize_hint) {
-  free(data);
-}
+// Results up to this length are encoded on the stack, so that the common case
+// of a short hex or base64 string involves neither an allocation nor the
+// bookkeeping of an external string.
+#define BARE_BUFFER_STACK_STRING_MAX 1024
 
 static inline int
 bare_buffer__get_info(js_env_t *env, js_value_t *buffer, void **data, size_t *len) {
@@ -461,13 +461,18 @@ bare_buffer_to_string_base64(js_env_t *env, js_callback_info_t *info) {
   err = base64_encode_utf8(&buf[offset], len, NULL, &str_len);
   assert(err == 0);
 
-  utf8_t *str = malloc(str_len);
+  utf8_t stack[BARE_BUFFER_STACK_STRING_MAX];
+  utf8_t *str = str_len <= sizeof(stack) ? stack : malloc(str_len);
+
   err = base64_encode_utf8(&buf[offset], len, str, &str_len);
   assert(err == 0);
 
   js_value_t *result;
-  err = js_create_external_string_latin1(env, str, str_len, bare_buffer__on_finalize_string, NULL, &result, NULL);
-  assert(err == 0);
+  err = js_create_string_latin1(env, str, str_len, &result);
+
+  if (str != stack) free(str);
+
+  if (err < 0) return NULL;
 
   return result;
 }
@@ -500,13 +505,18 @@ bare_buffer_to_string_base64url(js_env_t *env, js_callback_info_t *info) {
   err = base64url_encode_utf8(&buf[offset], len, NULL, &str_len);
   assert(err == 0);
 
-  utf8_t *str = malloc(str_len);
+  utf8_t stack[BARE_BUFFER_STACK_STRING_MAX];
+  utf8_t *str = str_len <= sizeof(stack) ? stack : malloc(str_len);
+
   err = base64url_encode_utf8(&buf[offset], len, str, &str_len);
   assert(err == 0);
 
   js_value_t *result;
-  err = js_create_external_string_latin1(env, str, str_len, bare_buffer__on_finalize_string, NULL, &result, NULL);
-  assert(err == 0);
+  err = js_create_string_latin1(env, str, str_len, &result);
+
+  if (str != stack) free(str);
+
+  if (err < 0) return NULL;
 
   return result;
 }
@@ -650,13 +660,18 @@ bare_buffer_to_string_hex(js_env_t *env, js_callback_info_t *info) {
   err = hex_encode_utf8(&buf[offset], len, NULL, &str_len);
   assert(err == 0);
 
-  utf8_t *str = malloc(str_len);
+  utf8_t stack[BARE_BUFFER_STACK_STRING_MAX];
+  utf8_t *str = str_len <= sizeof(stack) ? stack : malloc(str_len);
+
   err = hex_encode_utf8(&buf[offset], len, str, &str_len);
   assert(err == 0);
 
   js_value_t *result;
-  err = js_create_external_string_latin1(env, str, str_len, bare_buffer__on_finalize_string, NULL, &result, NULL);
-  assert(err == 0);
+  err = js_create_string_latin1(env, str, str_len, &result);
+
+  if (str != stack) free(str);
+
+  if (err < 0) return NULL;
 
   return result;
 }
