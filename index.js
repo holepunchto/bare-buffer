@@ -185,11 +185,10 @@ module.exports = exports = class Buffer extends Uint8Array {
 
     const length = value.byteLength
 
-    for (let i = 0, n = end - offset; i < n; ++i) {
-      this[i + offset] = value[i % length]
-    }
+    if (length === 0) return super.fill(0, offset, end)
+    if (length === 1) return super.fill(value[0], offset, end)
 
-    return this
+    return fillPattern(this, value, length, offset, end)
   }
 
   includes(value, offset, encoding) {
@@ -283,7 +282,12 @@ module.exports = exports = class Buffer extends Uint8Array {
   }
 
   toJSON() {
-    return Array.from(this)
+    const length = this.byteLength
+    const data = new Array(length)
+
+    for (let i = 0; i < length; i++) data[i] = this[i]
+
+    return data
   }
 
   write(string, offset = 0, length = this.byteLength - offset, encoding = 'utf8') {
@@ -627,12 +631,14 @@ codecs.utf8 = codecs['utf-8'] = utf8
 codecs.utf16le = codecs.ucs2 = codecs['utf-16le'] = codecs['ucs-2'] = utf16le
 codecs.latin1 = codecs.binary = latin1
 
-function codecFor(encoding = 'utf8') {
-  if (encoding in codecs) return codecs[encoding]
+function codecFor(encoding) {
+  if (encoding === undefined) return utf8
 
-  encoding = encoding.toLowerCase()
+  let codec = codecs[encoding]
+  if (codec !== undefined) return codec
 
-  if (encoding in codecs) return codecs[encoding]
+  codec = codecs[encoding.toLowerCase()]
+  if (codec !== undefined) return codec
 
   throw new Error(`Unknown encoding '${encoding}'`)
 }
@@ -835,6 +841,33 @@ function bidirectionalIndexOf(buffer, value, offset, encoding, first) {
   }
 
   return -1
+}
+
+// Writes the pattern once and then repeatedly doubles it in place, so the byte
+// wise work is proportional to the pattern rather than to the range. Each block
+// copied is a whole number of periods, which keeps the pattern aligned.
+function fillPattern(buffer, value, length, offset, end) {
+  const n = end - offset
+
+  // Below this the copies cost more than they save.
+  if (n < 64) {
+    for (let i = 0; i < n; i++) buffer[offset + i] = value[i % length]
+    return buffer
+  }
+
+  let filled = length < n ? length : n
+
+  for (let i = 0; i < filled; i++) buffer[offset + i] = value[i]
+
+  while (filled < n) {
+    const copy = filled < n - filled ? filled : n - filled
+
+    buffer.copyWithin(offset + filled, offset, offset + copy)
+
+    filled += copy
+  }
+
+  return buffer
 }
 
 function swap(buffer, n, m) {

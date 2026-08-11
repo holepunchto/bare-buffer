@@ -156,6 +156,35 @@ test('fill', (t) => {
   t.alike(Buffer.alloc(3).fill('abcd', 'hex'), Buffer.from([0xab, 0xcd, 0xab]))
   t.alike(Buffer.alloc(3).fill('abcd', 1, 'hex'), Buffer.from([0, 0xab, 0xcd]))
   t.alike(Buffer.alloc(3).fill('ab', 1, 2, 'hex'), Buffer.from([0, 0xab, 0]))
+
+  t.alike(Buffer.alloc(3).fill(''), Buffer.alloc(3), 'empty pattern')
+  t.alike(Buffer.alloc(3).fill('abcdef'), Buffer.from('abc'), 'pattern longer than range')
+
+  t.test('pattern repeats across the range', (t) => {
+    // Ranges either side of the point where filling switches to doubling the
+    // pattern in place, including lengths that are not a multiple of it.
+    for (const pattern of ['ab', 'abc', 'abcdefgh', 'abcdefgh'.repeat(9)]) {
+      for (const size of [1, 2, 3, 7, 8, 63, 64, 65, 127, 128, 1000]) {
+        const expected = Buffer.alloc(size)
+        for (let i = 0; i < size; i++) expected[i] = pattern.charCodeAt(i % pattern.length)
+
+        t.alike(Buffer.alloc(size).fill(pattern), expected, `${pattern} into ${size}`)
+
+        if (size > 3) {
+          const offset = Buffer.alloc(size)
+          for (let i = 2; i < size - 1; i++) {
+            offset[i] = pattern.charCodeAt((i - 2) % pattern.length)
+          }
+
+          t.alike(
+            Buffer.alloc(size).fill(pattern, 2, size - 1),
+            offset,
+            `${pattern} into ${size} at [2, ${size - 1})`
+          )
+        }
+      }
+    }
+  })
 })
 
 test('indexOf', (t) => {
