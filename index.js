@@ -62,7 +62,7 @@ class Buffer extends Uint8Array {
   }
 
   copy(target, targetStart = 0, sourceStart = 0, sourceEnd = this.byteLength) {
-    let source = this
+    const source = this
 
     if (targetStart < 0) targetStart = 0
     if (targetStart >= target.byteLength) return 0
@@ -83,12 +83,13 @@ class Buffer extends Uint8Array {
 
     if (source === target) {
       target.copyWithin(targetStart, sourceStart, sourceEnd)
-    } else {
-      if (sourceStart !== 0 || sourceEnd !== source.byteLength) {
-        source = source.subarray(sourceStart, sourceEnd)
-      }
-
+    } else if (sourceStart === 0 && sourceEnd === source.byteLength) {
       target.set(source, targetStart)
+    } else {
+      target.set(
+        new Uint8Array(source.buffer, source.byteOffset + sourceStart, sourceLength),
+        targetStart
+      )
     }
 
     return sourceLength
@@ -119,11 +120,16 @@ class Buffer extends Uint8Array {
     sourceStart = 0,
     sourceEnd = this.byteLength
   ) {
-    let source = this
+    const source = this
 
     if (source === target) return 0
 
-    if (arguments.length > 1) {
+    if (arguments.length === 1) {
+      targetStart = 0
+      targetEnd = target.byteLength
+      sourceStart = 0
+      sourceEnd = source.byteLength
+    } else {
       if (targetStart < 0) targetStart = 0
       if (targetStart > target.byteLength) targetStart = target.byteLength
 
@@ -135,23 +141,15 @@ class Buffer extends Uint8Array {
 
       if (sourceEnd < sourceStart) sourceEnd = sourceStart
       if (sourceEnd > source.byteLength) sourceEnd = source.byteLength
-
-      if (sourceStart !== 0 || sourceEnd !== source.byteLength) {
-        source = source.subarray(sourceStart, sourceEnd)
-      }
-
-      if (targetStart !== 0 || targetEnd !== target.byteLength) {
-        target = target.subarray(targetStart, targetEnd)
-      }
     }
 
     return binding.compare(
       source.buffer,
-      source.byteOffset,
-      source.byteLength,
+      source.byteOffset + sourceStart,
+      sourceEnd - sourceStart,
       target.buffer,
-      target.byteOffset,
-      target.byteLength
+      target.byteOffset + targetStart,
+      targetEnd - targetStart
     )
   }
 
@@ -272,13 +270,7 @@ class Buffer extends Uint8Array {
     if (end <= start) return ''
     if (end > this.byteLength) end = this.byteLength
 
-    let buffer = this
-
-    if (start !== 0 || end !== this.byteLength) {
-      buffer = buffer.subarray(start, end)
-    }
-
-    return codecFor(encoding).toString(buffer)
+    return codecFor(encoding).toString(this, start, end)
   }
 
   toJSON() {
@@ -315,13 +307,7 @@ class Buffer extends Uint8Array {
     if (end <= start) return 0
     if (end > this.byteLength) end = this.byteLength
 
-    let buffer = this
-
-    if (start !== 0 || end !== this.byteLength) {
-      buffer = buffer.subarray(start, end)
-    }
-
-    return codecFor(encoding).write(buffer, string)
+    return codecFor(encoding).write(this, string, start, end)
   }
 
   readBigInt64BE(offset = 0) {
@@ -758,7 +744,10 @@ exports.concat = function concat(buffers, length) {
     const buffer = buffers[i]
 
     if (offset + buffer.byteLength > result.byteLength) {
-      result.set(buffer.subarray(0, result.byteLength - offset), offset)
+      result.set(
+        new Uint8Array(buffer.buffer, buffer.byteOffset, result.byteLength - offset),
+        offset
+      )
       return result
     }
 
