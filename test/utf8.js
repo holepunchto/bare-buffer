@@ -44,6 +44,11 @@ test('isUTF8', (t) => {
   t.is(Buffer.isUTF8(Buffer.of(0x80)), false)
 })
 
+test('isUTF8 with byte offset', (t) => {
+  t.is(Buffer.isUTF8(Buffer.of(0x80, 0x66, 0x6f, 0x6f).subarray(1)), true)
+  t.is(Buffer.isUTF8(Buffer.of(0x66, 0x80).subarray(1)), false)
+})
+
 test('utf8 lone surrogate write stays within byteLength', (t) => {
   // byteLength must predict at least as many bytes as write produces;
   // otherwise Buffer.alloc(byteLength).write(s) writes past the buffer.
