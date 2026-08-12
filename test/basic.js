@@ -13,14 +13,77 @@ test('from', (t) => {
   t.is(Buffer.from(Buffer.from('123').toJSON()).byteLength, 3, 'from toJSON')
 })
 
+test('constructor with options', (t) => {
+  const arrayBuffer = new ArrayBuffer(8)
+
+  t.is(new Buffer(arrayBuffer, {}).byteLength, 8, 'options in place of offset')
+
+  t.is(new Buffer(arrayBuffer, 2, {}).byteLength, 6, 'options in place of length')
+
+  t.is(new Buffer(arrayBuffer, 2, 4, {}).byteLength, 4, 'options after length')
+})
+
 test('alloc', (t) => {
   t.is(Buffer.alloc(42).byteLength, 42)
+})
+
+test('alloc rejects lengths outside the buffer range', (t) => {
+  const { MAX_LENGTH } = Buffer.constants
+
+  for (const size of [-1, -MAX_LENGTH, NaN, Infinity, -Infinity, MAX_LENGTH + 1, 2 ** 53]) {
+    for (const method of ['alloc', 'allocUnsafe', 'allocUnsafeSlow']) {
+      t.exception.all(() => Buffer[method](size), /RangeError/, `${method}(${size})`)
+    }
+
+    t.exception.all(() => new Buffer(size), /RangeError/, `new Buffer(${size})`)
+  }
+
+  t.is(Buffer.alloc(1.5).byteLength, 1)
+  t.is(Buffer.allocUnsafe(1.5).byteLength, 1)
+  t.is(Buffer.alloc(0).byteLength, 0, 'zero is allowed')
 })
 
 test('alloc with fill', (t) => {
   const buf = Buffer.alloc(5, 0xff)
   t.is(buf.byteLength, 5)
   for (let i = 0; i < 5; i++) t.is(buf[i], 0xff)
+})
+
+test('alloc with fill leaves no byte uninitialized', (t) => {
+  // A buffer that is filled is not zeroed first, so every fill has to cover the
+  // whole of it. Memory is churned beforehand to make reused pages dirty.
+  for (let i = 0; i < 100; i++) Buffer.allocUnsafeSlow(4096).fill(0xdd)
+
+  const fills = [1, 255, 256, -1, true, false, '', 'a', 'ab', 'abcdefgh', Buffer.from('ab')]
+
+  for (const size of [0, 1, 3, 8, 63, 64, 65, 200, 5000]) {
+    for (const fill of fills) {
+      const expected = Buffer.alloc(size)
+      expected.fill(fill, 0, size)
+
+      t.alike(Buffer.alloc(size, fill), expected, `alloc(${size}, ${JSON.stringify(fill)})`)
+    }
+  }
+
+  t.test('and is still zeroed without a fill', (t) => {
+    for (const size of [1, 64, 4096]) {
+      for (const fill of [undefined, 0]) {
+        t.alike(Buffer.alloc(size, fill), Buffer.alloc(size), `alloc(${size}, ${fill})`)
+      }
+    }
+  })
+
+  t.test('and is never pooled', (t) => {
+    for (const fill of [undefined, 0, 1, 'ab']) {
+      const buffer = Buffer.alloc(64, fill)
+      t.is(
+        buffer.buffer.byteLength,
+        64,
+        `alloc(64, ${JSON.stringify(fill)}) owns its backing store`
+      )
+      t.is(buffer.byteOffset, 0)
+    }
+  })
 })
 
 test('allocUnsafe', (t) => {
@@ -146,6 +209,35 @@ test('fill', (t) => {
   t.alike(Buffer.alloc(3).fill('abcd', 'hex'), Buffer.from([0xab, 0xcd, 0xab]))
   t.alike(Buffer.alloc(3).fill('abcd', 1, 'hex'), Buffer.from([0, 0xab, 0xcd]))
   t.alike(Buffer.alloc(3).fill('ab', 1, 2, 'hex'), Buffer.from([0, 0xab, 0]))
+
+  t.alike(Buffer.alloc(3).fill(''), Buffer.alloc(3), 'empty pattern')
+  t.alike(Buffer.alloc(3).fill('abcdef'), Buffer.from('abc'), 'pattern longer than range')
+
+  t.test('pattern repeats across the range', (t) => {
+    // Ranges either side of the point where filling switches to doubling the
+    // pattern in place, including lengths that are not a multiple of it.
+    for (const pattern of ['ab', 'abc', 'abcdefgh', 'abcdefgh'.repeat(9)]) {
+      for (const size of [1, 2, 3, 7, 8, 63, 64, 65, 127, 128, 1000]) {
+        const expected = Buffer.alloc(size)
+        for (let i = 0; i < size; i++) expected[i] = pattern.charCodeAt(i % pattern.length)
+
+        t.alike(Buffer.alloc(size).fill(pattern), expected, `${pattern} into ${size}`)
+
+        if (size > 3) {
+          const offset = Buffer.alloc(size)
+          for (let i = 2; i < size - 1; i++) {
+            offset[i] = pattern.charCodeAt((i - 2) % pattern.length)
+          }
+
+          t.alike(
+            Buffer.alloc(size).fill(pattern, 2, size - 1),
+            offset,
+            `${pattern} into ${size} at [2, ${size - 1})`
+          )
+        }
+      }
+    }
+  })
 })
 
 test('indexOf', (t) => {
@@ -294,6 +386,39 @@ test('transcode', (t) => {
     Buffer.of(0xd0, 0x96),
     'utf16le to utf8'
   )
+})
+
+test('read and write reject bad offsets', (t) => {
+  const buffer = Buffer.alloc(16)
+
+  for (const method of ['readUint8', 'readUint16LE', 'readUint32BE', 'readDoubleLE']) {
+    t.exception.all(() => buffer[method](1.5), /RangeError/, `${method} fractional offset`)
+    t.exception.all(() => buffer[method](-1), /RangeError/, `${method} negative offset`)
+    t.exception.all(() => buffer[method](16), /RangeError/, `${method} offset past the end`)
+  }
+
+  for (const method of ['writeUint8', 'writeUint16LE', 'writeUint32BE', 'writeDoubleLE']) {
+    t.exception.all(() => buffer[method](1, 1.5), /RangeError/, `${method} fractional offset`)
+    t.exception.all(() => buffer[method](1, -1), /RangeError/, `${method} negative offset`)
+    t.exception.all(() => buffer[method](1, 16), /RangeError/, `${method} offset past the end`)
+  }
+
+  t.exception.all(() => buffer.readUintLE(1.5, 6), /RangeError/, 'readUintLE fractional offset')
+  t.exception.all(() => buffer.readUintLE(11, 6), /RangeError/, 'readUintLE offset past the end')
+  t.exception.all(() => buffer.writeUintLE(1, 11, 6), /RangeError/, 'writeUintLE past the end')
+
+  t.test('a numeric string is not a number', (t) => {
+    for (let i = 0; i < 16; i++) buffer[i] = i
+
+    t.exception.all(() => buffer.readUint16LE('1'), /TypeError/)
+    t.exception.all(() => buffer.readUint32LE('1'), /TypeError/)
+    t.exception.all(() => buffer.readUintLE('1', 6), /TypeError/)
+    t.exception.all(() => buffer.writeUint16LE(0xffff, '1'), /TypeError/)
+    t.exception.all(() => buffer.readUint8(null), /TypeError/)
+    t.exception.all(() => buffer.readDoubleLE('1'), /TypeError/)
+
+    t.alike([...buffer.subarray(0, 4)], [0, 1, 2, 3], 'nothing was written')
+  })
 })
 
 test('readInt8', (t) => assertRead(t, { byteSize: 8, signed: false }))

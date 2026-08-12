@@ -7,10 +7,10 @@
 #include <string.h>
 #include <utf.h>
 
-static void
-bare_buffer__on_finalize_string(js_env_t *env, void *data, void *finalize_hint) {
-  free(data);
-}
+// Results up to this length are encoded on the stack, so that the common case
+// of a short hex or base64 string involves neither an allocation nor the
+// bookkeeping of an external string.
+#define BARE_BUFFER_STACK_STRING_MAX 1024
 
 static inline int
 bare_buffer__get_info(js_env_t *env, js_value_t *buffer, void **data, size_t *len) {
@@ -47,7 +47,7 @@ bare_buffer_alloc(js_env_t *env, js_callback_info_t *info) {
 
   js_value_t *result;
   err = js_create_arraybuffer(env, len, NULL, &result);
-  assert(err == 0);
+  if (err < 0) return NULL;
 
   return result;
 }
@@ -70,7 +70,7 @@ bare_buffer_alloc_unsafe(js_env_t *env, js_callback_info_t *info) {
 
   js_value_t *result;
   err = js_create_unsafe_arraybuffer(env, len, NULL, &result);
-  assert(err == 0);
+  if (err < 0) return NULL;
 
   return result;
 }
@@ -144,28 +144,53 @@ bare_buffer_to_string_utf8(js_env_t *env, js_callback_info_t *info) {
   return result;
 }
 
+static bool
+bare_buffer_typed_validate_utf8(
+  js_value_t *receiver,
+  js_value_t *handle,
+  int64_t offset,
+  int64_t len,
+  js_typed_callback_info_t *info
+) {
+  int err;
+
+  js_env_t *env;
+  err = js_get_typed_callback_info(info, &env, NULL);
+  assert(err == 0);
+
+  utf8_t *buf;
+  err = bare_buffer__get_info(env, handle, (void **) &buf, NULL);
+  assert(err == 0);
+
+  return utf8_validate(&buf[offset], len);
+}
+
 static js_value_t *
 bare_buffer_validate_utf8(js_env_t *env, js_callback_info_t *info) {
   int err;
 
-  size_t argc = 2;
-  js_value_t *argv[2];
+  size_t argc = 3;
+  js_value_t *argv[3];
 
   err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
   assert(err == 0);
 
-  assert(argc == 2);
+  assert(argc == 3);
 
   utf8_t *buf;
   err = bare_buffer__get_info(env, argv[0], (void **) &buf, NULL);
   assert(err == 0);
 
+  int64_t offset;
+  err = js_get_value_int64(env, argv[1], &offset);
+  assert(err == 0);
+
   int64_t len;
-  err = js_get_value_int64(env, argv[1], &len);
+  err = js_get_value_int64(env, argv[2], &len);
   assert(err == 0);
 
   js_value_t *result;
-  err = js_get_boolean(env, utf8_validate(buf, len), &result);
+  err = js_get_boolean(env, utf8_validate(&buf[offset], len), &result);
   assert(err == 0);
 
   return result;
@@ -457,13 +482,18 @@ bare_buffer_to_string_base64(js_env_t *env, js_callback_info_t *info) {
   err = base64_encode_utf8(&buf[offset], len, NULL, &str_len);
   assert(err == 0);
 
-  utf8_t *str = malloc(str_len);
+  utf8_t stack[BARE_BUFFER_STACK_STRING_MAX];
+  utf8_t *str = str_len <= sizeof(stack) ? stack : malloc(str_len);
+
   err = base64_encode_utf8(&buf[offset], len, str, &str_len);
   assert(err == 0);
 
   js_value_t *result;
-  err = js_create_external_string_latin1(env, str, str_len, bare_buffer__on_finalize_string, NULL, &result, NULL);
-  assert(err == 0);
+  err = js_create_string_latin1(env, str, str_len, &result);
+
+  if (str != stack) free(str);
+
+  if (err < 0) return NULL;
 
   return result;
 }
@@ -496,13 +526,18 @@ bare_buffer_to_string_base64url(js_env_t *env, js_callback_info_t *info) {
   err = base64url_encode_utf8(&buf[offset], len, NULL, &str_len);
   assert(err == 0);
 
-  utf8_t *str = malloc(str_len);
+  utf8_t stack[BARE_BUFFER_STACK_STRING_MAX];
+  utf8_t *str = str_len <= sizeof(stack) ? stack : malloc(str_len);
+
   err = base64url_encode_utf8(&buf[offset], len, str, &str_len);
   assert(err == 0);
 
   js_value_t *result;
-  err = js_create_external_string_latin1(env, str, str_len, bare_buffer__on_finalize_string, NULL, &result, NULL);
-  assert(err == 0);
+  err = js_create_string_latin1(env, str, str_len, &result);
+
+  if (str != stack) free(str);
+
+  if (err < 0) return NULL;
 
   return result;
 }
@@ -646,13 +681,18 @@ bare_buffer_to_string_hex(js_env_t *env, js_callback_info_t *info) {
   err = hex_encode_utf8(&buf[offset], len, NULL, &str_len);
   assert(err == 0);
 
-  utf8_t *str = malloc(str_len);
+  utf8_t stack[BARE_BUFFER_STACK_STRING_MAX];
+  utf8_t *str = str_len <= sizeof(stack) ? stack : malloc(str_len);
+
   err = hex_encode_utf8(&buf[offset], len, str, &str_len);
   assert(err == 0);
 
   js_value_t *result;
-  err = js_create_external_string_latin1(env, str, str_len, bare_buffer__on_finalize_string, NULL, &result, NULL);
-  assert(err == 0);
+  err = js_create_string_latin1(env, str, str_len, &result);
+
+  if (str != stack) free(str);
+
+  if (err < 0) return NULL;
 
   return result;
 }
@@ -768,31 +808,231 @@ bare_buffer_write_hex(js_env_t *env, js_callback_info_t *info) {
   return result;
 }
 
+static bool
+bare_buffer_typed_validate_ascii(
+  js_value_t *receiver,
+  js_value_t *handle,
+  int64_t offset,
+  int64_t len,
+  js_typed_callback_info_t *info
+) {
+  int err;
+
+  js_env_t *env;
+  err = js_get_typed_callback_info(info, &env, NULL);
+  assert(err == 0);
+
+  ascii_t *buf;
+  err = bare_buffer__get_info(env, handle, (void **) &buf, NULL);
+  assert(err == 0);
+
+  return ascii_validate(&buf[offset], len);
+}
+
 static js_value_t *
 bare_buffer_validate_ascii(js_env_t *env, js_callback_info_t *info) {
   int err;
 
-  size_t argc = 2;
-  js_value_t *argv[2];
+  size_t argc = 3;
+  js_value_t *argv[3];
 
   err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
   assert(err == 0);
 
-  assert(argc == 2);
+  assert(argc == 3);
 
   ascii_t *buf;
   err = bare_buffer__get_info(env, argv[0], (void **) &buf, NULL);
   assert(err == 0);
 
+  int64_t offset;
+  err = js_get_value_int64(env, argv[1], &offset);
+  assert(err == 0);
+
   int64_t len;
-  err = js_get_value_int64(env, argv[1], &len);
+  err = js_get_value_int64(env, argv[2], &len);
   assert(err == 0);
 
   js_value_t *result;
-  err = js_get_boolean(env, ascii_validate(buf, len), &result);
+  err = js_get_boolean(env, ascii_validate(&buf[offset], len), &result);
   assert(err == 0);
 
   return result;
+}
+
+static inline void
+bare_buffer__swap16(uint8_t *data, size_t len) {
+  for (size_t i = 0; i + 1 < len; i += 2) {
+    uint8_t a = data[i];
+    data[i] = data[i + 1];
+    data[i + 1] = a;
+  }
+}
+
+static inline void
+bare_buffer__swap32(uint8_t *data, size_t len) {
+  for (size_t i = 0; i + 3 < len; i += 4) {
+    uint8_t a = data[i];
+    uint8_t b = data[i + 1];
+    data[i] = data[i + 3];
+    data[i + 1] = data[i + 2];
+    data[i + 2] = b;
+    data[i + 3] = a;
+  }
+}
+
+static inline void
+bare_buffer__swap64(uint8_t *data, size_t len) {
+  for (size_t i = 0; i + 7 < len; i += 8) {
+    for (size_t j = 0; j < 4; j++) {
+      uint8_t a = data[i + j];
+      data[i + j] = data[i + 7 - j];
+      data[i + 7 - j] = a;
+    }
+  }
+}
+
+static const uint8_t *
+bare_buffer__memrchr(const uint8_t *data, uint8_t c, size_t len) {
+  const size_t chunk_len = 512;
+
+  while (len > 0) {
+    size_t take = len < chunk_len ? len : chunk_len;
+
+    const uint8_t *chunk = &data[len - take];
+
+    // When matches are dense the last one is within a few bytes of the end,
+    // which is far cheaper to find by looking than by narrowing.
+    size_t probe = take < 8 ? take : 8;
+
+    for (size_t i = 0; i < probe; i++) {
+      if (chunk[take - 1 - i] == c) return &chunk[take - 1 - i];
+    }
+
+    if (memchr(chunk, c, take - probe) != NULL) {
+      size_t lo = 0;
+      size_t hi = take - probe;
+
+      while (hi - lo > 1) {
+        size_t mid = lo + (hi - lo) / 2;
+
+        if (memchr(&chunk[mid], c, hi - mid) != NULL) lo = mid;
+        else hi = mid;
+      }
+
+      return &chunk[lo];
+    }
+
+    len -= take;
+  }
+
+  return NULL;
+}
+
+static int64_t
+bare_buffer__index_of(const uint8_t *data, size_t len, const uint8_t *needle, size_t needle_len, size_t from) {
+  if (needle_len == 0 || needle_len > len || from > len - needle_len) return -1;
+
+  if (needle_len == 1) {
+    const uint8_t *at = memchr(&data[from], needle[0], len - from);
+
+    return at == NULL ? -1 : (int64_t) (at - data);
+  }
+
+  size_t end = len - needle_len + 1;
+  size_t i = from;
+  size_t rejected = 0;
+
+  while (i < end) {
+    const uint8_t *at = memchr(&data[i], needle[0], end - i);
+
+    if (at == NULL) return -1;
+
+    i = (size_t) (at - data);
+
+    if (memcmp(&data[i + 1], &needle[1], needle_len - 1) == 0) return (int64_t) i;
+
+    i++;
+
+    if (++rejected == 32) break;
+  }
+
+  if (i >= end) return -1;
+
+  size_t skip[256];
+
+  for (size_t j = 0; j < 256; j++) {
+    skip[j] = needle_len;
+  }
+
+  for (size_t j = 0; j < needle_len - 1; j++) {
+    skip[needle[j]] = needle_len - 1 - j;
+  }
+
+  size_t last = needle_len - 1;
+
+  while (i < end) {
+    if (data[i + last] == needle[last] && memcmp(&data[i], needle, last) == 0) {
+      return (int64_t) i;
+    }
+
+    i += skip[data[i + last]];
+  }
+
+  return -1;
+}
+
+static int64_t
+bare_buffer__last_index_of(const uint8_t *data, size_t len, const uint8_t *needle, size_t needle_len, size_t from) {
+  if (needle_len == 0 || needle_len > len) return -1;
+
+  if (from > len - needle_len) from = len - needle_len;
+
+  if (needle_len == 1) {
+    const uint8_t *at = bare_buffer__memrchr(data, needle[0], from + 1);
+
+    return at == NULL ? -1 : (int64_t) (at - data);
+  }
+
+  size_t i = from;
+  size_t rejected = 0;
+
+  while (rejected < 32) {
+    const uint8_t *at = bare_buffer__memrchr(data, needle[0], i + 1);
+
+    if (at == NULL) return -1;
+
+    i = (size_t) (at - data);
+
+    if (memcmp(&data[i + 1], &needle[1], needle_len - 1) == 0) return (int64_t) i;
+
+    if (i == 0) return -1;
+
+    i--;
+    rejected++;
+  }
+
+  size_t skip[256];
+
+  for (size_t j = 0; j < 256; j++) {
+    skip[j] = needle_len;
+  }
+
+  for (size_t j = needle_len - 1; j >= 1; j--) {
+    skip[needle[j]] = j;
+  }
+
+  while (true) {
+    if (data[i] == needle[0] && memcmp(&data[i + 1], &needle[1], needle_len - 1) == 0) {
+      return (int64_t) i;
+    }
+
+    size_t shift = skip[data[i]];
+
+    if (i < shift) return -1;
+
+    i -= shift;
+  }
 }
 
 static inline int
@@ -879,6 +1119,314 @@ bare_buffer_compare(js_env_t *env, js_callback_info_t *info) {
   return result;
 }
 
+static int32_t
+bare_buffer_typed_swap16(
+  js_value_t *receiver,
+  js_value_t *handle,
+  int64_t offset,
+  int64_t len,
+  js_typed_callback_info_t *info
+) {
+  int err;
+
+  js_env_t *env;
+  err = js_get_typed_callback_info(info, &env, NULL);
+  assert(err == 0);
+
+  uint8_t *buf;
+  err = bare_buffer__get_info(env, handle, (void **) &buf, NULL);
+  assert(err == 0);
+
+  bare_buffer__swap16(&buf[offset], len);
+
+  return 0;
+}
+
+static js_value_t *
+bare_buffer_swap16(js_env_t *env, js_callback_info_t *info) {
+  int err;
+
+  size_t argc = 3;
+  js_value_t *argv[3];
+
+  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
+  assert(err == 0);
+
+  assert(argc == 3);
+
+  uint8_t *buf;
+  err = bare_buffer__get_info(env, argv[0], (void **) &buf, NULL);
+  assert(err == 0);
+
+  int64_t offset;
+  err = js_get_value_int64(env, argv[1], &offset);
+  assert(err == 0);
+
+  int64_t len;
+  err = js_get_value_int64(env, argv[2], &len);
+  assert(err == 0);
+
+  bare_buffer__swap16(&buf[offset], len);
+
+  return NULL;
+}
+
+static int32_t
+bare_buffer_typed_swap32(
+  js_value_t *receiver,
+  js_value_t *handle,
+  int64_t offset,
+  int64_t len,
+  js_typed_callback_info_t *info
+) {
+  int err;
+
+  js_env_t *env;
+  err = js_get_typed_callback_info(info, &env, NULL);
+  assert(err == 0);
+
+  uint8_t *buf;
+  err = bare_buffer__get_info(env, handle, (void **) &buf, NULL);
+  assert(err == 0);
+
+  bare_buffer__swap32(&buf[offset], len);
+
+  return 0;
+}
+
+static js_value_t *
+bare_buffer_swap32(js_env_t *env, js_callback_info_t *info) {
+  int err;
+
+  size_t argc = 3;
+  js_value_t *argv[3];
+
+  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
+  assert(err == 0);
+
+  assert(argc == 3);
+
+  uint8_t *buf;
+  err = bare_buffer__get_info(env, argv[0], (void **) &buf, NULL);
+  assert(err == 0);
+
+  int64_t offset;
+  err = js_get_value_int64(env, argv[1], &offset);
+  assert(err == 0);
+
+  int64_t len;
+  err = js_get_value_int64(env, argv[2], &len);
+  assert(err == 0);
+
+  bare_buffer__swap32(&buf[offset], len);
+
+  return NULL;
+}
+
+static int32_t
+bare_buffer_typed_swap64(
+  js_value_t *receiver,
+  js_value_t *handle,
+  int64_t offset,
+  int64_t len,
+  js_typed_callback_info_t *info
+) {
+  int err;
+
+  js_env_t *env;
+  err = js_get_typed_callback_info(info, &env, NULL);
+  assert(err == 0);
+
+  uint8_t *buf;
+  err = bare_buffer__get_info(env, handle, (void **) &buf, NULL);
+  assert(err == 0);
+
+  bare_buffer__swap64(&buf[offset], len);
+
+  return 0;
+}
+
+static js_value_t *
+bare_buffer_swap64(js_env_t *env, js_callback_info_t *info) {
+  int err;
+
+  size_t argc = 3;
+  js_value_t *argv[3];
+
+  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
+  assert(err == 0);
+
+  assert(argc == 3);
+
+  uint8_t *buf;
+  err = bare_buffer__get_info(env, argv[0], (void **) &buf, NULL);
+  assert(err == 0);
+
+  int64_t offset;
+  err = js_get_value_int64(env, argv[1], &offset);
+  assert(err == 0);
+
+  int64_t len;
+  err = js_get_value_int64(env, argv[2], &len);
+  assert(err == 0);
+
+  bare_buffer__swap64(&buf[offset], len);
+
+  return NULL;
+}
+
+static int64_t
+bare_buffer_typed_index_of(
+  js_value_t *receiver,
+  js_value_t *handle,
+  int64_t offset,
+  int64_t len,
+  js_value_t *needle_handle,
+  int64_t needle_offset,
+  int64_t needle_len,
+  int64_t from,
+  js_typed_callback_info_t *info
+) {
+  int err;
+
+  js_env_t *env;
+  err = js_get_typed_callback_info(info, &env, NULL);
+  assert(err == 0);
+
+  uint8_t *buf;
+  err = bare_buffer__get_info(env, handle, (void **) &buf, NULL);
+  assert(err == 0);
+
+  uint8_t *needle;
+  err = bare_buffer__get_info(env, needle_handle, (void **) &needle, NULL);
+  assert(err == 0);
+
+  return bare_buffer__index_of(&buf[offset], len, &needle[needle_offset], needle_len, from);
+}
+
+static js_value_t *
+bare_buffer_index_of(js_env_t *env, js_callback_info_t *info) {
+  int err;
+
+  size_t argc = 7;
+  js_value_t *argv[7];
+
+  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
+  assert(err == 0);
+
+  assert(argc == 7);
+
+  uint8_t *buf;
+  err = bare_buffer__get_info(env, argv[0], (void **) &buf, NULL);
+  assert(err == 0);
+
+  int64_t offset;
+  err = js_get_value_int64(env, argv[1], &offset);
+  assert(err == 0);
+
+  int64_t len;
+  err = js_get_value_int64(env, argv[2], &len);
+  assert(err == 0);
+
+  uint8_t *needle;
+  err = bare_buffer__get_info(env, argv[3], (void **) &needle, NULL);
+  assert(err == 0);
+
+  int64_t needle_offset;
+  err = js_get_value_int64(env, argv[4], &needle_offset);
+  assert(err == 0);
+
+  int64_t needle_len;
+  err = js_get_value_int64(env, argv[5], &needle_len);
+  assert(err == 0);
+
+  int64_t from;
+  err = js_get_value_int64(env, argv[6], &from);
+  assert(err == 0);
+
+  js_value_t *result;
+  err = js_create_int64(env, bare_buffer__index_of(&buf[offset], len, &needle[needle_offset], needle_len, from), &result);
+  assert(err == 0);
+
+  return result;
+}
+
+static int64_t
+bare_buffer_typed_last_index_of(
+  js_value_t *receiver,
+  js_value_t *handle,
+  int64_t offset,
+  int64_t len,
+  js_value_t *needle_handle,
+  int64_t needle_offset,
+  int64_t needle_len,
+  int64_t from,
+  js_typed_callback_info_t *info
+) {
+  int err;
+
+  js_env_t *env;
+  err = js_get_typed_callback_info(info, &env, NULL);
+  assert(err == 0);
+
+  uint8_t *buf;
+  err = bare_buffer__get_info(env, handle, (void **) &buf, NULL);
+  assert(err == 0);
+
+  uint8_t *needle;
+  err = bare_buffer__get_info(env, needle_handle, (void **) &needle, NULL);
+  assert(err == 0);
+
+  return bare_buffer__last_index_of(&buf[offset], len, &needle[needle_offset], needle_len, from);
+}
+
+static js_value_t *
+bare_buffer_last_index_of(js_env_t *env, js_callback_info_t *info) {
+  int err;
+
+  size_t argc = 7;
+  js_value_t *argv[7];
+
+  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
+  assert(err == 0);
+
+  assert(argc == 7);
+
+  uint8_t *buf;
+  err = bare_buffer__get_info(env, argv[0], (void **) &buf, NULL);
+  assert(err == 0);
+
+  int64_t offset;
+  err = js_get_value_int64(env, argv[1], &offset);
+  assert(err == 0);
+
+  int64_t len;
+  err = js_get_value_int64(env, argv[2], &len);
+  assert(err == 0);
+
+  uint8_t *needle;
+  err = bare_buffer__get_info(env, argv[3], (void **) &needle, NULL);
+  assert(err == 0);
+
+  int64_t needle_offset;
+  err = js_get_value_int64(env, argv[4], &needle_offset);
+  assert(err == 0);
+
+  int64_t needle_len;
+  err = js_get_value_int64(env, argv[5], &needle_len);
+  assert(err == 0);
+
+  int64_t from;
+  err = js_get_value_int64(env, argv[6], &from);
+  assert(err == 0);
+
+  js_value_t *result;
+  err = js_create_int64(env, bare_buffer__last_index_of(&buf[offset], len, &needle[needle_offset], needle_len, from), &result);
+  assert(err == 0);
+
+  return result;
+}
+
 static js_value_t *
 bare_buffer_exports(js_env_t *env, js_value_t *exports) {
   int err;
@@ -935,11 +1483,11 @@ bare_buffer_exports(js_env_t *env, js_value_t *exports) {
   V(
     "byteLengthUTF8",
     bare_buffer_byte_length_utf8,
-    &((js_callback_signature_t) {
+    &((js_callback_signature_t){
       .version = 0,
       .result = js_int64,
       .args_len = 2,
-      .args = (int[]) {
+      .args = (int[]){
         js_object,
         js_string,
       }
@@ -949,16 +1497,31 @@ bare_buffer_exports(js_env_t *env, js_value_t *exports) {
 
   V("toStringUTF8", bare_buffer_to_string_utf8, NULL, NULL);
 
-  V("validateUTF8", bare_buffer_validate_utf8, NULL, NULL);
+  V(
+    "validateUTF8",
+    bare_buffer_validate_utf8,
+    &((js_callback_signature_t){
+      .version = 0,
+      .result = js_boolean,
+      .args_len = 4,
+      .args = (int[]){
+        js_object,
+        js_object,
+        js_int64,
+        js_int64,
+      }
+    }),
+    bare_buffer_typed_validate_utf8
+  );
 
   V(
     "writeUTF8",
     bare_buffer_write_utf8,
-    &((js_callback_signature_t) {
+    &((js_callback_signature_t){
       .version = 0,
       .result = js_int64,
       .args_len = 5,
-      .args = (int[]) {
+      .args = (int[]){
         js_object,
         js_object,
         js_int64,
@@ -974,13 +1537,15 @@ bare_buffer_exports(js_env_t *env, js_value_t *exports) {
   V(
     "writeUTF16LE",
     bare_buffer_write_utf16le,
-    &((js_callback_signature_t) {
+    &((js_callback_signature_t){
       .version = 0,
       .result = js_int64,
-      .args_len = 3,
-      .args = (int[]) {
+      .args_len = 5,
+      .args = (int[]){
         js_object,
         js_object,
+        js_int64,
+        js_int64,
         js_string,
       }
     }),
@@ -992,11 +1557,11 @@ bare_buffer_exports(js_env_t *env, js_value_t *exports) {
   V(
     "writeLatin1",
     bare_buffer_write_latin1,
-    &((js_callback_signature_t) {
+    &((js_callback_signature_t){
       .version = 0,
       .result = js_int64,
       .args_len = 5,
-      .args = (int[]) {
+      .args = (int[]){
         js_object,
         js_object,
         js_int64,
@@ -1013,11 +1578,11 @@ bare_buffer_exports(js_env_t *env, js_value_t *exports) {
   V(
     "writeBase64",
     bare_buffer_write_base64,
-    &((js_callback_signature_t) {
+    &((js_callback_signature_t){
       .version = 0,
       .result = js_int64,
       .args_len = 5,
-      .args = (int[]) {
+      .args = (int[]){
         js_object,
         js_object,
         js_int64,
@@ -1033,11 +1598,11 @@ bare_buffer_exports(js_env_t *env, js_value_t *exports) {
   V(
     "writeHex",
     bare_buffer_write_hex,
-    &((js_callback_signature_t) {
+    &((js_callback_signature_t){
       .version = 0,
       .result = js_int64,
       .args_len = 5,
-      .args = (int[]) {
+      .args = (int[]){
         js_object,
         js_object,
         js_int64,
@@ -1048,16 +1613,124 @@ bare_buffer_exports(js_env_t *env, js_value_t *exports) {
     bare_buffer_typed_write_hex
   );
 
-  V("validateAscii", bare_buffer_validate_ascii, NULL, NULL);
+  V(
+    "validateAscii",
+    bare_buffer_validate_ascii,
+    &((js_callback_signature_t){
+      .version = 0,
+      .result = js_boolean,
+      .args_len = 4,
+      .args = (int[]){
+        js_object,
+        js_object,
+        js_int64,
+        js_int64,
+      }
+    }),
+    bare_buffer_typed_validate_ascii
+  );
+
+  V(
+    "swap16",
+    bare_buffer_swap16,
+    &((js_callback_signature_t){
+      .version = 0,
+      .result = js_int32,
+      .args_len = 4,
+      .args = (int[]){
+        js_object,
+        js_object,
+        js_int64,
+        js_int64,
+      }
+    }),
+    bare_buffer_typed_swap16
+  );
+
+  V(
+    "swap32",
+    bare_buffer_swap32,
+    &((js_callback_signature_t){
+      .version = 0,
+      .result = js_int32,
+      .args_len = 4,
+      .args = (int[]){
+        js_object,
+        js_object,
+        js_int64,
+        js_int64,
+      }
+    }),
+    bare_buffer_typed_swap32
+  );
+
+  V(
+    "swap64",
+    bare_buffer_swap64,
+    &((js_callback_signature_t){
+      .version = 0,
+      .result = js_int32,
+      .args_len = 4,
+      .args = (int[]){
+        js_object,
+        js_object,
+        js_int64,
+        js_int64,
+      }
+    }),
+    bare_buffer_typed_swap64
+  );
+
+  V(
+    "indexOf",
+    bare_buffer_index_of,
+    &((js_callback_signature_t){
+      .version = 0,
+      .result = js_int64,
+      .args_len = 8,
+      .args = (int[]){
+        js_object,
+        js_object,
+        js_int64,
+        js_int64,
+        js_object,
+        js_int64,
+        js_int64,
+        js_int64,
+      }
+    }),
+    bare_buffer_typed_index_of
+  );
+
+  V(
+    "lastIndexOf",
+    bare_buffer_last_index_of,
+    &((js_callback_signature_t){
+      .version = 0,
+      .result = js_int64,
+      .args_len = 8,
+      .args = (int[]){
+        js_object,
+        js_object,
+        js_int64,
+        js_int64,
+        js_object,
+        js_int64,
+        js_int64,
+        js_int64,
+      }
+    }),
+    bare_buffer_typed_last_index_of
+  );
 
   V(
     "compare",
     bare_buffer_compare,
-    &((js_callback_signature_t) {
+    &((js_callback_signature_t){
       .version = 0,
       .result = js_int32,
       .args_len = 7,
-      .args = (int[]) {
+      .args = (int[]){
         js_object,
         js_object,
         js_int64,
