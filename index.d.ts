@@ -21,9 +21,11 @@ interface Buffer extends Uint8Array<ArrayBuffer> {
    * @param b - The second buffer to compare.
    * @param target - The buffer to compare against.
    * @param targetStart - Offset within `target` to start comparing from; defaults to `0`.
-   * @param targetEnd - Offset within `target` (exclusive) to stop comparing at; defaults to `target.byteLength`.
+   * @param targetEnd - Offset within `target` (exclusive) to stop comparing at; defaults to
+   * `target.byteLength`.
    * @param sourceStart - Offset within this buffer to start comparing from; defaults to `0`.
-   * @param sourceEnd - Offset within this buffer (exclusive) to stop comparing at; defaults to `this.byteLength`.
+   * @param sourceEnd - Offset within this buffer (exclusive) to stop comparing at; defaults to
+   * `this.byteLength`.
    */
   compare(
     target: Buffer,
@@ -38,7 +40,8 @@ interface Buffer extends Uint8Array<ArrayBuffer> {
    * @param target - The buffer to copy into.
    * @param targetStart - Offset within `target` to start writing at; defaults to `0`.
    * @param sourceStart - Offset within this buffer to start copying from; defaults to `0`.
-   * @param sourceEnd - Offset within this buffer (exclusive) to stop copying at; defaults to `this.byteLength`.
+   * @param sourceEnd - Offset within this buffer (exclusive) to stop copying at; defaults to
+   * `this.byteLength`.
    */
   copy(target: Buffer, targetStart?: number, sourceStart?: number, sourceEnd?: number): number
 
@@ -50,7 +53,8 @@ interface Buffer extends Uint8Array<ArrayBuffer> {
 
   /**
    * Fill this buffer with `value`, repeating as needed, and return it.
-   * @param value - The value to fill with — a string (repeated across the range), or a `Buffer`/number/boolean byte.
+   * @param value - The value to fill with — a string (repeated across the range), or a
+   * `Buffer`/number/boolean byte.
    * @param encoding - Encoding used to interpret `value` when it's a string; defaults to `'utf8'`.
    * @throws {Error} thrown if the encoding is not a recognized `BufferEncoding`.
    */
@@ -114,7 +118,9 @@ interface Buffer extends Uint8Array<ArrayBuffer> {
    */
   toString(encoding?: BufferEncoding, start?: number, end?: number): string
 
-  /** Return an array of this buffer's bytes, used when the buffer is passed to `JSON.stringify()`. */
+  /**
+   * Return an array of this buffer's bytes, used when the buffer is passed to `JSON.stringify()`.
+   */
   toJSON(): number[]
 
   /**
@@ -616,7 +622,8 @@ declare namespace Buffer {
   export function allocUnsafe(size: number): Buffer
 
   /**
-   * Allocate a new `Buffer` of `size` bytes without zeroing its contents first, bypassing the internal buffer pool.
+   * Allocate a new `Buffer` of `size` bytes without zeroing its contents first, bypassing the
+   * internal buffer pool.
    * @param size - Number of bytes to allocate.
    * @throws {RangeError} thrown if `size` exceeds `Buffer.constants.MAX_LENGTH`.
    */
@@ -624,7 +631,8 @@ declare namespace Buffer {
 
   /**
    * Return the number of bytes `string` would occupy once encoded as `encoding`.
-   * @param string - The value whose encoded length to measure — a string, or an `ArrayBufferView`/`ArrayBufferLike` (whose own `byteLength` is returned unchanged).
+   * @param string - The value whose encoded length to measure — a string, or an
+   * `ArrayBufferView`/`ArrayBufferLike` (whose own `byteLength` is returned unchanged).
    * @param encoding - Encoding used to measure `string` when it's a string; defaults to `'utf8'`.
    * @throws {Error} thrown if the encoding is not a recognized `BufferEncoding`.
    */
@@ -636,14 +644,16 @@ declare namespace Buffer {
   export function compare(a: Buffer, b: Buffer): number
 
   /**
-   * Concatenate `buffers` into a single new `Buffer`, optionally truncated or zero-padded to `length`.
+   * Concatenate `buffers` into a single new `Buffer`, optionally truncated or zero-padded to
+   * `length`.
    * @param buffers - The buffers to concatenate, in order.
    * @param length - Total byte length of the result; defaults to the sum of `buffers`' lengths.
    */
   export function concat(buffers: Buffer[], length?: number): Buffer
 
   /**
-   * Return `buffer` unchanged if it is already a `Buffer`, otherwise wrap its underlying `ArrayBuffer` in a new `Buffer`.
+   * Return `buffer` unchanged if it is already a `Buffer`, otherwise wrap its underlying
+   * `ArrayBuffer` in a new `Buffer`.
    * @param buffer - The value to coerce into a `Buffer`.
    */
   export function coerce(buffer: Buffer): Buffer
@@ -659,7 +669,8 @@ declare namespace Buffer {
 
   /**
    * Create a new `Buffer` from an array, array-like, string, or `ArrayBuffer`.
-   * @param data - The array, array-like, string, buffer, or `ArrayBuffer` to create a new `Buffer` from.
+   * @param data - The array, array-like, string, buffer, or `ArrayBuffer` to create a new `Buffer`
+   * from.
    * @throws {Error} thrown if the encoding is not a recognized `BufferEncoding`.
    */
   export function from(data: Iterable<number>): Buffer
