@@ -16,9 +16,8 @@ type BufferEncoding =
 
 interface Buffer extends Uint8Array<ArrayBuffer> {
   /**
-   * Compare two buffers' contents lexicographically, returning -1, 0, or 1 for sort ordering.
-   * @param a - The first buffer to compare.
-   * @param b - The second buffer to compare.
+   * Compare this buffer's contents against `target` lexicographically, optionally comparing only
+   * a sub-range of each, returning -1, 0, or 1 for sort ordering.
    * @param target - The buffer to compare against.
    * @param targetStart - Offset within `target` to start comparing from; defaults to `0`.
    * @param targetEnd - Offset within `target` (exclusive) to stop comparing at; defaults to
@@ -641,6 +640,11 @@ declare namespace Buffer {
     encoding?: BufferEncoding
   ): number
 
+  /**
+   * Compare two buffers' contents lexicographically, returning -1, 0, or 1 for sort ordering.
+   * @param a - The first buffer to compare.
+   * @param b - The second buffer to compare.
+   */
   export function compare(a: Buffer, b: Buffer): number
 
   /**
