@@ -17,10 +17,10 @@ const buffer = Buffer.allocUnsafe(4).fill(123)
 const combined = Buffer.concat([buffer, buffer])
 ```
 
-## License
-
-Apache-2.0
-
 ## API
 
 See the [`bare-buffer` reference](https://docs.pears.com/reference/bare/modules/bare-buffer).
+
+## License
+
+Apache-2.0
