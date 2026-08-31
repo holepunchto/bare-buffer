@@ -25,6 +25,7 @@ interface Buffer extends Uint8Array<ArrayBuffer> {
    * @param sourceStart - Offset within this buffer to start comparing from; defaults to `0`.
    * @param sourceEnd - Offset within this buffer (exclusive) to stop comparing at; defaults to
    * `this.byteLength`.
+   * @throws {RangeError} thrown if an offset or length is not an integer.
    */
   compare(
     target: Buffer,
@@ -35,14 +36,23 @@ interface Buffer extends Uint8Array<ArrayBuffer> {
   ): number
 
   /**
-   * Copy bytes from this buffer into `target`, returning the number of bytes copied.
-   * @param target - The buffer to copy into.
+   * Copy bytes from this buffer into `target`, returning the number of bytes copied. A target of
+   * wider elements, such as a `Uint16Array`, receives the bytes it spans.
+   * @param target - The buffer or view to copy into.
    * @param targetStart - Offset within `target` to start writing at; defaults to `0`.
    * @param sourceStart - Offset within this buffer to start copying from; defaults to `0`.
    * @param sourceEnd - Offset within this buffer (exclusive) to stop copying at; defaults to
    * `this.byteLength`.
+   * @throws {TypeError} thrown if `target` is not a view.
+   * @throws {RangeError} thrown if an offset is not an integer, is negative, or if `sourceStart`
+   * is past the end of this buffer.
    */
-  copy(target: Buffer, targetStart?: number, sourceStart?: number, sourceEnd?: number): number
+  copy(
+    target: Buffer | ArrayBufferView,
+    targetStart?: number,
+    sourceStart?: number,
+    sourceEnd?: number
+  ): number
 
   /**
    * Check whether this buffer and `target` have identical contents.
@@ -52,21 +62,24 @@ interface Buffer extends Uint8Array<ArrayBuffer> {
 
   /**
    * Fill this buffer with `value`, repeating as needed, and return it.
-   * @param value - The value to fill with — a string (repeated across the range), or a
-   * `Buffer`/number/boolean byte.
+   * @param value - The value to fill with — a string or view (repeated across the range), or a
+   * number/boolean byte. A view fills with the bytes it spans.
    * @param encoding - Encoding used to interpret `value` when it's a string; defaults to `'utf8'`.
    * @throws {Error} thrown if the encoding is not a recognized `BufferEncoding`.
+   * @throws {TypeError} thrown if `value` is not a value that can fill.
+   * @throws {RangeError} thrown if an offset or length is not an integer.
    */
   fill(value: string, encoding?: BufferEncoding): this
   fill(value: string, offset?: number, encoding?: BufferEncoding): this
   fill(value: string, offset?: number, end?: number, encoding?: BufferEncoding): this
-  fill(value: Buffer | number | boolean, offset?: number, end?: number): this
+  fill(value: Buffer | ArrayBufferView | number | boolean, offset?: number, end?: number): this
 
   /**
    * Check whether this buffer contains `value`.
    * @param value - The value to search for — a string, `Buffer`, number byte, or boolean.
    * @param encoding - Encoding used to interpret `value` when it's a string; defaults to `'utf8'`.
    * @throws {Error} thrown if the encoding is not a recognized `BufferEncoding`.
+   * @throws {RangeError} thrown if an offset or length is not an integer.
    */
   includes(value: string, encoding?: BufferEncoding): boolean
   includes(value: string, offset?: number, encoding?: BufferEncoding): boolean
@@ -77,6 +90,7 @@ interface Buffer extends Uint8Array<ArrayBuffer> {
    * @param value - The value to search for — a string, `Buffer`, number byte, or boolean.
    * @param encoding - Encoding used to interpret `value` when it's a string; defaults to `'utf8'`.
    * @throws {Error} thrown if the encoding is not a recognized `BufferEncoding`.
+   * @throws {RangeError} thrown if an offset or length is not an integer.
    */
   indexOf(value: string, encoding?: BufferEncoding): number
   indexOf(value: string, offset?: number, encoding?: BufferEncoding): number
@@ -87,6 +101,7 @@ interface Buffer extends Uint8Array<ArrayBuffer> {
    * @param value - The value to search for — a string, `Buffer`, number byte, or boolean.
    * @param encoding - Encoding used to interpret `value` when it's a string; defaults to `'utf8'`.
    * @throws {Error} thrown if the encoding is not a recognized `BufferEncoding`.
+   * @throws {RangeError} thrown if an offset or length is not an integer.
    */
   lastIndexOf(value: string, encoding?: BufferEncoding): number
   lastIndexOf(value: string, offset?: number, encoding?: BufferEncoding): number
@@ -114,6 +129,7 @@ interface Buffer extends Uint8Array<ArrayBuffer> {
    * @param start - Byte offset to start decoding from; defaults to `0`.
    * @param end - Byte offset (exclusive) to stop decoding at; defaults to `this.byteLength`.
    * @throws {Error} thrown if the encoding is not a recognized `BufferEncoding`.
+   * @throws {RangeError} thrown if an offset or length is not an integer.
    */
   toString(encoding?: BufferEncoding, start?: number, end?: number): string
 
@@ -306,6 +322,7 @@ interface Buffer extends Uint8Array<ArrayBuffer> {
    * @param string - The string to write.
    * @param encoding - Encoding used to encode `string`; defaults to `'utf8'`.
    * @throws {Error} thrown if the encoding is not a recognized `BufferEncoding`.
+   * @throws {RangeError} thrown if an offset or length is not an integer.
    */
   write(string: string, encoding?: BufferEncoding): number
   write(string: string, offset?: number, encoding?: BufferEncoding): number
@@ -566,7 +583,13 @@ declare class Buffer extends Uint8Array<ArrayBuffer> {
 
 /** A fixed-length view of binary data, backed by an `ArrayBuffer` and extending `Uint8Array`. */
 declare namespace Buffer {
-  /** The size, in bytes, of the internal buffer pool used to satisfy small allocations. */
+  /**
+   * The size, in bytes, of the internal buffer pool used to satisfy small allocations. Setting it
+   * to `0` turns pooling off.
+   * @throws {TypeError} thrown if assigned a value that is not a number.
+   * @throws {RangeError} thrown if assigned a value that is not an integer between `0` and
+   * `Buffer.constants.MAX_LENGTH`.
+   */
   export let poolSize: number
 
   /**
@@ -606,17 +629,21 @@ declare namespace Buffer {
   /**
    * Allocate a new, zero-filled `Buffer` of `size` bytes, optionally filled with `fill`.
    * @param size - Number of bytes to allocate.
-   * @param fill - Value to fill the buffer with — a string, `Buffer`, number byte, or boolean.
+   * @param fill - Value to fill the buffer with — a string, view, number byte, or boolean.
    * @param encoding - Encoding used to interpret `fill` when it's a string; defaults to `'utf8'`.
-   * @throws {RangeError} thrown if `size` exceeds `Buffer.constants.MAX_LENGTH`.
+   * @throws {RangeError} thrown if `size` is not an integer between `0` and
+   * `Buffer.constants.MAX_LENGTH`.
+   * @throws {TypeError} thrown if `size` is not a number, or `fill` is not a value that can fill.
    */
   export function alloc(size: number, fill: string, encoding?: BufferEncoding): Buffer
-  export function alloc(size: number, fill?: Buffer | number | boolean): Buffer
+  export function alloc(size: number, fill?: Buffer | ArrayBufferView | number | boolean): Buffer
 
   /**
    * Allocate a new `Buffer` of `size` bytes without zeroing its contents first.
    * @param size - Number of bytes to allocate.
-   * @throws {RangeError} thrown if `size` exceeds `Buffer.constants.MAX_LENGTH`.
+   * @throws {RangeError} thrown if `size` is not an integer between `0` and
+   * `Buffer.constants.MAX_LENGTH`.
+   * @throws {TypeError} thrown if `size` is not a number.
    */
   export function allocUnsafe(size: number): Buffer
 
@@ -624,7 +651,9 @@ declare namespace Buffer {
    * Allocate a new `Buffer` of `size` bytes without zeroing its contents first, bypassing the
    * internal buffer pool.
    * @param size - Number of bytes to allocate.
-   * @throws {RangeError} thrown if `size` exceeds `Buffer.constants.MAX_LENGTH`.
+   * @throws {RangeError} thrown if `size` is not an integer between `0` and
+   * `Buffer.constants.MAX_LENGTH`.
+   * @throws {TypeError} thrown if `size` is not a number.
    */
   export function allocUnsafeSlow(size: number): Buffer
 
@@ -652,6 +681,7 @@ declare namespace Buffer {
    * `length`.
    * @param buffers - The buffers to concatenate, in order.
    * @param length - Total byte length of the result; defaults to the sum of `buffers`' lengths.
+   * @throws {RangeError} thrown if an offset or length is not an integer.
    */
   export function concat(buffers: Buffer[], length?: number): Buffer
 
@@ -668,6 +698,7 @@ declare namespace Buffer {
    * @param offset - Index of the first element to copy; defaults to `0`.
    * @param length - Number of elements to copy; defaults to the rest of `view`.
    * @throws {RangeError} thrown if `offset + length` exceeds `view.length`.
+   * @throws {RangeError} thrown if an offset or length is not an integer.
    */
   export function copyBytesFrom(view: ArrayBufferLike, offset?: number, length?: number): Buffer
 
@@ -676,6 +707,7 @@ declare namespace Buffer {
    * @param data - The array, array-like, string, buffer, or `ArrayBuffer` to create a new `Buffer`
    * from.
    * @throws {Error} thrown if the encoding is not a recognized `BufferEncoding`.
+   * @throws {RangeError} thrown if an offset or length is not an integer.
    */
   export function from(data: Iterable<number>): Buffer
   export function from(data: ArrayLike<number>): Buffer

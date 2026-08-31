@@ -37,3 +37,28 @@ test('utf16le lone surrogate write stays within byteLength', (t) => {
     }
   }
 })
+
+test('utf16le toString at an odd byte offset', (t) => {
+  const buffer = Buffer.from([0x11, 0x22, 0x33, 0x44])
+
+  t.is(buffer.subarray(0, 2).toString('utf16le'), String.fromCharCode(0x2211))
+  t.is(buffer.subarray(1, 3).toString('utf16le'), String.fromCharCode(0x3322))
+  t.is(buffer.subarray(2, 4).toString('utf16le'), String.fromCharCode(0x4433))
+})
+
+test('utf16le write at an odd byte offset', (t) => {
+  const buffer = Buffer.alloc(6)
+  const odd = buffer.subarray(1, 5)
+
+  t.is(odd.write('AB', 'utf16le'), 4)
+  t.is(odd.toString('utf16le'), 'AB')
+  t.alike([...buffer], [0x00, 0x41, 0x00, 0x42, 0x00, 0x00])
+})
+
+test('utf16le at an odd byte offset beyond the stack buffer', (t) => {
+  const string = 'x'.repeat(2048)
+  const buffer = Buffer.alloc(4097).subarray(1)
+
+  t.is(buffer.write(string, 'utf16le'), 4096)
+  t.is(buffer.toString('utf16le'), string)
+})
