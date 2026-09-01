@@ -18,10 +18,13 @@
 // not are staged through an aligned copy.
 #define BARE_BUFFER_STACK_UTF16_MAX (BARE_BUFFER_STACK_STRING_MAX / sizeof(utf16_t))
 
-// A typed callback cannot raise, so a range that does not check out is reported
-// as a result no successful call can produce. Both callbacks return it, so the
-// answer cannot change once V8 takes the fast path, and JavaScript raises on it.
-#define BARE_BUFFER_OUT_OF_BOUNDS INT32_MIN
+// A typed callback cannot raise, so an argument it rejects is reported as a
+// result no successful call can produce and JavaScript raises on it. There is
+// one sentinel per error the untyped callback raises directly, so that the
+// error does not change once V8 takes the fast path.
+#define BARE_BUFFER_OUT_OF_BOUNDS  INT32_MIN
+#define BARE_BUFFER_INVALID_BUFFER (INT32_MIN + 1)
+#define BARE_BUFFER_INVALID_STRING (INT32_MIN + 2)
 
 static inline bool
 bare_buffer__is_aligned(const void *data) {
@@ -30,8 +33,8 @@ bare_buffer__is_aligned(const void *data) {
 
 // Nothing between here and the raising helpers below raises an error. A typed
 // callback is entered without a handle scope and V8 does not support reporting
-// errors from one, so raising there aborts the process. A range that does not
-// check out is reported to the caller instead, and a condition that has to
+// errors from one, so raising there aborts the process. An argument that does
+// not check out is reported to the caller instead, and a condition that has to
 // reach JavaScript is returned as a negative count for the caller to raise.
 static inline int
 bare_buffer__get_info(js_env_t *env, js_value_t *buffer, void **data, size_t *len) {
@@ -62,6 +65,18 @@ bare_buffer__get_info(js_env_t *env, js_value_t *buffer, void **data, size_t *le
   return -1;
 }
 
+static inline bool
+bare_buffer__is_string(js_env_t *env, js_value_t *value) {
+  int err;
+
+  bool is_string;
+  err = js_is_string(env, value, &is_string);
+  assert(err == 0);
+
+  return is_string;
+}
+
+// Returns 0, or the sentinel for the argument that did not check out.
 static inline int
 bare_buffer__slice(js_env_t *env, js_value_t *buffer, int64_t offset, int64_t len, void **data) {
   int err;
@@ -69,13 +84,18 @@ bare_buffer__slice(js_env_t *env, js_value_t *buffer, int64_t offset, int64_t le
   void *base;
   size_t byte_len;
   err = bare_buffer__get_info(env, buffer, &base, &byte_len);
-  if (err < 0) return err;
+  if (err < 0) return BARE_BUFFER_INVALID_BUFFER;
 
   if (offset < 0 || len < 0 || (uint64_t) offset + (uint64_t) len > byte_len) {
-    return -1;
+    return BARE_BUFFER_OUT_OF_BOUNDS;
   }
 
-  *data = (uint8_t *) base + offset;
+  // A detached or zero length store has no address, and the string and codec
+  // APIs read a null destination as a request for the length a write would need
+  // rather than as a write of no bytes.
+  static uint8_t nowhere;
+
+  *data = base == NULL ? &nowhere : (uint8_t *) base + offset;
 
   return 0;
 }
@@ -280,16 +300,12 @@ static bool
 bare_buffer__check_string(js_env_t *env, js_value_t *value, const char *message) {
   int err;
 
-  bool is_string;
-  err = js_is_string(env, value, &is_string);
+  if (bare_buffer__is_string(env, value)) return true;
+
+  err = js_throw_type_error(env, NULL, message);
   assert(err == 0);
 
-  if (!is_string) {
-    err = js_throw_type_error(env, NULL, message);
-    assert(err == 0);
-  }
-
-  return is_string;
+  return false;
 }
 
 static js_value_t *
@@ -297,6 +313,16 @@ bare_buffer__range_error(js_env_t *env) {
   int err;
 
   err = js_throw_range_error(env, NULL, "View is out of bounds of its backing store");
+  assert(err == 0);
+
+  return NULL;
+}
+
+static js_value_t *
+bare_buffer__out_of_memory(js_env_t *env) {
+  int err;
+
+  err = js_throw_error(env, NULL, "Out of memory");
   assert(err == 0);
 
   return NULL;
@@ -377,6 +403,8 @@ bare_buffer_typed_byte_length_utf8(js_value_t *receiver, js_value_t *str, js_typ
   err = js_get_typed_callback_info(info, &env, NULL);
   assert(err == 0);
 
+  if (!bare_buffer__is_string(env, str)) return BARE_BUFFER_INVALID_STRING;
+
   size_t str_len;
   err = js_get_value_string_utf8(env, str, NULL, 0, &str_len);
   assert(err == 0);
@@ -451,7 +479,7 @@ bare_buffer_typed_validate_utf8(
 
   utf8_t *buf;
   err = bare_buffer__slice(env, handle, offset, len, (void **) &buf);
-  if (err < 0) return BARE_BUFFER_OUT_OF_BOUNDS;
+  if (err != 0) return err;
 
   return utf8_validate(buf, len);
 }
@@ -473,12 +501,10 @@ bare_buffer_validate_utf8(js_env_t *env, js_callback_info_t *info) {
   int64_t offset = bare_buffer__to_int64(env, argv[1]);
   int64_t len = bare_buffer__to_int64(env, argv[2]);
 
-  int32_t valid = BARE_BUFFER_OUT_OF_BOUNDS;
-
   utf8_t *buf;
   err = bare_buffer__slice(env, argv[0], offset, len, (void **) &buf);
 
-  if (err == 0) valid = utf8_validate(buf, len);
+  int32_t valid = err == 0 ? utf8_validate(buf, len) : err;
 
   js_value_t *result;
   err = js_create_int32(env, valid, &result);
@@ -502,9 +528,11 @@ bare_buffer_typed_write_utf8(
   err = js_get_typed_callback_info(info, &env, NULL);
   assert(err == 0);
 
+  if (!bare_buffer__is_string(env, string)) return BARE_BUFFER_INVALID_STRING;
+
   utf8_t *buf;
   err = bare_buffer__slice(env, handle, offset, len, (void **) &buf);
-  if (err < 0) return BARE_BUFFER_OUT_OF_BOUNDS;
+  if (err != 0) return err;
 
   return bare_buffer__write_utf8(env, string, buf, len);
 }
@@ -527,12 +555,10 @@ bare_buffer_write_utf8(js_env_t *env, js_callback_info_t *info) {
   int64_t offset = bare_buffer__to_int64(env, argv[1]);
   int64_t len = bare_buffer__to_int64(env, argv[2]);
 
-  int64_t written = BARE_BUFFER_OUT_OF_BOUNDS;
-
   utf8_t *buf;
   err = bare_buffer__slice(env, argv[0], offset, len, (void **) &buf);
 
-  if (err == 0) written = bare_buffer__write_utf8(env, argv[3], buf, len);
+  int64_t written = err == 0 ? bare_buffer__write_utf8(env, argv[3], buf, len) : err;
 
   js_value_t *result;
   err = js_create_int64(env, written, &result);
@@ -578,7 +604,7 @@ bare_buffer_to_string_utf16le(js_env_t *env, js_callback_info_t *info) {
 
   if (str_len > BARE_BUFFER_STACK_UTF16_MAX) {
     err = bare_buffer__alloc(str_len * sizeof(utf16_t), (void **) &str);
-    if (err < 0) return NULL;
+    if (err < 0) return bare_buffer__out_of_memory(env);
   }
 
   memcpy(str, bytes, str_len * sizeof(utf16_t));
@@ -607,9 +633,11 @@ bare_buffer_typed_write_utf16le(
   err = js_get_typed_callback_info(info, &env, NULL);
   assert(err == 0);
 
+  if (!bare_buffer__is_string(env, string)) return BARE_BUFFER_INVALID_STRING;
+
   uint8_t *bytes;
   err = bare_buffer__slice(env, handle, offset, len, (void **) &bytes);
-  if (err < 0) return BARE_BUFFER_OUT_OF_BOUNDS;
+  if (err != 0) return err;
 
   return bare_buffer__write_utf16le(env, string, bytes, len);
 }
@@ -632,12 +660,10 @@ bare_buffer_write_utf16le(js_env_t *env, js_callback_info_t *info) {
   int64_t offset = bare_buffer__to_int64(env, argv[1]);
   int64_t len = bare_buffer__to_int64(env, argv[2]);
 
-  int64_t written = BARE_BUFFER_OUT_OF_BOUNDS;
-
   uint8_t *bytes;
   err = bare_buffer__slice(env, argv[0], offset, len, (void **) &bytes);
 
-  if (err == 0) written = bare_buffer__write_utf16le(env, argv[3], bytes, len);
+  int64_t written = err == 0 ? bare_buffer__write_utf16le(env, argv[3], bytes, len) : err;
 
   js_value_t *result;
   err = js_create_int64(env, written, &result);
@@ -689,9 +715,11 @@ bare_buffer_typed_write_latin1(
   err = js_get_typed_callback_info(info, &env, NULL);
   assert(err == 0);
 
+  if (!bare_buffer__is_string(env, string)) return BARE_BUFFER_INVALID_STRING;
+
   latin1_t *buf;
   err = bare_buffer__slice(env, handle, offset, len, (void **) &buf);
-  if (err < 0) return BARE_BUFFER_OUT_OF_BOUNDS;
+  if (err != 0) return err;
 
   return bare_buffer__write_latin1(env, string, buf, len);
 }
@@ -714,12 +742,10 @@ bare_buffer_write_latin1(js_env_t *env, js_callback_info_t *info) {
   int64_t offset = bare_buffer__to_int64(env, argv[1]);
   int64_t len = bare_buffer__to_int64(env, argv[2]);
 
-  int64_t written = BARE_BUFFER_OUT_OF_BOUNDS;
-
   latin1_t *buf;
   err = bare_buffer__slice(env, argv[0], offset, len, (void **) &buf);
 
-  if (err == 0) written = bare_buffer__write_latin1(env, argv[3], buf, len);
+  int64_t written = err == 0 ? bare_buffer__write_latin1(env, argv[3], buf, len) : err;
 
   js_value_t *result;
   err = js_create_int64(env, written, &result);
@@ -758,7 +784,7 @@ bare_buffer_to_string_base64(js_env_t *env, js_callback_info_t *info) {
 
   if (str_len > sizeof(stack)) {
     err = bare_buffer__alloc(str_len, (void **) &str);
-    if (err < 0) return NULL;
+    if (err < 0) return bare_buffer__out_of_memory(env);
   }
 
   err = base64_encode_utf8(buf, len, str, &str_len);
@@ -804,7 +830,7 @@ bare_buffer_to_string_base64url(js_env_t *env, js_callback_info_t *info) {
 
   if (str_len > sizeof(stack)) {
     err = bare_buffer__alloc(str_len, (void **) &str);
-    if (err < 0) return NULL;
+    if (err < 0) return bare_buffer__out_of_memory(env);
   }
 
   err = base64url_encode_utf8(buf, len, str, &str_len);
@@ -835,9 +861,11 @@ bare_buffer_typed_write_base64(
   err = js_get_typed_callback_info(info, &env, NULL);
   assert(err == 0);
 
+  if (!bare_buffer__is_string(env, string)) return BARE_BUFFER_INVALID_STRING;
+
   utf8_t *buf;
   err = bare_buffer__slice(env, handle, offset, len, (void **) &buf);
-  if (err < 0) return BARE_BUFFER_OUT_OF_BOUNDS;
+  if (err != 0) return err;
 
   return bare_buffer__write_base64(env, string, buf, len);
 }
@@ -860,12 +888,10 @@ bare_buffer_write_base64(js_env_t *env, js_callback_info_t *info) {
   int64_t offset = bare_buffer__to_int64(env, argv[1]);
   int64_t len = bare_buffer__to_int64(env, argv[2]);
 
-  int64_t decoded = BARE_BUFFER_OUT_OF_BOUNDS;
-
   utf8_t *buf;
   err = bare_buffer__slice(env, argv[0], offset, len, (void **) &buf);
 
-  if (err == 0) decoded = bare_buffer__write_base64(env, argv[3], buf, len);
+  int64_t decoded = err == 0 ? bare_buffer__write_base64(env, argv[3], buf, len) : err;
 
   js_value_t *result;
   err = js_create_int64(env, decoded, &result);
@@ -904,7 +930,7 @@ bare_buffer_to_string_hex(js_env_t *env, js_callback_info_t *info) {
 
   if (str_len > sizeof(stack)) {
     err = bare_buffer__alloc(str_len, (void **) &str);
-    if (err < 0) return NULL;
+    if (err < 0) return bare_buffer__out_of_memory(env);
   }
 
   err = hex_encode_utf8(buf, len, str, &str_len);
@@ -935,9 +961,11 @@ bare_buffer_typed_write_hex(
   err = js_get_typed_callback_info(info, &env, NULL);
   assert(err == 0);
 
+  if (!bare_buffer__is_string(env, string)) return BARE_BUFFER_INVALID_STRING;
+
   utf8_t *buf;
   err = bare_buffer__slice(env, handle, offset, len, (void **) &buf);
-  if (err < 0) return BARE_BUFFER_OUT_OF_BOUNDS;
+  if (err != 0) return err;
 
   return bare_buffer__write_hex(env, string, buf, len);
 }
@@ -960,12 +988,10 @@ bare_buffer_write_hex(js_env_t *env, js_callback_info_t *info) {
   int64_t offset = bare_buffer__to_int64(env, argv[1]);
   int64_t len = bare_buffer__to_int64(env, argv[2]);
 
-  int64_t decoded = BARE_BUFFER_OUT_OF_BOUNDS;
-
   utf8_t *buf;
   err = bare_buffer__slice(env, argv[0], offset, len, (void **) &buf);
 
-  if (err == 0) decoded = bare_buffer__write_hex(env, argv[3], buf, len);
+  int64_t decoded = err == 0 ? bare_buffer__write_hex(env, argv[3], buf, len) : err;
 
   js_value_t *result;
   err = js_create_int64(env, decoded, &result);
@@ -990,7 +1016,7 @@ bare_buffer_typed_validate_ascii(
 
   ascii_t *buf;
   err = bare_buffer__slice(env, handle, offset, len, (void **) &buf);
-  if (err < 0) return BARE_BUFFER_OUT_OF_BOUNDS;
+  if (err != 0) return err;
 
   return ascii_validate(buf, len);
 }
@@ -1012,12 +1038,10 @@ bare_buffer_validate_ascii(js_env_t *env, js_callback_info_t *info) {
   int64_t offset = bare_buffer__to_int64(env, argv[1]);
   int64_t len = bare_buffer__to_int64(env, argv[2]);
 
-  int32_t valid = BARE_BUFFER_OUT_OF_BOUNDS;
-
   ascii_t *buf;
   err = bare_buffer__slice(env, argv[0], offset, len, (void **) &buf);
 
-  if (err == 0) valid = ascii_validate(buf, len);
+  int32_t valid = err == 0 ? ascii_validate(buf, len) : err;
 
   js_value_t *result;
   err = js_create_int32(env, valid, &result);
@@ -1233,11 +1257,11 @@ bare_buffer_typed_compare(
 
   uint8_t *a;
   err = bare_buffer__slice(env, a_handle, a_offset, a_len, (void **) &a);
-  if (err < 0) return BARE_BUFFER_OUT_OF_BOUNDS;
+  if (err != 0) return err;
 
   uint8_t *b;
   err = bare_buffer__slice(env, b_handle, b_offset, b_len, (void **) &b);
-  if (err < 0) return BARE_BUFFER_OUT_OF_BOUNDS;
+  if (err != 0) return err;
 
   return bare_buffer__memcmp(a, a_len, b, b_len);
 }
@@ -1264,16 +1288,16 @@ bare_buffer_compare(js_env_t *env, js_callback_info_t *info) {
   int64_t b_offset = bare_buffer__to_int64(env, argv[4]);
   int64_t b_len = bare_buffer__to_int64(env, argv[5]);
 
-  int32_t comparison = BARE_BUFFER_OUT_OF_BOUNDS;
-
   uint8_t *a;
   err = bare_buffer__slice(env, argv[0], a_offset, a_len, (void **) &a);
+
+  int32_t comparison = err;
 
   if (err == 0) {
     uint8_t *b;
     err = bare_buffer__slice(env, argv[3], b_offset, b_len, (void **) &b);
 
-    if (err == 0) comparison = bare_buffer__memcmp(a, a_len, b, b_len);
+    comparison = err == 0 ? bare_buffer__memcmp(a, a_len, b, b_len) : err;
   }
 
   js_value_t *result;
@@ -1299,7 +1323,7 @@ bare_buffer_typed_swap16(
 
   uint8_t *buf;
   err = bare_buffer__slice(env, handle, offset, len, (void **) &buf);
-  if (err < 0) return BARE_BUFFER_OUT_OF_BOUNDS;
+  if (err != 0) return err;
 
   bare_buffer__swap16(buf, len);
 
@@ -1323,16 +1347,12 @@ bare_buffer_swap16(js_env_t *env, js_callback_info_t *info) {
   int64_t offset = bare_buffer__to_int64(env, argv[1]);
   int64_t len = bare_buffer__to_int64(env, argv[2]);
 
-  int32_t swapped = BARE_BUFFER_OUT_OF_BOUNDS;
-
   uint8_t *buf;
   err = bare_buffer__slice(env, argv[0], offset, len, (void **) &buf);
 
-  if (err == 0) {
-    bare_buffer__swap16(buf, len);
+  if (err == 0) bare_buffer__swap16(buf, len);
 
-    swapped = 0;
-  }
+  int32_t swapped = err;
 
   js_value_t *result;
   err = js_create_int32(env, swapped, &result);
@@ -1357,7 +1377,7 @@ bare_buffer_typed_swap32(
 
   uint8_t *buf;
   err = bare_buffer__slice(env, handle, offset, len, (void **) &buf);
-  if (err < 0) return BARE_BUFFER_OUT_OF_BOUNDS;
+  if (err != 0) return err;
 
   bare_buffer__swap32(buf, len);
 
@@ -1381,16 +1401,12 @@ bare_buffer_swap32(js_env_t *env, js_callback_info_t *info) {
   int64_t offset = bare_buffer__to_int64(env, argv[1]);
   int64_t len = bare_buffer__to_int64(env, argv[2]);
 
-  int32_t swapped = BARE_BUFFER_OUT_OF_BOUNDS;
-
   uint8_t *buf;
   err = bare_buffer__slice(env, argv[0], offset, len, (void **) &buf);
 
-  if (err == 0) {
-    bare_buffer__swap32(buf, len);
+  if (err == 0) bare_buffer__swap32(buf, len);
 
-    swapped = 0;
-  }
+  int32_t swapped = err;
 
   js_value_t *result;
   err = js_create_int32(env, swapped, &result);
@@ -1415,7 +1431,7 @@ bare_buffer_typed_swap64(
 
   uint8_t *buf;
   err = bare_buffer__slice(env, handle, offset, len, (void **) &buf);
-  if (err < 0) return BARE_BUFFER_OUT_OF_BOUNDS;
+  if (err != 0) return err;
 
   bare_buffer__swap64(buf, len);
 
@@ -1439,16 +1455,12 @@ bare_buffer_swap64(js_env_t *env, js_callback_info_t *info) {
   int64_t offset = bare_buffer__to_int64(env, argv[1]);
   int64_t len = bare_buffer__to_int64(env, argv[2]);
 
-  int32_t swapped = BARE_BUFFER_OUT_OF_BOUNDS;
-
   uint8_t *buf;
   err = bare_buffer__slice(env, argv[0], offset, len, (void **) &buf);
 
-  if (err == 0) {
-    bare_buffer__swap64(buf, len);
+  if (err == 0) bare_buffer__swap64(buf, len);
 
-    swapped = 0;
-  }
+  int32_t swapped = err;
 
   js_value_t *result;
   err = js_create_int32(env, swapped, &result);
@@ -1477,11 +1489,11 @@ bare_buffer_typed_index_of(
 
   uint8_t *buf;
   err = bare_buffer__slice(env, handle, offset, len, (void **) &buf);
-  if (err < 0) return BARE_BUFFER_OUT_OF_BOUNDS;
+  if (err != 0) return err;
 
   uint8_t *needle;
   err = bare_buffer__slice(env, needle_handle, needle_offset, needle_len, (void **) &needle);
-  if (err < 0) return BARE_BUFFER_OUT_OF_BOUNDS;
+  if (err != 0) return err;
 
   return bare_buffer__index_of(buf, len, needle, needle_len, from);
 }
@@ -1512,16 +1524,16 @@ bare_buffer_index_of(js_env_t *env, js_callback_info_t *info) {
   int64_t needle_len = bare_buffer__to_int64(env, argv[5]);
   int64_t from = bare_buffer__to_int64(env, argv[6]);
 
-  int64_t at = BARE_BUFFER_OUT_OF_BOUNDS;
-
   uint8_t *buf;
   err = bare_buffer__slice(env, argv[0], offset, len, (void **) &buf);
+
+  int64_t at = err;
 
   if (err == 0) {
     uint8_t *needle;
     err = bare_buffer__slice(env, argv[3], needle_offset, needle_len, (void **) &needle);
 
-    if (err == 0) at = bare_buffer__index_of(buf, len, needle, needle_len, from);
+    at = err == 0 ? bare_buffer__index_of(buf, len, needle, needle_len, from) : err;
   }
 
   js_value_t *result;
@@ -1551,11 +1563,11 @@ bare_buffer_typed_last_index_of(
 
   uint8_t *buf;
   err = bare_buffer__slice(env, handle, offset, len, (void **) &buf);
-  if (err < 0) return BARE_BUFFER_OUT_OF_BOUNDS;
+  if (err != 0) return err;
 
   uint8_t *needle;
   err = bare_buffer__slice(env, needle_handle, needle_offset, needle_len, (void **) &needle);
-  if (err < 0) return BARE_BUFFER_OUT_OF_BOUNDS;
+  if (err != 0) return err;
 
   return bare_buffer__last_index_of(buf, len, needle, needle_len, from);
 }
@@ -1586,16 +1598,16 @@ bare_buffer_last_index_of(js_env_t *env, js_callback_info_t *info) {
   int64_t needle_len = bare_buffer__to_int64(env, argv[5]);
   int64_t from = bare_buffer__to_int64(env, argv[6]);
 
-  int64_t at = BARE_BUFFER_OUT_OF_BOUNDS;
-
   uint8_t *buf;
   err = bare_buffer__slice(env, argv[0], offset, len, (void **) &buf);
+
+  int64_t at = err;
 
   if (err == 0) {
     uint8_t *needle;
     err = bare_buffer__slice(env, argv[3], needle_offset, needle_len, (void **) &needle);
 
-    if (err == 0) at = bare_buffer__last_index_of(buf, len, needle, needle_len, from);
+    at = err == 0 ? bare_buffer__last_index_of(buf, len, needle, needle_len, from) : err;
   }
 
   js_value_t *result;
