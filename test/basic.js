@@ -1,4 +1,5 @@
 const test = require('brittle')
+const Realm = require('bare-realm')
 const Buffer = require('..')
 
 test('from', (t) => {
@@ -27,10 +28,12 @@ test('alloc', (t) => {
   t.is(Buffer.alloc(42).byteLength, 42)
 })
 
-test('alloc rejects lengths outside the buffer range', (t) => {
+test('alloc rejects a length that is not an integer in range', (t) => {
   const { MAX_LENGTH } = Buffer.constants
 
-  for (const size of [-1, -MAX_LENGTH, NaN, Infinity, -Infinity, MAX_LENGTH + 1, 2 ** 53]) {
+  const sizes = [-1, -MAX_LENGTH, NaN, Infinity, -Infinity, MAX_LENGTH + 1, 2 ** 53, 1.5, -0.5, 0.1]
+
+  for (const size of sizes) {
     for (const method of ['alloc', 'allocUnsafe', 'allocUnsafeSlow']) {
       t.exception.all(() => Buffer[method](size), /RangeError/, `${method}(${size})`)
     }
@@ -38,9 +41,251 @@ test('alloc rejects lengths outside the buffer range', (t) => {
     t.exception.all(() => new Buffer(size), /RangeError/, `new Buffer(${size})`)
   }
 
-  t.is(Buffer.alloc(1.5).byteLength, 1)
-  t.is(Buffer.allocUnsafe(1.5).byteLength, 1)
   t.is(Buffer.alloc(0).byteLength, 0, 'zero is allowed')
+  t.is(Buffer.alloc(-0).byteLength, 0, 'negative zero is allowed')
+})
+
+test('poolSize rejects anything but a size', (t) => {
+  const { poolSize } = Buffer
+
+  t.teardown(() => {
+    Buffer.poolSize = poolSize
+  })
+
+  for (const value of ['4', {}, null, [8], () => {}, 4n]) {
+    t.exception.all(() => {
+      Buffer.poolSize = value
+    }, /TypeError/)
+  }
+
+  for (const value of [-1, NaN, Infinity, 1.5, Buffer.constants.MAX_LENGTH + 1]) {
+    t.exception.all(() => {
+      Buffer.poolSize = value
+    }, /RangeError/)
+  }
+
+  t.is(Buffer.poolSize, poolSize, 'a rejected value does not take effect')
+
+  Buffer.poolSize = 1024
+  t.is(Buffer.poolSize, 1024)
+  t.is(Buffer.allocUnsafe(64).byteLength, 64, 'the pool still serves allocations')
+
+  Buffer.poolSize = 0
+  t.is(Buffer.allocUnsafe(64).byteLength, 64, 'pooling can be turned off')
+})
+
+test('alloc rejects a size that is not a number', (t) => {
+  for (const size of ['4', {}, null, [8], () => {}, 4n]) {
+    for (const method of ['alloc', 'allocUnsafe', 'allocUnsafeSlow']) {
+      t.exception.all(() => Buffer[method](size), /TypeError/, `${method}(${String(size)})`)
+    }
+  }
+})
+
+test('alloc rejects a fill value that cannot fill', (t) => {
+  for (const value of [{}, Symbol('x'), null, [1, 2], 1n, () => {}]) {
+    t.exception.all(() => Buffer.alloc(4, value), /TypeError/)
+  }
+
+  t.alike(Buffer.alloc(4, undefined), Buffer.alloc(4), 'undefined means no fill')
+  t.alike(Buffer.alloc(4, NaN), Buffer.alloc(4), 'a number is truncated to a byte')
+})
+
+test('fill rejects a value that cannot fill', (t) => {
+  for (const value of [{}, Symbol('x'), null, undefined, [1, 2], 1n, () => {}]) {
+    t.exception.all(() => Buffer.alloc(4).fill(value), /TypeError/)
+  }
+
+  t.exception.all(() => Buffer.alloc(4).fill(), /TypeError/)
+})
+
+test('fill with a view fills with the bytes it spans', (t) => {
+  const bytes = new Uint8Array([1, 2, 3, 4])
+
+  t.alike(Buffer.alloc(4, new Uint8Array([1, 2])), Buffer.from([1, 2, 1, 2]))
+  t.alike(Buffer.alloc(4, new Uint16Array(bytes.buffer)), Buffer.from([1, 2, 3, 4]))
+  t.alike(Buffer.alloc(4, new DataView(bytes.buffer, 2)), Buffer.from([3, 4, 3, 4]))
+  t.alike(Buffer.alloc(4, new Uint8Array(0)), Buffer.alloc(4), 'an empty view zeroes')
+})
+
+// A view from another realm has the internal slots and the %TypedArray% methods,
+// but its constructor and prototype come from that realm, so `instanceof` does
+// not recognize it. Anything that has to tell views apart goes by the element
+// size instead.
+const realm = new Realm()
+
+test('a view of bytes from another realm is accepted', (t) => {
+  const bytes = realm.evaluate('new Uint8Array([1, 2, 3, 4])')
+
+  t.is(bytes instanceof Uint8Array, false, 'instanceof does not recognize it')
+  t.is(bytes.BYTES_PER_ELEMENT, 1, 'the element size still does')
+
+  t.alike(Buffer.concat([bytes]), Buffer.from([1, 2, 3, 4]))
+  t.alike(Buffer.concat([bytes], 6), Buffer.from([1, 2, 3, 4, 0, 0]))
+  t.alike(Buffer.from(bytes), Buffer.from([1, 2, 3, 4]))
+  t.alike(Buffer.coerce(bytes), Buffer.from([1, 2, 3, 4]))
+  t.alike(Buffer.alloc(4).fill(bytes), Buffer.from([1, 2, 3, 4]))
+  t.is(Buffer.from([1, 2, 3, 4]).equals(bytes), true)
+  t.is(Buffer.from([0, 1, 2, 3, 4]).indexOf(bytes), 1)
+
+  const target = realm.evaluate('new Uint8Array(4)')
+
+  t.is(Buffer.from([9, 9]).copy(target), 2)
+  t.alike([...target], [9, 9, 0, 0])
+})
+
+test('a wider view from another realm goes by its bytes', (t) => {
+  const wide = realm.evaluate('new Uint16Array([0x1122, 0x3344])')
+
+  t.is(wide.BYTES_PER_ELEMENT, 2)
+
+  t.exception.all(() => Buffer.concat([wide]), /must be a view of single bytes/)
+  t.alike(Buffer.from(wide), Buffer.from([0x22, 0x44]), 'element wise, truncated')
+
+  const target = realm.evaluate('new Uint16Array(2)')
+
+  t.is(Buffer.from([1, 2, 3, 4]).copy(target), 4)
+  t.alike([...new Uint8Array(target.buffer)], [1, 2, 3, 4], 'byte wise')
+
+  const pattern = new Uint16Array([1, 2])
+
+  t.alike(
+    Buffer.alloc(4).fill(realm.evaluate('new Uint16Array([1, 2])')),
+    Buffer.from(new Uint8Array(pattern.buffer)),
+    'byte wise'
+  )
+})
+
+// A DataView reports no length in any realm, and sizing a copy by a length that
+// is missing rather than zero would span the rest of the allocation pool.
+test('a DataView from another realm copies as empty', (t) => {
+  const view = realm.evaluate('new DataView(new ArrayBuffer(64))')
+
+  t.is(view instanceof DataView, false, 'instanceof does not recognize it')
+  t.is(typeof view.length, 'undefined', 'and it reports no length')
+
+  t.is(Buffer.from(view).byteLength, 0)
+})
+
+test('an encoding must be a string', (t) => {
+  t.exception.all(() => Buffer.alloc(4, 'x', {}), /TypeError/)
+  t.exception.all(() => Buffer.alloc(4, 'x', 42), /TypeError/)
+  t.exception.all(() => Buffer.from('x', {}), /TypeError/)
+  t.exception.all(() => Buffer.alloc(4).toString({}), /TypeError/)
+  t.exception.all(() => Buffer.byteLength('x', {}), /TypeError/)
+})
+
+test('an offset or length must be an integer', (t) => {
+  const source = Buffer.from('hello world')
+  const target = Buffer.alloc(11)
+  const arrayBuffer = new ArrayBuffer(8)
+  const view = new Uint16Array(4)
+
+  const cases = [
+    ['toString start', () => source.toString('hex', 0.5, 3)],
+    ['toString end', () => source.toString('hex', 0, 3.5)],
+    ['write offset', () => target.write('ab', 0.5)],
+    ['write length', () => target.write('ab', 0, 1.5)],
+    ['fill offset', () => target.fill(1, 0.5)],
+    ['fill end', () => target.fill(1, 0, 3.5)],
+    ['copy targetStart', () => source.copy(target, 0.5)],
+    ['copy sourceStart', () => source.copy(target, 0, 0.5)],
+    ['copy sourceEnd', () => source.copy(target, 0, 0, 3.5)],
+    ['compare targetStart', () => source.compare(target, 0.5)],
+    ['compare targetEnd', () => source.compare(target, 0, 2.5)],
+    ['compare sourceStart', () => source.compare(target, 0, 2, 0.5)],
+    ['compare sourceEnd', () => source.compare(target, 0, 2, 0, 2.5)],
+    ['indexOf offset', () => source.indexOf('o', 1.5)],
+    ['indexOf byte offset', () => source.indexOf(0x6f, 1.5)],
+    ['lastIndexOf offset', () => source.lastIndexOf('o', 1.5)],
+    ['includes offset', () => source.includes('o', 1.5)],
+    ['concat length', () => Buffer.concat([source], 3.5)],
+    ['copyBytesFrom offset', () => Buffer.copyBytesFrom(view, 0.5)],
+    ['copyBytesFrom length', () => Buffer.copyBytesFrom(view, 0, 1.5)],
+    ['copyBytesFrom negative', () => Buffer.copyBytesFrom(view, -1)],
+    ['from offset', () => Buffer.from(arrayBuffer, 0.5)],
+    ['from length', () => Buffer.from(arrayBuffer, 0, 2.5)],
+    ['new Buffer offset', () => new Buffer(arrayBuffer, 0.5)],
+    ['new Buffer length', () => new Buffer(arrayBuffer, 0, 2.5)]
+  ]
+
+  for (const [label, fn] of cases) {
+    t.exception.all(fn, /RangeError/, label)
+  }
+})
+
+test('an offset or length must be a number', (t) => {
+  const source = Buffer.from('hello world')
+  const target = Buffer.alloc(11)
+
+  t.exception.all(() => source.toString('hex', {}, 3), /TypeError/)
+  t.exception.all(() => target.write('ab', {}), /TypeError/)
+  t.exception.all(() => target.fill(1, {}), /TypeError/)
+  t.exception.all(() => source.copy(target, {}), /TypeError/)
+  t.exception.all(() => source.compare(target, {}), /TypeError/)
+  t.exception.all(() => Buffer.concat([source], '3'), /TypeError/)
+  t.exception.all(() => Buffer.copyBytesFrom(new Uint16Array(4), '1'), /TypeError/)
+  t.exception.all(() => Buffer.from(new ArrayBuffer(8), '1'), /TypeError/)
+})
+
+test('a negative offset is still clamped or counted from the end', (t) => {
+  const source = Buffer.from('hello world')
+
+  t.is(source.toString('latin1', -4), 'hello world', 'a negative start clamps')
+  t.is(source.indexOf('o', -5), 7, 'a negative offset counts from the end')
+  t.is(source.indexOf('o', -3), -1, 'and can land past the last match')
+  t.is(source.lastIndexOf('o', -3), 7)
+  t.alike(Buffer.alloc(4).fill(1, -1), Buffer.from([1, 1, 1, 1]))
+
+  // copy() is the exception, rejecting a negative offset outright.
+  t.exception.all(() => source.copy(Buffer.alloc(11), -1), /RangeError/)
+})
+
+test('copy rejects an offset outside its range', (t) => {
+  const source = Buffer.from([1, 2, 3, 4])
+
+  t.exception.all(() => source.copy(Buffer.alloc(4), -1), /RangeError/, 'targetStart')
+  t.exception.all(() => source.copy(Buffer.alloc(4), 0, -1), /RangeError/, 'sourceStart')
+  t.exception.all(() => source.copy(Buffer.alloc(4), 0, 0, -1), /RangeError/, 'sourceEnd')
+  t.exception.all(
+    () => source.copy(Buffer.alloc(4), 0, 9),
+    /RangeError/,
+    'sourceStart past the end'
+  )
+
+  t.is(source.copy(Buffer.alloc(4), 0, 4), 0, 'a sourceStart at the end is allowed')
+  t.is(source.copy(Buffer.alloc(4), 9), 0, 'a targetStart past the end copies nothing')
+  t.is(source.copy(Buffer.alloc(4), 0, 0, 99), 4, 'a sourceEnd past the end clamps')
+})
+
+test('copy requires a view as its target', (t) => {
+  const source = Buffer.from([1, 2, 3, 4])
+
+  for (const target of [undefined, null, 'aaaa', [0, 0, 0, 0], {}, 4]) {
+    t.exception.all(() => source.copy(target), /TypeError/, String(target))
+  }
+
+  t.exception.all(
+    () => source.copy({ buffer: new ArrayBuffer(8), byteOffset: 0, byteLength: 8 }),
+    /TypeError/,
+    'a plain object is not a view'
+  )
+})
+
+test('copy into a view writes the bytes it spans', (t) => {
+  const source = Buffer.from([1, 2, 3, 4])
+
+  const wide = new Uint16Array(4)
+  t.is(source.copy(wide), 4)
+  t.alike(Buffer.from(wide.buffer), Buffer.from([1, 2, 3, 4, 0, 0, 0, 0]))
+
+  const arrayBuffer = new ArrayBuffer(4)
+  t.is(source.copy(new DataView(arrayBuffer)), 4)
+  t.alike(Buffer.from(arrayBuffer), Buffer.from([1, 2, 3, 4]))
+
+  const offsetView = new DataView(new ArrayBuffer(6), 2)
+  t.is(source.copy(offsetView), 4)
+  t.alike(Buffer.from(offsetView.buffer), Buffer.from([0, 0, 1, 2, 3, 4]))
 })
 
 test('alloc with fill', (t) => {

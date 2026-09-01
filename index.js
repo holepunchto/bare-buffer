@@ -27,7 +27,9 @@ class Buffer extends Uint8Array {
   }
 
   static set poolSize(value) {
-    poolSize = Math.max(0, value)
+    assertSize(value, 'Pool size')
+
+    poolSize = value
   }
 
   constructor(arrayBuffer, offset, length, opts = {}) {
@@ -39,12 +41,17 @@ class Buffer extends Uint8Array {
       offset = 0
       length = arrayBuffer
 
-      if (Number.isNaN(length) || length < 0 || length > constants.MAX_LENGTH) {
-        throw new RangeError(`Buffer length must be between 0 and ${constants.MAX_LENGTH}`)
+      if (Number.isInteger(length) === false || length < 0 || length > constants.MAX_LENGTH) {
+        throw new RangeError(
+          `Buffer length must be an integer between 0 and ${constants.MAX_LENGTH}`
+        )
       }
 
       arrayBuffer = uninitialized ? binding.allocUnsafe(length) : binding.alloc(length)
     } else {
+      if (typeof offset === 'number') assertInteger(offset, 'Offset')
+      if (typeof length === 'number') assertInteger(length, 'Length')
+
       if (length > constants.MAX_LENGTH) {
         throw new RangeError(`Buffer length must be at most ${constants.MAX_LENGTH}`)
       }
@@ -69,51 +76,68 @@ class Buffer extends Uint8Array {
   copy(target, targetStart = 0, sourceStart = 0, sourceEnd = this.byteLength) {
     const source = this
 
-    if (targetStart < 0) targetStart = 0
-    if (targetStart >= target.byteLength) return 0
-
-    const targetLength = target.byteLength - targetStart
-
-    if (sourceStart < 0) sourceStart = 0
-    if (sourceStart >= source.byteLength) return 0
-
-    if (sourceEnd <= sourceStart) return 0
-    if (sourceEnd > source.byteLength) sourceEnd = source.byteLength
-
-    if (sourceEnd - sourceStart > targetLength) {
-      sourceEnd = sourceStart + targetLength
+    if (ArrayBuffer.isView(target) === false) {
+      throw new TypeError(`Target must be a view, received type ${typeof target}`)
     }
 
-    const sourceLength = sourceEnd - sourceStart
+    assertSize(targetStart, 'Target start')
+    assertSize(sourceStart, 'Source start')
+    assertSize(sourceEnd, 'Source end')
+
+    if (target.BYTES_PER_ELEMENT !== 1) {
+      target = new Uint8Array(target.buffer, target.byteOffset, target.byteLength)
+    }
+
+    const sourceLength = source.byteLength
+    const targetLength = target.byteLength
+
+    if (sourceStart > sourceLength) {
+      throw new RangeError(`Source start must be at most ${sourceLength}`)
+    }
+
+    if (targetStart >= targetLength) return 0
+
+    if (sourceEnd > sourceLength) sourceEnd = sourceLength
+    if (sourceEnd <= sourceStart) return 0
+
+    const room = targetLength - targetStart
+
+    if (sourceEnd - sourceStart > room) sourceEnd = sourceStart + room
+
+    const length = sourceEnd - sourceStart
 
     if (source === target) {
       target.copyWithin(targetStart, sourceStart, sourceEnd)
-    } else if (sourceStart === 0 && sourceEnd === source.byteLength) {
+    } else if (sourceStart === 0 && sourceEnd === sourceLength) {
       target.set(source, targetStart)
     } else {
       target.set(
-        new Uint8Array(source.buffer, source.byteOffset + sourceStart, sourceLength),
+        new Uint8Array(source.buffer, source.byteOffset + sourceStart, length),
         targetStart
       )
     }
 
-    return sourceLength
+    return length
   }
 
   equals(target) {
     const source = this
 
     if (source === target) return true
-    if (source.byteLength !== target.byteLength) return false
+
+    const sourceLength = source.byteLength
+    const targetLength = target.byteLength
+
+    if (sourceLength !== targetLength) return false
 
     return (
       binding.compare(
         source.buffer,
         source.byteOffset,
-        source.byteLength,
+        sourceLength,
         target.buffer,
         target.byteOffset,
-        target.byteLength
+        targetLength
       ) === 0
     )
   }
@@ -129,23 +153,31 @@ class Buffer extends Uint8Array {
 
     if (source === target) return 0
 
+    const sourceLength = source.byteLength
+    const targetLength = target.byteLength
+
     if (arguments.length === 1) {
       targetStart = 0
-      targetEnd = target.byteLength
+      targetEnd = targetLength
       sourceStart = 0
-      sourceEnd = source.byteLength
+      sourceEnd = sourceLength
     } else {
+      assertInteger(targetStart, 'Target start')
+      assertInteger(targetEnd, 'Target end')
+      assertInteger(sourceStart, 'Source start')
+      assertInteger(sourceEnd, 'Source end')
+
       if (targetStart < 0) targetStart = 0
-      if (targetStart > target.byteLength) targetStart = target.byteLength
+      if (targetStart > targetLength) targetStart = targetLength
 
       if (targetEnd < targetStart) targetEnd = targetStart
-      if (targetEnd > target.byteLength) targetEnd = target.byteLength
+      if (targetEnd > targetLength) targetEnd = targetLength
 
       if (sourceStart < 0) sourceStart = 0
-      if (sourceStart > source.byteLength) sourceStart = source.byteLength
+      if (sourceStart > sourceLength) sourceStart = sourceLength
 
       if (sourceEnd < sourceStart) sourceEnd = sourceStart
-      if (sourceEnd > source.byteLength) sourceEnd = source.byteLength
+      if (sourceEnd > sourceLength) sourceEnd = sourceLength
     }
 
     return binding.compare(
@@ -174,13 +206,26 @@ class Buffer extends Uint8Array {
       value = value & 0xff
     } else if (typeof value === 'boolean') {
       value = +value
+    } else if (ArrayBuffer.isView(value)) {
+      if (value.BYTES_PER_ELEMENT !== 1) {
+        value = new Uint8Array(value.buffer, value.byteOffset, value.byteLength)
+      }
+    } else {
+      throw new TypeError(
+        `Fill value must be a number, a string or a view, received type ${typeof value}`
+      )
     }
 
+    assertInteger(offset, 'Offset')
+    assertInteger(end, 'End')
+
+    const byteLength = this.byteLength
+
     if (offset < 0) offset = 0
-    if (offset >= this.byteLength) return this
+    if (offset >= byteLength) return this
 
     if (end <= offset) return this
-    if (end > this.byteLength) end = this.byteLength
+    if (end > byteLength) end = byteLength
 
     if (typeof value === 'number') return super.fill(value, offset, end)
 
@@ -199,6 +244,8 @@ class Buffer extends Uint8Array {
   }
 
   indexOf(value, offset = 0, encoding) {
+    if (typeof offset === 'number') assertInteger(offset, 'Offset')
+
     if (typeof value === 'boolean') value = +value
 
     if (typeof value === 'number') {
@@ -209,6 +256,8 @@ class Buffer extends Uint8Array {
   }
 
   lastIndexOf(value, offset = this.byteLength - 1, encoding) {
+    if (typeof offset === 'number') assertInteger(offset, 'Offset')
+
     if (typeof value === 'boolean') value = +value
 
     if (typeof value === 'number') {
@@ -281,11 +330,16 @@ class Buffer extends Uint8Array {
     // toString(encoding)
     if (arguments.length === 1) return codecFor(encoding).toString(this)
 
+    assertInteger(start, 'Start')
+    assertInteger(end, 'End')
+
+    const length = this.byteLength
+
     if (start < 0) start = 0
-    if (start >= this.byteLength) return ''
+    if (start >= length) return ''
 
     if (end <= start) return ''
-    if (end > this.byteLength) end = this.byteLength
+    if (end > length) end = length
 
     return codecFor(encoding).toString(this, start, end)
   }
@@ -314,15 +368,20 @@ class Buffer extends Uint8Array {
       length = this.byteLength - offset
     }
 
+    assertInteger(offset, 'Offset')
+    assertInteger(length, 'Length')
+
     length = Math.min(length, exports.byteLength(string, encoding))
+
+    const byteLength = this.byteLength
 
     let start = offset
     if (start < 0) start = 0
-    if (start >= this.byteLength) return 0
+    if (start >= byteLength) return 0
 
     let end = offset + length
     if (end <= start) return 0
-    if (end > this.byteLength) end = this.byteLength
+    if (end > byteLength) end = byteLength
 
     return codecFor(encoding).write(this, string, start, end)
   }
@@ -678,6 +737,10 @@ function codecFor(encoding) {
   let codec = codecs[encoding]
   if (codec !== undefined) return codec
 
+  if (typeof encoding !== 'string') {
+    throw new TypeError(`Encoding must be a string, received type ${typeof encoding}`)
+  }
+
   codec = codecs[encoding.toLowerCase()]
   if (codec !== undefined) return codec
 
@@ -725,6 +788,8 @@ exports.isUTF8 = function isUTF8(buffer) {
 exports.isUtf8 = exports.isUTF8
 
 exports.alloc = function alloc(size, fill, encoding) {
+  assertSize(size, 'Size')
+
   if (fill !== undefined && fill !== 0) {
     const buffer = new Buffer(size, { uninitialized: true })
 
@@ -735,11 +800,35 @@ exports.alloc = function alloc(size, fill, encoding) {
 }
 
 exports.allocUnsafe = function allocUnsafe(size) {
+  assertSize(size, 'Size')
+
   return allocate(size)
 }
 
 exports.allocUnsafeSlow = function allocUnsafeSlow(size) {
+  assertSize(size, 'Size')
+
   return new Buffer(size, { uninitialized: true })
+}
+
+function assertInteger(value, name) {
+  if (typeof value !== 'number') {
+    throw new TypeError(`${name} must be a number, received type ${typeof value}`)
+  }
+
+  if (Number.isInteger(value) === false) {
+    throw new RangeError(`${name} must be an integer`)
+  }
+}
+
+function assertSize(size, name) {
+  if (typeof size !== 'number') {
+    throw new TypeError(`${name} must be a number, received type ${typeof size}`)
+  }
+
+  if (Number.isInteger(size) === false || size < 0 || size > constants.MAX_LENGTH) {
+    throw new RangeError(`${name} must be an integer between 0 and ${constants.MAX_LENGTH}`)
+  }
 }
 
 exports.byteLength = function byteLength(string, encoding) {
@@ -757,9 +846,19 @@ exports.compare = function compare(a, b) {
 exports.concat = function concat(buffers, length) {
   const n = buffers.length
 
+  for (let i = 0; i < n; i++) {
+    const buffer = buffers[i]
+
+    if (ArrayBuffer.isView(buffer) === false || buffer.BYTES_PER_ELEMENT !== 1) {
+      throw new TypeError(`buffers[${i}] must be a view of single bytes`)
+    }
+  }
+
   if (length === undefined) {
     length = 0
     for (let i = 0; i < n; i++) length += buffers[i].byteLength
+  } else {
+    assertSize(length, 'Length')
   }
 
   const result = allocate(length)
@@ -768,14 +867,19 @@ exports.concat = function concat(buffers, length) {
 
   for (let i = 0; i < n; i++) {
     const buffer = buffers[i]
+    const buffered = buffer.byteLength
 
-    if (offset + buffer.byteLength > length) {
-      result.set(new Uint8Array(buffer.buffer, buffer.byteOffset, length - offset), offset)
-      return result
+    if (offset + buffered > length) {
+      const remaining = length - offset
+
+      result.set(new Uint8Array(buffer.buffer, buffer.byteOffset, remaining), offset)
+
+      offset = length
+      break
     }
 
     result.set(buffer, offset)
-    offset += buffer.byteLength
+    offset += buffered
   }
 
   // Only the bytes the inputs did not reach need initializing.
@@ -790,6 +894,9 @@ exports.coerce = function coerce(buffer) {
 }
 
 exports.copyBytesFrom = function copyBytesFrom(view, offset = 0, length = view.length - offset) {
+  assertSize(offset, 'Offset')
+  assertSize(length, 'Length')
+
   if (offset + length > view.length) {
     throw new RangeError('View length is out of range')
   }
@@ -835,30 +942,40 @@ function fromArray(array) {
 }
 
 function fromBuffer(buffer) {
-  const copy = allocate(buffer.byteLength)
+  // A view is copied element wise, each element truncated to a byte, so the
+  // copy is sized by element count and not by byte length. A view that is not
+  // array like, such as a DataView, reports no length and has nothing to copy.
+  const length = typeof buffer.length === 'number' ? buffer.length : 0
+
+  const copy = allocate(length)
   copy.set(buffer)
   return copy
 }
 
 function fromArrayBuffer(arrayBuffer, offset, length) {
+  if (offset !== undefined) assertInteger(offset, 'Offset')
+  if (length !== undefined) assertInteger(length, 'Length')
+
   return new Buffer(arrayBuffer, offset, length)
 }
 
 function bidirectionalIndexOf(buffer, value, offset, encoding, first) {
-  if (buffer.byteLength === 0) return -1
+  const length = buffer.byteLength
+
+  if (length === 0) return -1
 
   if (typeof offset === 'string') {
     encoding = offset
     offset = 0
   } else if (offset === undefined) {
-    offset = first ? 0 : buffer.byteLength - 1
+    offset = first ? 0 : length - 1
   } else if (offset < 0) {
-    offset += buffer.byteLength
+    offset += length
   }
 
-  if (offset >= buffer.byteLength) {
+  if (offset >= length) {
     if (first) return -1
-    else offset = buffer.byteLength - 1
+    else offset = length - 1
   } else if (offset < 0) {
     if (first) offset = 0
     else return -1
@@ -870,7 +987,6 @@ function bidirectionalIndexOf(buffer, value, offset, encoding, first) {
 
   if (needleLength === 0) return -1
 
-  const length = buffer.byteLength
   const last = length - needleLength
 
   if (first) {
@@ -941,7 +1057,7 @@ function fillPattern(buffer, value, length, offset, end) {
 }
 
 function allocate(size) {
-  if (Number.isNaN(size) || size <= 0 || size >= poolSize >>> 1) {
+  if (Number.isNaN(size) || size <= 0 || size >= poolSize / 2) {
     return new Buffer(size, { uninitialized: true })
   }
 
@@ -989,7 +1105,7 @@ function offsetError(offset) {
     throw new TypeError(`Offset must be a number, received type ${typeof offset}`)
   }
 
-  throw new RangeError('Offset is outside the bounds of the buffer')
+  throw new RangeError('Offset must be an integer')
 }
 
 function readInt48BE(buffer, offset) {
