@@ -336,7 +336,8 @@ interface Buffer extends Uint8Array<ArrayBuffer> {
    * Write `string` into this buffer using `encoding`, returning the number of bytes written.
    * @param string - The string to write.
    * @param encoding - Encoding used to encode `string`; defaults to `'utf8'`.
-   * @throws {Error} thrown if the encoding is not a recognized `BufferEncoding`.
+   * @throws {Error} thrown if the encoding is not a recognized `BufferEncoding`, or if `string`
+   * is not valid in it, as a hex or base64 string can fail to be.
    * @throws {TypeError} thrown if `string` is not a string.
    * @throws {RangeError} thrown if an offset or length is not an integer, or if this buffer's
    * range lies outside its backing store.
@@ -733,7 +734,8 @@ declare namespace Buffer {
    * Create a new `Buffer` from an array, array-like, string, or `ArrayBuffer`.
    * @param data - The array, array-like, string, buffer, or `ArrayBuffer` to create a new `Buffer`
    * from.
-   * @throws {Error} thrown if the encoding is not a recognized `BufferEncoding`.
+   * @throws {Error} thrown if the encoding is not a recognized `BufferEncoding`, or if `string`
+   * is not valid in it, as a hex or base64 string can fail to be.
    * @throws {RangeError} thrown if an offset or length is not an integer.
    */
   export function from(data: Iterable<number>): Buffer

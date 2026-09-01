@@ -108,20 +108,20 @@ bare_buffer__write_utf8(js_env_t *env, js_value_t *string, utf8_t *buf, int64_t 
     return written;
   }
 
-  utf8_t stack[BARE_BUFFER_STACK_STRING_MAX];
-  utf8_t *str = stack;
+  // A truncated write stops on a code point boundary, so it leaves at most the
+  // three bytes of an incomplete sequence. Keeping those is enough to undo the
+  // null terminator, which can only land among them.
+  size_t tail_at = (size_t) len - (len < 3 ? (size_t) len : 3);
 
-  if ((size_t) len > sizeof(stack)) {
-    err = bare_buffer__alloc(len, (void **) &str);
-    if (err < 0) return -1;
-  }
+  utf8_t tail[3];
+  memcpy(tail, &buf[tail_at], (size_t) len - tail_at);
 
-  err = js_get_value_string_utf8(env, string, str, len, &written);
+  err = js_get_value_string_utf8(env, string, buf, len, &written);
   assert(err == 0);
 
-  memcpy(buf, str, written);
-
-  if (str != stack) free(str);
+  if (written < (size_t) len && written >= tail_at) {
+    memcpy(&buf[written], &tail[written - tail_at], (size_t) len - written);
+  }
 
   return written;
 }
