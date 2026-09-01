@@ -7,21 +7,37 @@ class Wider extends Buffer {
   }
 }
 
-test('an overstated byteLength makes the bindings do nothing', (t) => {
+test('an overstated byteLength is rejected, not worked around', (t) => {
   const store = new ArrayBuffer(8)
   const buffer = Object.setPrototypeOf(new Buffer(store, 0, 8), Wider.prototype)
 
-  t.is(buffer.toString('hex'), undefined, 'toString hex')
-  t.is(buffer.toString('utf8'), undefined, 'toString utf8')
-  t.is(buffer.toString('base64'), undefined, 'toString base64')
-  t.is(buffer.toString('utf16le'), undefined, 'toString utf16le')
-  t.is(buffer.write('yyyy'), undefined, 'write')
-  t.is(Buffer.isUTF8(buffer), undefined, 'isUTF8')
-  t.is(Buffer.isASCII(buffer), undefined, 'isASCII')
-  t.is(buffer.indexOf('yy'), undefined, 'indexOf')
-  t.is(buffer.equals(Buffer.alloc(4096)), false, 'equals')
+  for (const encoding of ['utf8', 'latin1', 'ascii', 'hex', 'base64', 'base64url', 'utf16le']) {
+    t.exception.all(() => buffer.toString(encoding), /RangeError/, `toString ${encoding}`)
+  }
+
+  t.exception.all(() => buffer.write('yyyy'), /RangeError/, 'write')
+  t.exception.all(() => Buffer.isUTF8(buffer), /RangeError/, 'isUTF8')
+  t.exception.all(() => Buffer.isASCII(buffer), /RangeError/, 'isASCII')
+  t.exception.all(() => buffer.indexOf('zz'), /RangeError/, 'indexOf')
+  t.exception.all(() => buffer.lastIndexOf('zz'), /RangeError/, 'lastIndexOf')
+  t.exception.all(() => buffer.includes('zz'), /RangeError/, 'includes')
+  t.exception.all(() => buffer.equals(Buffer.alloc(4096)), /RangeError/, 'equals')
+  t.exception.all(() => buffer.compare(Buffer.alloc(4096)), /RangeError/, 'compare')
+  t.exception.all(() => buffer.swap16(), /RangeError/, 'swap16')
+  t.exception.all(() => buffer.swap32(), /RangeError/, 'swap32')
+  t.exception.all(() => buffer.swap64(), /RangeError/, 'swap64')
 
   t.alike([...new Uint8Array(store)], [0, 0, 0, 0, 0, 0, 0, 0], 'the store is untouched')
+})
+
+// write(string) spans the whole buffer, but the forms that take a length clamp
+// it to the string, which keeps them inside the store whatever is claimed.
+test('an overstated byteLength still allows what fits', (t) => {
+  const store = new ArrayBuffer(8)
+  const buffer = Object.setPrototypeOf(new Buffer(store, 0, 8), Wider.prototype)
+
+  t.is(buffer.write('yy', 0, 2), 2, 'write')
+  t.alike([...new Uint8Array(store)], [0x79, 0x79, 0, 0, 0, 0, 0, 0], 'only those bytes')
 })
 
 test('the backing store is the boundary, not the view', (t) => {
@@ -39,17 +55,88 @@ test('the backing store is the boundary, not the view', (t) => {
   t.is(new Uint8Array(Buffer.from('x').buffer).byteLength, 65536, 'as .buffer already does')
 })
 
-test('a forged range makes the bindings do nothing', (t) => {
+test('something that only looks like a view is rejected', (t) => {
   const store = new ArrayBuffer(8)
   const wide = { buffer: store, byteOffset: 1 << 22, byteLength: 64 }
   const needle = { buffer: store, byteOffset: 1 << 22, byteLength: 8 }
 
-  t.is(Buffer.alloc(64).equals(wide), false, 'equals')
-  t.is(Buffer.alloc(64).compare(wide), undefined, 'compare')
-  t.is(Buffer.compare(wide, Buffer.alloc(64)), undefined, 'compare a')
-  t.is(Buffer.compare(Buffer.alloc(64), wide), undefined, 'compare b')
-  t.is(Buffer.alloc(64).indexOf(needle), undefined, 'indexOf')
-  t.is(Buffer.alloc(64).lastIndexOf(needle), undefined, 'lastIndexOf')
+  t.exception.all(() => Buffer.alloc(64).equals(wide), /TypeError/, 'equals')
+  t.exception.all(() => Buffer.alloc(64).compare(wide), /TypeError/, 'compare')
+  t.exception.all(() => Buffer.compare(wide, Buffer.alloc(64)), /TypeError/, 'compare a')
+  t.exception.all(() => Buffer.compare(Buffer.alloc(64), wide), /TypeError/, 'compare b')
+  t.exception.all(() => Buffer.alloc(64).indexOf(needle), /TypeError/, 'indexOf')
+  t.exception.all(() => Buffer.alloc(64).lastIndexOf(needle), /TypeError/, 'lastIndexOf')
+  t.exception.all(() => Buffer.alloc(64).includes(needle), /TypeError/, 'includes')
+})
+
+test('comparing never yields anything but a comparison', (t) => {
+  const store = new ArrayBuffer(8)
+  const lying = Object.setPrototypeOf(new Buffer(store, 0, 8), Wider.prototype)
+
+  // A real view whose byteLength lies gets past the type check, so the range
+  // check in the bindings is what catches it. It must not answer with a number
+  // that reads as a comparison, nor with undefined.
+  t.exception.all(() => lying.compare(Buffer.alloc(4096)), /RangeError/, 'compare')
+  t.exception.all(() => Buffer.compare(lying, Buffer.alloc(4096)), /RangeError/, 'Buffer.compare')
+  t.exception.all(() => lying.equals(Buffer.alloc(4096)), /RangeError/, 'equals')
+})
+
+test('an unusable range answers the same on either path', (t) => {
+  const store = new ArrayBuffer(8)
+  const buffer = Object.setPrototypeOf(new Buffer(store, 0, 8), Wider.prototype)
+
+  const cases = [
+    ['write', () => buffer.write('yyyy')],
+    ['isUTF8', () => Buffer.isUTF8(buffer)],
+    ['isASCII', () => Buffer.isASCII(buffer)],
+    ['indexOf', () => buffer.indexOf('yy')],
+    ['lastIndexOf', () => buffer.lastIndexOf('yy')],
+    ['equals', () => buffer.equals(Buffer.alloc(4096))],
+    ['compare', () => buffer.compare(Buffer.alloc(4096))],
+    ['swap16', () => buffer.swap16()],
+    ['swap32', () => buffer.swap32()],
+    ['toString', () => buffer.toString('hex')]
+  ]
+
+  const outcome = (fn) => {
+    try {
+      return `returned ${fn()}`
+    } catch (err) {
+      return `threw ${err.name}`
+    }
+  }
+
+  for (const [name, fn] of cases) {
+    const cold = outcome(fn)
+    const seen = new Set()
+
+    for (let i = 0; i < 200000; i++) seen.add(outcome(fn))
+
+    t.alike([...seen], [cold], name)
+  }
+})
+
+test('a forged range is never reported as equal', (t) => {
+  const secret = Buffer.from('super-secret-token')
+
+  const forged = Object.setPrototypeOf(
+    new Buffer(new ArrayBuffer(1), 0, 1),
+    class extends Buffer {
+      get byteLength() {
+        return secret.byteLength
+      }
+    }.prototype
+  )
+
+  let equal = 0
+
+  for (let i = 0; i < 200000; i++) {
+    try {
+      if (secret.equals(forged)) equal++
+    } catch {}
+  }
+
+  t.is(equal, 0, 'no call reported equality')
 })
 
 test('either kind of backing store is accepted', (t) => {
@@ -110,5 +197,57 @@ test('concat leaves no byte uninitialized', (t) => {
     expected.write('abcd'.slice(0, length))
 
     t.alike(result, expected, `length ${length}`)
+  }
+})
+
+test('an argument of the wrong type is rejected, not reinterpreted', (t) => {
+  const buffer = Buffer.alloc(32)
+  const forged = { byteLength: 16, a: 1.5 }
+
+  for (const encoding of ['utf8', 'latin1', 'utf16le', 'ascii', 'hex', 'base64']) {
+    t.exception.all(() => buffer.write(forged, encoding), /TypeError/, `write ${encoding}`)
+  }
+})
+
+test('rejecting an argument of the wrong type survives the fast path', (t) => {
+  const forged = { byteLength: 16, a: 1.5 }
+
+  let threw = 0
+
+  for (let i = 0; i < 200000; i++) {
+    try {
+      Buffer.alloc(32).write(forged, 'latin1')
+    } catch {
+      threw++
+    }
+  }
+
+  t.is(threw, 200000, 'every call threw, and none aborted')
+})
+
+test('alloc rejects a length that is not a length', (t) => {
+  for (const value of [{}, 'hello', [], null, true, () => {}]) {
+    t.exception.all(() => Buffer.alloc(value), /TypeError|RangeError/, typeof value)
+  }
+
+  t.exception.all(() => Buffer.alloc(-1), /RangeError/, 'negative')
+})
+
+test('a write leaves the bytes it does not report untouched', (t) => {
+  const cases = [
+    ['ab', undefined, undefined, 2, '6162aaaaaaaaaaaa'],
+    ['ab', 0, 8, 2, '6162aaaaaaaaaaaa'],
+    ['\u{1F600}', 0, 3, 0, 'aaaaaaaaaaaaaaaa'],
+    ['ÿ', 0, 1, 0, 'aaaaaaaaaaaaaaaa']
+  ]
+
+  for (const [string, offset, length, written, expected] of cases) {
+    const buffer = Buffer.alloc(8).fill(0xaa)
+
+    const actual =
+      offset === undefined ? buffer.write(string) : buffer.write(string, offset, length)
+
+    t.is(actual, written, `${JSON.stringify(string)} reports ${written}`)
+    t.is(buffer.toString('hex'), expected, `${JSON.stringify(string)} writes only that much`)
   }
 })

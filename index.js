@@ -7,6 +7,7 @@ const utf8 = require('./lib/utf8')
 const utf16le = require('./lib/utf16le')
 const latin1 = require('./lib/latin1')
 const binding = require('./binding')
+const checked = require('./lib/checked')
 
 const kind = Symbol.for('bare.buffer.kind')
 
@@ -76,9 +77,7 @@ class Buffer extends Uint8Array {
   copy(target, targetStart = 0, sourceStart = 0, sourceEnd = this.byteLength) {
     const source = this
 
-    if (ArrayBuffer.isView(target) === false) {
-      throw new TypeError(`Target must be a view, received type ${typeof target}`)
-    }
+    assertView(target, 'Target')
 
     assertSize(targetStart, 'Target start')
     assertSize(sourceStart, 'Source start')
@@ -125,19 +124,23 @@ class Buffer extends Uint8Array {
 
     if (source === target) return true
 
+    assertView(target, 'Target')
+
     const sourceLength = source.byteLength
     const targetLength = target.byteLength
 
     if (sourceLength !== targetLength) return false
 
     return (
-      binding.compare(
-        source.buffer,
-        source.byteOffset,
-        sourceLength,
-        target.buffer,
-        target.byteOffset,
-        targetLength
+      checked(
+        binding.compare(
+          source.buffer,
+          source.byteOffset,
+          sourceLength,
+          target.buffer,
+          target.byteOffset,
+          targetLength
+        )
       ) === 0
     )
   }
@@ -152,6 +155,8 @@ class Buffer extends Uint8Array {
     const source = this
 
     if (source === target) return 0
+
+    assertView(target, 'Target')
 
     const sourceLength = source.byteLength
     const targetLength = target.byteLength
@@ -180,13 +185,15 @@ class Buffer extends Uint8Array {
       if (sourceEnd > sourceLength) sourceEnd = sourceLength
     }
 
-    return binding.compare(
-      source.buffer,
-      source.byteOffset + sourceStart,
-      sourceEnd - sourceStart,
-      target.buffer,
-      target.byteOffset + targetStart,
-      targetEnd - targetStart
+    return checked(
+      binding.compare(
+        source.buffer,
+        source.byteOffset + sourceStart,
+        sourceEnd - sourceStart,
+        target.buffer,
+        target.byteOffset + targetStart,
+        targetEnd - targetStart
+      )
     )
   }
 
@@ -277,7 +284,7 @@ class Buffer extends Uint8Array {
     if (length < SWAP_MIN_LENGTH) {
       for (let i = 0; i < length; i += 2) swap(this, i, i + 1)
     } else {
-      binding.swap16(this.buffer, this.byteOffset, length)
+      checked(binding.swap16(this.buffer, this.byteOffset, length))
     }
 
     return this
@@ -296,7 +303,7 @@ class Buffer extends Uint8Array {
         swap(this, i + 1, i + 2)
       }
     } else {
-      binding.swap32(this.buffer, this.byteOffset, length)
+      checked(binding.swap32(this.buffer, this.byteOffset, length))
     }
 
     return this
@@ -317,7 +324,7 @@ class Buffer extends Uint8Array {
         swap(this, i + 3, i + 4)
       }
     } else {
-      binding.swap64(this.buffer, this.byteOffset, length)
+      checked(binding.swap64(this.buffer, this.byteOffset, length))
     }
 
     return this
@@ -821,6 +828,12 @@ function assertInteger(value, name) {
   }
 }
 
+function assertView(value, name) {
+  if (ArrayBuffer.isView(value) === false) {
+    throw new TypeError(`${name} must be a view, received type ${typeof value}`)
+  }
+}
+
 function assertSize(size, name) {
   if (typeof size !== 'number') {
     throw new TypeError(`${name} must be a number, received type ${typeof size}`)
@@ -840,7 +853,12 @@ exports.byteLength = function byteLength(string, encoding) {
 }
 
 exports.compare = function compare(a, b) {
-  return binding.compare(a.buffer, a.byteOffset, a.byteLength, b.buffer, b.byteOffset, b.byteLength)
+  assertView(a, 'First buffer')
+  assertView(b, 'Second buffer')
+
+  return checked(
+    binding.compare(a.buffer, a.byteOffset, a.byteLength, b.buffer, b.byteOffset, b.byteLength)
+  )
 }
 
 exports.concat = function concat(buffers, length) {
@@ -960,6 +978,8 @@ function fromArrayBuffer(arrayBuffer, offset, length) {
 }
 
 function bidirectionalIndexOf(buffer, value, offset, encoding, first) {
+  if (typeof value !== 'string') assertView(value, 'Value')
+
   const length = buffer.byteLength
 
   if (length === 0) return -1
@@ -1005,27 +1025,31 @@ function bidirectionalIndexOf(buffer, value, offset, encoding, first) {
   if (first) {
     if (offset === last) return -1
 
-    return binding.indexOf(
+    return checked(
+      binding.indexOf(
+        buffer.buffer,
+        buffer.byteOffset,
+        length,
+        value.buffer,
+        value.byteOffset,
+        needleLength,
+        offset + 1
+      )
+    )
+  }
+
+  if (offset === 0) return -1
+
+  return checked(
+    binding.lastIndexOf(
       buffer.buffer,
       buffer.byteOffset,
       length,
       value.buffer,
       value.byteOffset,
       needleLength,
-      offset + 1
+      offset - 1
     )
-  }
-
-  if (offset === 0) return -1
-
-  return binding.lastIndexOf(
-    buffer.buffer,
-    buffer.byteOffset,
-    length,
-    value.buffer,
-    value.byteOffset,
-    needleLength,
-    offset - 1
   )
 }
 

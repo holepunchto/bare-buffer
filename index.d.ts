@@ -25,10 +25,12 @@ interface Buffer extends Uint8Array<ArrayBuffer> {
    * @param sourceStart - Offset within this buffer to start comparing from; defaults to `0`.
    * @param sourceEnd - Offset within this buffer (exclusive) to stop comparing at; defaults to
    * `this.byteLength`.
-   * @throws {RangeError} thrown if an offset or length is not an integer.
+   * @throws {TypeError} thrown if `target` is not a view.
+   * @throws {RangeError} thrown if an offset or length is not an integer, or if either view's
+   * range lies outside its backing store.
    */
   compare(
-    target: Buffer,
+    target: Buffer | ArrayBufferView,
     targetStart?: number,
     targetEnd?: number,
     sourceStart?: number,
@@ -56,9 +58,11 @@ interface Buffer extends Uint8Array<ArrayBuffer> {
 
   /**
    * Check whether this buffer and `target` have identical contents.
-   * @param target - The buffer to compare this buffer's contents against.
+   * @param target - The buffer or view to compare this buffer's contents against.
+   * @throws {TypeError} thrown if `target` is not a view.
+   * @throws {RangeError} thrown if either view's range lies outside its backing store.
    */
-  equals(target: Buffer): boolean
+  equals(target: Buffer | ArrayBufferView): boolean
 
   /**
    * Fill this buffer with `value`, repeating as needed, and return it.
@@ -76,50 +80,59 @@ interface Buffer extends Uint8Array<ArrayBuffer> {
 
   /**
    * Check whether this buffer contains `value`.
-   * @param value - The value to search for — a string, `Buffer`, number byte, or boolean.
+   * @param value - The value to search for — a string, view, number byte, or boolean.
    * @param encoding - Encoding used to interpret `value` when it's a string; defaults to `'utf8'`.
    * @throws {Error} thrown if the encoding is not a recognized `BufferEncoding`.
-   * @throws {RangeError} thrown if an offset or length is not an integer.
+   * @throws {TypeError} thrown if `value` is not a string, view, number, or boolean.
+   * @throws {RangeError} thrown if an offset or length is not an integer, or if either view's
+   * range lies outside its backing store.
    */
   includes(value: string, encoding?: BufferEncoding): boolean
   includes(value: string, offset?: number, encoding?: BufferEncoding): boolean
-  includes(value: Buffer | number | boolean, offset?: number): boolean
+  includes(value: Buffer | ArrayBufferView | number | boolean, offset?: number): boolean
 
   /**
    * Return the first index at which `value` occurs in this buffer, or `-1` if not found.
-   * @param value - The value to search for — a string, `Buffer`, number byte, or boolean.
+   * @param value - The value to search for — a string, view, number byte, or boolean.
    * @param encoding - Encoding used to interpret `value` when it's a string; defaults to `'utf8'`.
    * @throws {Error} thrown if the encoding is not a recognized `BufferEncoding`.
-   * @throws {RangeError} thrown if an offset or length is not an integer.
+   * @throws {TypeError} thrown if `value` is not a string, view, number, or boolean.
+   * @throws {RangeError} thrown if an offset or length is not an integer, or if either view's
+   * range lies outside its backing store.
    */
   indexOf(value: string, encoding?: BufferEncoding): number
   indexOf(value: string, offset?: number, encoding?: BufferEncoding): number
-  indexOf(value: Buffer | number | boolean, offset?: number): number
+  indexOf(value: Buffer | ArrayBufferView | number | boolean, offset?: number): number
 
   /**
    * Return the last index at which `value` occurs in this buffer, or `-1` if not found.
-   * @param value - The value to search for — a string, `Buffer`, number byte, or boolean.
+   * @param value - The value to search for — a string, view, number byte, or boolean.
    * @param encoding - Encoding used to interpret `value` when it's a string; defaults to `'utf8'`.
    * @throws {Error} thrown if the encoding is not a recognized `BufferEncoding`.
-   * @throws {RangeError} thrown if an offset or length is not an integer.
+   * @throws {TypeError} thrown if `value` is not a string, view, number, or boolean.
+   * @throws {RangeError} thrown if an offset or length is not an integer, or if either view's
+   * range lies outside its backing store.
    */
   lastIndexOf(value: string, encoding?: BufferEncoding): number
   lastIndexOf(value: string, offset?: number, encoding?: BufferEncoding): number
-  lastIndexOf(value: Buffer | number | boolean, offset?: number): number
+  lastIndexOf(value: Buffer | ArrayBufferView | number | boolean, offset?: number): number
 
   /**
    * Swap the byte order of each 16-bit group in this buffer in place, and return it.
-   * @throws {RangeError} thrown if the buffer's length is not a multiple of 2 bytes.
+   * @throws {RangeError} thrown if the buffer's length is not a multiple of 2 bytes, or if its
+   * range lies outside its backing store.
    */
   swap16(): this
   /**
    * Swap the byte order of each 32-bit group in this buffer in place, and return it.
-   * @throws {RangeError} thrown if the buffer's length is not a multiple of 4 bytes.
+   * @throws {RangeError} thrown if the buffer's length is not a multiple of 4 bytes, or if its
+   * range lies outside its backing store.
    */
   swap32(): this
   /**
    * Swap the byte order of each 64-bit group in this buffer in place, and return it.
-   * @throws {RangeError} thrown if the buffer's length is not a multiple of 8 bytes.
+   * @throws {RangeError} thrown if the buffer's length is not a multiple of 8 bytes, or if its
+   * range lies outside its backing store.
    */
   swap64(): this
 
@@ -129,7 +142,9 @@ interface Buffer extends Uint8Array<ArrayBuffer> {
    * @param start - Byte offset to start decoding from; defaults to `0`.
    * @param end - Byte offset (exclusive) to stop decoding at; defaults to `this.byteLength`.
    * @throws {Error} thrown if the encoding is not a recognized `BufferEncoding`.
-   * @throws {RangeError} thrown if an offset or length is not an integer.
+   * @throws {RangeError} thrown if an offset or length is not an integer, if this buffer's range
+   * lies outside its backing store, or if the decoded string would exceed
+   * `Buffer.constants.MAX_STRING_LENGTH`.
    */
   toString(encoding?: BufferEncoding, start?: number, end?: number): string
 
@@ -321,8 +336,11 @@ interface Buffer extends Uint8Array<ArrayBuffer> {
    * Write `string` into this buffer using `encoding`, returning the number of bytes written.
    * @param string - The string to write.
    * @param encoding - Encoding used to encode `string`; defaults to `'utf8'`.
-   * @throws {Error} thrown if the encoding is not a recognized `BufferEncoding`.
-   * @throws {RangeError} thrown if an offset or length is not an integer.
+   * @throws {Error} thrown if the encoding is not a recognized `BufferEncoding`, or if `string`
+   * is not valid in it, as a hex or base64 string can fail to be.
+   * @throws {TypeError} thrown if `string` is not a string.
+   * @throws {RangeError} thrown if an offset or length is not an integer, or if this buffer's
+   * range lies outside its backing store.
    */
   write(string: string, encoding?: BufferEncoding): number
   write(string: string, offset?: number, encoding?: BufferEncoding): number
@@ -606,25 +624,33 @@ declare namespace Buffer {
 
   /**
    * Check whether `buffer` contains only valid ASCII-encoded data.
-   * @param buffer - The buffer to check.
+   * @param buffer - The buffer or view to check.
+   * @throws {TypeError} thrown if `buffer` is not a view.
+   * @throws {RangeError} thrown if `buffer`'s range lies outside its backing store.
    */
-  export function isASCII(buffer: Buffer): boolean
+  export function isASCII(buffer: Buffer | ArrayBufferView): boolean
   /**
    * Check whether `buffer` contains only valid ASCII-encoded data.
-   * @param buffer - The buffer to check.
+   * @param buffer - The buffer or view to check.
+   * @throws {TypeError} thrown if `buffer` is not a view.
+   * @throws {RangeError} thrown if `buffer`'s range lies outside its backing store.
    */
-  export function isAscii(buffer: Buffer): boolean
+  export function isAscii(buffer: Buffer | ArrayBufferView): boolean
 
   /**
    * Check whether `buffer` contains only valid UTF-8-encoded data.
-   * @param buffer - The buffer to check.
+   * @param buffer - The buffer or view to check.
+   * @throws {TypeError} thrown if `buffer` is not a view.
+   * @throws {RangeError} thrown if `buffer`'s range lies outside its backing store.
    */
-  export function isUTF8(buffer: Buffer): boolean
+  export function isUTF8(buffer: Buffer | ArrayBufferView): boolean
   /**
    * Check whether `buffer` contains only valid UTF-8-encoded data.
-   * @param buffer - The buffer to check.
+   * @param buffer - The buffer or view to check.
+   * @throws {TypeError} thrown if `buffer` is not a view.
+   * @throws {RangeError} thrown if `buffer`'s range lies outside its backing store.
    */
-  export function isUtf8(buffer: Buffer): boolean
+  export function isUtf8(buffer: Buffer | ArrayBufferView): boolean
 
   /**
    * Allocate a new, zero-filled `Buffer` of `size` bytes, optionally filled with `fill`.
@@ -673,8 +699,10 @@ declare namespace Buffer {
    * Compare two buffers' contents lexicographically, returning -1, 0, or 1 for sort ordering.
    * @param a - The first buffer to compare.
    * @param b - The second buffer to compare.
+   * @throws {TypeError} thrown if `a` or `b` is not a view.
+   * @throws {RangeError} thrown if either view's range lies outside its backing store.
    */
-  export function compare(a: Buffer, b: Buffer): number
+  export function compare(a: Buffer | ArrayBufferView, b: Buffer | ArrayBufferView): number
 
   /**
    * Concatenate `buffers` into a single new `Buffer`, optionally truncated or zero-padded to
@@ -688,9 +716,9 @@ declare namespace Buffer {
   /**
    * Return `buffer` unchanged if it is already a `Buffer`, otherwise wrap its underlying
    * `ArrayBuffer` in a new `Buffer`.
-   * @param buffer - The value to coerce into a `Buffer`.
+   * @param buffer - The buffer or view to coerce into a `Buffer`.
    */
-  export function coerce(buffer: Buffer): Buffer
+  export function coerce(buffer: Buffer | ArrayBufferView): Buffer
 
   /**
    * Copy the bytes of `view`, starting at `offset` for `length` elements, into a new `Buffer`.
@@ -706,7 +734,8 @@ declare namespace Buffer {
    * Create a new `Buffer` from an array, array-like, string, or `ArrayBuffer`.
    * @param data - The array, array-like, string, buffer, or `ArrayBuffer` to create a new `Buffer`
    * from.
-   * @throws {Error} thrown if the encoding is not a recognized `BufferEncoding`.
+   * @throws {Error} thrown if the encoding is not a recognized `BufferEncoding`, or if `string`
+   * is not valid in it, as a hex or base64 string can fail to be.
    * @throws {RangeError} thrown if an offset or length is not an integer.
    */
   export function from(data: Iterable<number>): Buffer
