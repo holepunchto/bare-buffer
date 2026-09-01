@@ -11,6 +11,7 @@ const binding = require('./binding')
 const kind = Symbol.for('bare.buffer.kind')
 
 const SWAP_MIN_LENGTH = 128
+const COMPARE_OUT_OF_BOUNDS = -2147483648
 
 let poolSize = 65536
 let pool = null
@@ -76,9 +77,7 @@ class Buffer extends Uint8Array {
   copy(target, targetStart = 0, sourceStart = 0, sourceEnd = this.byteLength) {
     const source = this
 
-    if (ArrayBuffer.isView(target) === false) {
-      throw new TypeError(`Target must be a view, received type ${typeof target}`)
-    }
+    assertView(target, 'Target')
 
     assertSize(targetStart, 'Target start')
     assertSize(sourceStart, 'Source start')
@@ -125,19 +124,23 @@ class Buffer extends Uint8Array {
 
     if (source === target) return true
 
+    assertView(target, 'Target')
+
     const sourceLength = source.byteLength
     const targetLength = target.byteLength
 
     if (sourceLength !== targetLength) return false
 
     return (
-      binding.compare(
-        source.buffer,
-        source.byteOffset,
-        sourceLength,
-        target.buffer,
-        target.byteOffset,
-        targetLength
+      comparisonOf(
+        binding.compare(
+          source.buffer,
+          source.byteOffset,
+          sourceLength,
+          target.buffer,
+          target.byteOffset,
+          targetLength
+        )
       ) === 0
     )
   }
@@ -152,6 +155,8 @@ class Buffer extends Uint8Array {
     const source = this
 
     if (source === target) return 0
+
+    assertView(target, 'Target')
 
     const sourceLength = source.byteLength
     const targetLength = target.byteLength
@@ -180,13 +185,15 @@ class Buffer extends Uint8Array {
       if (sourceEnd > sourceLength) sourceEnd = sourceLength
     }
 
-    return binding.compare(
-      source.buffer,
-      source.byteOffset + sourceStart,
-      sourceEnd - sourceStart,
-      target.buffer,
-      target.byteOffset + targetStart,
-      targetEnd - targetStart
+    return comparisonOf(
+      binding.compare(
+        source.buffer,
+        source.byteOffset + sourceStart,
+        sourceEnd - sourceStart,
+        target.buffer,
+        target.byteOffset + targetStart,
+        targetEnd - targetStart
+      )
     )
   }
 
@@ -811,6 +818,14 @@ exports.allocUnsafeSlow = function allocUnsafeSlow(size) {
   return new Buffer(size, { uninitialized: true })
 }
 
+function comparisonOf(result) {
+  if (result === COMPARE_OUT_OF_BOUNDS) {
+    throw new RangeError('View is out of bounds of its backing store')
+  }
+
+  return result
+}
+
 function assertInteger(value, name) {
   if (typeof value !== 'number') {
     throw new TypeError(`${name} must be a number, received type ${typeof value}`)
@@ -818,6 +833,12 @@ function assertInteger(value, name) {
 
   if (Number.isInteger(value) === false) {
     throw new RangeError(`${name} must be an integer`)
+  }
+}
+
+function assertView(value, name) {
+  if (ArrayBuffer.isView(value) === false) {
+    throw new TypeError(`${name} must be a view, received type ${typeof value}`)
   }
 }
 
@@ -840,7 +861,12 @@ exports.byteLength = function byteLength(string, encoding) {
 }
 
 exports.compare = function compare(a, b) {
-  return binding.compare(a.buffer, a.byteOffset, a.byteLength, b.buffer, b.byteOffset, b.byteLength)
+  assertView(a, 'First buffer')
+  assertView(b, 'Second buffer')
+
+  return comparisonOf(
+    binding.compare(a.buffer, a.byteOffset, a.byteLength, b.buffer, b.byteOffset, b.byteLength)
+  )
 }
 
 exports.concat = function concat(buffers, length) {
@@ -960,6 +986,8 @@ function fromArrayBuffer(arrayBuffer, offset, length) {
 }
 
 function bidirectionalIndexOf(buffer, value, offset, encoding, first) {
+  if (typeof value !== 'string') assertView(value, 'Value')
+
   const length = buffer.byteLength
 
   if (length === 0) return -1

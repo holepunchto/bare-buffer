@@ -18,16 +18,21 @@
 // not are staged through an aligned copy.
 #define BARE_BUFFER_STACK_UTF16_MAX (BARE_BUFFER_STACK_STRING_MAX / sizeof(utf16_t))
 
+// A comparison of two ranges yields -1, 0 or 1, so a range that does not check
+// out needs a result of its own that cannot be mistaken for any of them. It is
+// raised as a RangeError in JavaScript.
+#define BARE_BUFFER_COMPARE_OUT_OF_BOUNDS INT32_MIN
+
 static inline bool
 bare_buffer__is_aligned(const void *data) {
   return ((uintptr_t) data & (sizeof(utf16_t) - 1)) == 0;
 }
 
-// Nothing below here raises an error. A typed callback is entered without a
-// handle scope and V8 does not support reporting errors from one, so raising
-// there aborts the process. A range that does not check out does nothing
-// instead, and a condition that has to reach JavaScript is returned as a
-// negative count for the caller to raise.
+// Nothing between here and the raising helpers below raises an error. A typed
+// callback is entered without a handle scope and V8 does not support reporting
+// errors from one, so raising there aborts the process. A range that does not
+// check out is reported to the caller instead, and a condition that has to
+// reach JavaScript is returned as a negative count for the caller to raise.
 static inline int
 bare_buffer__get_info(js_env_t *env, js_value_t *buffer, void **data, size_t *len) {
   int err;
@@ -76,22 +81,6 @@ bare_buffer__slice(js_env_t *env, js_value_t *buffer, int64_t offset, int64_t le
 }
 
 static inline int
-bare_buffer__get_int64(js_env_t *env, js_value_t *value, int64_t *result) {
-  int err;
-
-  bool is_number;
-  err = js_is_number(env, value, &is_number);
-  assert(err == 0);
-
-  if (!is_number) return -1;
-
-  err = js_get_value_int64(env, value, result);
-  assert(err == 0);
-
-  return 0;
-}
-
-static inline int
 bare_buffer__alloc(size_t len, void **result) {
   void *data = malloc(len);
 
@@ -100,6 +89,218 @@ bare_buffer__alloc(size_t len, void **result) {
   *result = data;
 
   return 0;
+}
+
+static int64_t
+bare_buffer__write_utf8(js_env_t *env, js_value_t *string, utf8_t *buf, int64_t len) {
+  int err;
+
+  size_t str_len;
+  err = js_get_value_string_utf8(env, string, NULL, 0, &str_len);
+  assert(err == 0);
+
+  size_t written;
+
+  if (str_len <= (size_t) len) {
+    err = js_get_value_string_utf8(env, string, buf, str_len, &written);
+    assert(err == 0);
+
+    return written;
+  }
+
+  utf8_t stack[BARE_BUFFER_STACK_STRING_MAX];
+  utf8_t *str = stack;
+
+  if ((size_t) len > sizeof(stack)) {
+    err = bare_buffer__alloc(len, (void **) &str);
+    if (err < 0) return -1;
+  }
+
+  err = js_get_value_string_utf8(env, string, str, len, &written);
+  assert(err == 0);
+
+  memcpy(buf, str, written);
+
+  if (str != stack) free(str);
+
+  return written;
+}
+
+static int64_t
+bare_buffer__write_latin1(js_env_t *env, js_value_t *string, latin1_t *buf, int64_t len) {
+  int err;
+
+  size_t str_len;
+  err = js_get_value_string_latin1(env, string, NULL, 0, &str_len);
+  assert(err == 0);
+
+  if (str_len > (size_t) len) str_len = len;
+
+  size_t written;
+  err = js_get_value_string_latin1(env, string, buf, str_len, &written);
+  assert(err == 0);
+
+  return written;
+}
+
+static int64_t
+bare_buffer__write_utf16le(js_env_t *env, js_value_t *string, uint8_t *bytes, int64_t len) {
+  int err;
+
+  size_t str_len;
+  err = js_get_value_string_utf16le(env, string, NULL, 0, &str_len);
+  assert(err == 0);
+
+  size_t capacity = (size_t) len / sizeof(utf16_t);
+
+  if (str_len > capacity) str_len = capacity;
+
+  size_t written;
+
+  if (bare_buffer__is_aligned(bytes)) {
+    err = js_get_value_string_utf16le(env, string, (utf16_t *) bytes, str_len, &written);
+    assert(err == 0);
+
+    return written * sizeof(utf16_t);
+  }
+
+  utf16_t stack[BARE_BUFFER_STACK_UTF16_MAX];
+  utf16_t *str = stack;
+
+  if (str_len > BARE_BUFFER_STACK_UTF16_MAX) {
+    err = bare_buffer__alloc(str_len * sizeof(utf16_t), (void **) &str);
+    if (err < 0) return -1;
+  }
+
+  err = js_get_value_string_utf16le(env, string, str, str_len, &written);
+  assert(err == 0);
+
+  memcpy(bytes, str, written * sizeof(utf16_t));
+
+  if (str != stack) free(str);
+
+  return written * sizeof(utf16_t);
+}
+
+static int64_t
+bare_buffer__write_base64(js_env_t *env, js_value_t *string, utf8_t *buf, int64_t len) {
+  int err;
+
+  js_string_encoding_t encoding;
+  const void *str;
+  size_t str_len;
+
+  js_string_view_t *str_view;
+  err = js_get_string_view(env, string, &encoding, &str, &str_len, &str_view);
+  assert(err == 0);
+
+  size_t written = len;
+
+  if (encoding == js_utf16le) {
+    err = base64_decode_utf16le(str, str_len, buf, &written);
+  } else {
+    err = base64_decode_utf8(str, str_len, buf, &written);
+  }
+
+  int64_t decoded = err == 0 ? (int64_t) written : -1;
+
+  err = js_release_string_view(env, str_view);
+  assert(err == 0);
+
+  return decoded;
+}
+
+static int64_t
+bare_buffer__write_hex(js_env_t *env, js_value_t *string, utf8_t *buf, int64_t len) {
+  int err;
+
+  js_string_encoding_t encoding;
+  const void *str;
+  size_t str_len;
+
+  js_string_view_t *str_view;
+  err = js_get_string_view(env, string, &encoding, &str, &str_len, &str_view);
+  assert(err == 0);
+
+  size_t written = len;
+
+  if (encoding == js_utf16le) {
+    err = hex_decode_utf16le(str, str_len, buf, &written);
+  } else {
+    err = hex_decode_utf8(str, str_len, buf, &written);
+  }
+
+  int64_t decoded = err == 0 ? (int64_t) written : -1;
+
+  err = js_release_string_view(env, str_view);
+  assert(err == 0);
+
+  return decoded;
+}
+
+static bool
+bare_buffer__check_buffer(js_env_t *env, js_value_t *value) {
+  int err;
+
+  bool is_arraybuffer;
+  err = js_is_arraybuffer(env, value, &is_arraybuffer);
+  assert(err == 0);
+
+  if (is_arraybuffer) return true;
+
+  bool is_shared;
+  err = js_is_sharedarraybuffer(env, value, &is_shared);
+  assert(err == 0);
+
+  if (is_shared) return true;
+
+  err = js_throw_type_error(env, NULL, "Buffer must be an array buffer");
+  assert(err == 0);
+
+  return false;
+}
+
+static bool
+bare_buffer__check_number(js_env_t *env, js_value_t *value, const char *message) {
+  int err;
+
+  bool is_number;
+  err = js_is_number(env, value, &is_number);
+  assert(err == 0);
+
+  if (!is_number) {
+    err = js_throw_type_error(env, NULL, message);
+    assert(err == 0);
+  }
+
+  return is_number;
+}
+
+static bool
+bare_buffer__check_string(js_env_t *env, js_value_t *value, const char *message) {
+  int err;
+
+  bool is_string;
+  err = js_is_string(env, value, &is_string);
+  assert(err == 0);
+
+  if (!is_string) {
+    err = js_throw_type_error(env, NULL, message);
+    assert(err == 0);
+  }
+
+  return is_string;
+}
+
+static inline int64_t
+bare_buffer__to_int64(js_env_t *env, js_value_t *value) {
+  int err;
+
+  int64_t result;
+  err = js_get_value_int64(env, value, &result);
+  assert(err == 0);
+
+  return result;
 }
 
 static js_value_t *
@@ -112,11 +313,16 @@ bare_buffer_alloc(js_env_t *env, js_callback_info_t *info) {
   err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
   assert(err == 0);
 
-  assert(argc == 1);
+  if (!bare_buffer__check_number(env, argv[0], "Length must be a number")) return NULL;
 
-  int64_t len;
-  err = js_get_value_int64(env, argv[0], &len);
-  assert(err == 0);
+  int64_t len = bare_buffer__to_int64(env, argv[0]);
+
+  if (len < 0) {
+    err = js_throw_range_error(env, NULL, "Length must not be negative");
+    assert(err == 0);
+
+    return NULL;
+  }
 
   js_value_t *result;
   err = js_create_arraybuffer(env, len, NULL, &result);
@@ -135,11 +341,16 @@ bare_buffer_alloc_unsafe(js_env_t *env, js_callback_info_t *info) {
   err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
   assert(err == 0);
 
-  assert(argc == 1);
+  if (!bare_buffer__check_number(env, argv[0], "Length must be a number")) return NULL;
 
-  int64_t len;
-  err = js_get_value_int64(env, argv[0], &len);
-  assert(err == 0);
+  int64_t len = bare_buffer__to_int64(env, argv[0]);
+
+  if (len < 0) {
+    err = js_throw_range_error(env, NULL, "Length must not be negative");
+    assert(err == 0);
+
+    return NULL;
+  }
 
   js_value_t *result;
   err = js_create_unsafe_arraybuffer(env, len, NULL, &result);
@@ -173,7 +384,7 @@ bare_buffer_byte_length_utf8(js_env_t *env, js_callback_info_t *info) {
   err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
   assert(err == 0);
 
-  assert(argc == 1);
+  if (!bare_buffer__check_string(env, argv[0], "String must be a string")) return NULL;
 
   size_t str_len;
   err = js_get_value_string_utf8(env, argv[0], NULL, 0, &str_len);
@@ -196,15 +407,12 @@ bare_buffer_to_string_utf8(js_env_t *env, js_callback_info_t *info) {
   err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
   assert(err == 0);
 
-  assert(argc == 3);
+  if (!bare_buffer__check_buffer(env, argv[0])) return NULL;
+  if (!bare_buffer__check_number(env, argv[1], "Offset must be a number")) return NULL;
+  if (!bare_buffer__check_number(env, argv[2], "Length must be a number")) return NULL;
 
-  int64_t offset;
-  err = bare_buffer__get_int64(env, argv[1], &offset);
-  if (err < 0) return NULL;
-
-  int64_t len;
-  err = bare_buffer__get_int64(env, argv[2], &len);
-  if (err < 0) return NULL;
+  int64_t offset = bare_buffer__to_int64(env, argv[1]);
+  int64_t len = bare_buffer__to_int64(env, argv[2]);
 
   utf8_t *buf;
   err = bare_buffer__slice(env, argv[0], offset, len, (void **) &buf);
@@ -212,7 +420,7 @@ bare_buffer_to_string_utf8(js_env_t *env, js_callback_info_t *info) {
 
   js_value_t *result;
   err = js_create_string_utf8(env, buf, len, &result);
-  assert(err == 0);
+  if (err < 0) return NULL;
 
   return result;
 }
@@ -248,22 +456,22 @@ bare_buffer_validate_utf8(js_env_t *env, js_callback_info_t *info) {
   err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
   assert(err == 0);
 
-  assert(argc == 3);
+  if (!bare_buffer__check_buffer(env, argv[0])) return NULL;
+  if (!bare_buffer__check_number(env, argv[1], "Offset must be a number")) return NULL;
+  if (!bare_buffer__check_number(env, argv[2], "Length must be a number")) return NULL;
 
-  int64_t offset;
-  err = bare_buffer__get_int64(env, argv[1], &offset);
-  if (err < 0) return NULL;
+  int64_t offset = bare_buffer__to_int64(env, argv[1]);
+  int64_t len = bare_buffer__to_int64(env, argv[2]);
 
-  int64_t len;
-  err = bare_buffer__get_int64(env, argv[2], &len);
-  if (err < 0) return NULL;
+  bool valid = false;
 
   utf8_t *buf;
   err = bare_buffer__slice(env, argv[0], offset, len, (void **) &buf);
-  if (err < 0) return NULL;
+
+  if (err == 0) valid = utf8_validate(buf, len);
 
   js_value_t *result;
-  err = js_get_boolean(env, utf8_validate(buf, len), &result);
+  err = js_get_boolean(env, valid, &result);
   assert(err == 0);
 
   return result;
@@ -288,11 +496,7 @@ bare_buffer_typed_write_utf8(
   err = bare_buffer__slice(env, handle, offset, len, (void **) &buf);
   if (err < 0) return 0;
 
-  size_t str_len;
-  err = js_get_value_string_utf8(env, string, buf, len, &str_len);
-  assert(err == 0);
-
-  return str_len;
+  return bare_buffer__write_utf8(env, string, buf, len);
 }
 
 static js_value_t *
@@ -305,26 +509,23 @@ bare_buffer_write_utf8(js_env_t *env, js_callback_info_t *info) {
   err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
   assert(err == 0);
 
-  assert(argc == 4);
+  if (!bare_buffer__check_buffer(env, argv[0])) return NULL;
+  if (!bare_buffer__check_number(env, argv[1], "Offset must be a number")) return NULL;
+  if (!bare_buffer__check_number(env, argv[2], "Length must be a number")) return NULL;
+  if (!bare_buffer__check_string(env, argv[3], "String must be a string")) return NULL;
 
-  int64_t offset;
-  err = bare_buffer__get_int64(env, argv[1], &offset);
-  if (err < 0) return NULL;
+  int64_t offset = bare_buffer__to_int64(env, argv[1]);
+  int64_t len = bare_buffer__to_int64(env, argv[2]);
 
-  int64_t len;
-  err = bare_buffer__get_int64(env, argv[2], &len);
-  if (err < 0) return NULL;
+  int64_t written = 0;
 
   utf8_t *buf;
   err = bare_buffer__slice(env, argv[0], offset, len, (void **) &buf);
-  if (err < 0) return NULL;
 
-  size_t str_len;
-  err = js_get_value_string_utf8(env, argv[3], buf, len, &str_len);
-  assert(err == 0);
+  if (err == 0) written = bare_buffer__write_utf8(env, argv[3], buf, len);
 
   js_value_t *result;
-  err = js_create_int64(env, str_len, &result);
+  err = js_create_int64(env, written, &result);
   assert(err == 0);
 
   return result;
@@ -340,15 +541,12 @@ bare_buffer_to_string_utf16le(js_env_t *env, js_callback_info_t *info) {
   err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
   assert(err == 0);
 
-  assert(argc == 3);
+  if (!bare_buffer__check_buffer(env, argv[0])) return NULL;
+  if (!bare_buffer__check_number(env, argv[1], "Offset must be a number")) return NULL;
+  if (!bare_buffer__check_number(env, argv[2], "Length must be a number")) return NULL;
 
-  int64_t offset;
-  err = bare_buffer__get_int64(env, argv[1], &offset);
-  if (err < 0) return NULL;
-
-  int64_t len;
-  err = bare_buffer__get_int64(env, argv[2], &len);
-  if (err < 0) return NULL;
+  int64_t offset = bare_buffer__to_int64(env, argv[1]);
+  int64_t len = bare_buffer__to_int64(env, argv[2]);
 
   uint8_t *bytes;
   err = bare_buffer__slice(env, argv[0], offset, len, (void **) &bytes);
@@ -403,33 +601,7 @@ bare_buffer_typed_write_utf16le(
   err = bare_buffer__slice(env, handle, offset, len, (void **) &bytes);
   if (err < 0) return 0;
 
-  size_t capacity = (size_t) len / sizeof(utf16_t);
-
-  size_t str_len;
-
-  if (bare_buffer__is_aligned(bytes)) {
-    err = js_get_value_string_utf16le(env, string, (utf16_t *) bytes, capacity, &str_len);
-    assert(err == 0);
-
-    return str_len * sizeof(utf16_t);
-  }
-
-  utf16_t stack[BARE_BUFFER_STACK_UTF16_MAX];
-  utf16_t *str = stack;
-
-  if (capacity > BARE_BUFFER_STACK_UTF16_MAX) {
-    err = bare_buffer__alloc(capacity * sizeof(utf16_t), (void **) &str);
-    if (err < 0) return -1;
-  }
-
-  err = js_get_value_string_utf16le(env, string, str, capacity, &str_len);
-  assert(err == 0);
-
-  memcpy(bytes, str, str_len * sizeof(utf16_t));
-
-  if (str != stack) free(str);
-
-  return str_len * sizeof(utf16_t);
+  return bare_buffer__write_utf16le(env, string, bytes, len);
 }
 
 static js_value_t *
@@ -442,50 +614,20 @@ bare_buffer_write_utf16le(js_env_t *env, js_callback_info_t *info) {
   err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
   assert(err == 0);
 
-  assert(argc == 4);
+  if (!bare_buffer__check_buffer(env, argv[0])) return NULL;
+  if (!bare_buffer__check_number(env, argv[1], "Offset must be a number")) return NULL;
+  if (!bare_buffer__check_number(env, argv[2], "Length must be a number")) return NULL;
+  if (!bare_buffer__check_string(env, argv[3], "String must be a string")) return NULL;
 
-  int64_t offset;
-  err = bare_buffer__get_int64(env, argv[1], &offset);
-  if (err < 0) return NULL;
+  int64_t offset = bare_buffer__to_int64(env, argv[1]);
+  int64_t len = bare_buffer__to_int64(env, argv[2]);
 
-  int64_t len;
-  err = bare_buffer__get_int64(env, argv[2], &len);
-  if (err < 0) return NULL;
+  int64_t written = 0;
 
   uint8_t *bytes;
   err = bare_buffer__slice(env, argv[0], offset, len, (void **) &bytes);
-  if (err < 0) return NULL;
 
-  size_t capacity = (size_t) len / sizeof(utf16_t);
-
-  size_t str_len;
-
-  int64_t written = -1;
-
-  if (bare_buffer__is_aligned(bytes)) {
-    err = js_get_value_string_utf16le(env, argv[3], (utf16_t *) bytes, capacity, &str_len);
-    assert(err == 0);
-
-    written = str_len * sizeof(utf16_t);
-  } else {
-    utf16_t stack[BARE_BUFFER_STACK_UTF16_MAX];
-    utf16_t *str = stack;
-
-    err = capacity > BARE_BUFFER_STACK_UTF16_MAX
-            ? bare_buffer__alloc(capacity * sizeof(utf16_t), (void **) &str)
-            : 0;
-
-    if (err == 0) {
-      err = js_get_value_string_utf16le(env, argv[3], str, capacity, &str_len);
-      assert(err == 0);
-
-      memcpy(bytes, str, str_len * sizeof(utf16_t));
-
-      if (str != stack) free(str);
-
-      written = str_len * sizeof(utf16_t);
-    }
-  }
+  if (err == 0) written = bare_buffer__write_utf16le(env, argv[3], bytes, len);
 
   js_value_t *result;
   err = js_create_int64(env, written, &result);
@@ -504,15 +646,12 @@ bare_buffer_to_string_latin1(js_env_t *env, js_callback_info_t *info) {
   err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
   assert(err == 0);
 
-  assert(argc == 3);
+  if (!bare_buffer__check_buffer(env, argv[0])) return NULL;
+  if (!bare_buffer__check_number(env, argv[1], "Offset must be a number")) return NULL;
+  if (!bare_buffer__check_number(env, argv[2], "Length must be a number")) return NULL;
 
-  int64_t offset;
-  err = bare_buffer__get_int64(env, argv[1], &offset);
-  if (err < 0) return NULL;
-
-  int64_t len;
-  err = bare_buffer__get_int64(env, argv[2], &len);
-  if (err < 0) return NULL;
+  int64_t offset = bare_buffer__to_int64(env, argv[1]);
+  int64_t len = bare_buffer__to_int64(env, argv[2]);
 
   latin1_t *buf;
   err = bare_buffer__slice(env, argv[0], offset, len, (void **) &buf);
@@ -520,7 +659,7 @@ bare_buffer_to_string_latin1(js_env_t *env, js_callback_info_t *info) {
 
   js_value_t *result;
   err = js_create_string_latin1(env, buf, len, &result);
-  assert(err == 0);
+  if (err < 0) return NULL;
 
   return result;
 }
@@ -544,11 +683,7 @@ bare_buffer_typed_write_latin1(
   err = bare_buffer__slice(env, handle, offset, len, (void **) &buf);
   if (err < 0) return 0;
 
-  size_t str_len;
-  err = js_get_value_string_latin1(env, string, buf, len, &str_len);
-  assert(err == 0);
-
-  return str_len;
+  return bare_buffer__write_latin1(env, string, buf, len);
 }
 
 static js_value_t *
@@ -561,26 +696,23 @@ bare_buffer_write_latin1(js_env_t *env, js_callback_info_t *info) {
   err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
   assert(err == 0);
 
-  assert(argc == 4);
+  if (!bare_buffer__check_buffer(env, argv[0])) return NULL;
+  if (!bare_buffer__check_number(env, argv[1], "Offset must be a number")) return NULL;
+  if (!bare_buffer__check_number(env, argv[2], "Length must be a number")) return NULL;
+  if (!bare_buffer__check_string(env, argv[3], "String must be a string")) return NULL;
 
-  int64_t offset;
-  err = bare_buffer__get_int64(env, argv[1], &offset);
-  if (err < 0) return NULL;
+  int64_t offset = bare_buffer__to_int64(env, argv[1]);
+  int64_t len = bare_buffer__to_int64(env, argv[2]);
 
-  int64_t len;
-  err = bare_buffer__get_int64(env, argv[2], &len);
-  if (err < 0) return NULL;
+  int64_t written = 0;
 
   latin1_t *buf;
   err = bare_buffer__slice(env, argv[0], offset, len, (void **) &buf);
-  if (err < 0) return NULL;
 
-  size_t str_len;
-  err = js_get_value_string_latin1(env, argv[3], buf, len, &str_len);
-  assert(err == 0);
+  if (err == 0) written = bare_buffer__write_latin1(env, argv[3], buf, len);
 
   js_value_t *result;
-  err = js_create_int64(env, str_len, &result);
+  err = js_create_int64(env, written, &result);
   assert(err == 0);
 
   return result;
@@ -596,15 +728,12 @@ bare_buffer_to_string_base64(js_env_t *env, js_callback_info_t *info) {
   err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
   assert(err == 0);
 
-  assert(argc == 3);
+  if (!bare_buffer__check_buffer(env, argv[0])) return NULL;
+  if (!bare_buffer__check_number(env, argv[1], "Offset must be a number")) return NULL;
+  if (!bare_buffer__check_number(env, argv[2], "Length must be a number")) return NULL;
 
-  int64_t offset;
-  err = bare_buffer__get_int64(env, argv[1], &offset);
-  if (err < 0) return NULL;
-
-  int64_t len;
-  err = bare_buffer__get_int64(env, argv[2], &len);
-  if (err < 0) return NULL;
+  int64_t offset = bare_buffer__to_int64(env, argv[1]);
+  int64_t len = bare_buffer__to_int64(env, argv[2]);
 
   utf8_t *buf;
   err = bare_buffer__slice(env, argv[0], offset, len, (void **) &buf);
@@ -645,15 +774,12 @@ bare_buffer_to_string_base64url(js_env_t *env, js_callback_info_t *info) {
   err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
   assert(err == 0);
 
-  assert(argc == 3);
+  if (!bare_buffer__check_buffer(env, argv[0])) return NULL;
+  if (!bare_buffer__check_number(env, argv[1], "Offset must be a number")) return NULL;
+  if (!bare_buffer__check_number(env, argv[2], "Length must be a number")) return NULL;
 
-  int64_t offset;
-  err = bare_buffer__get_int64(env, argv[1], &offset);
-  if (err < 0) return NULL;
-
-  int64_t len;
-  err = bare_buffer__get_int64(env, argv[2], &len);
-  if (err < 0) return NULL;
+  int64_t offset = bare_buffer__to_int64(env, argv[1]);
+  int64_t len = bare_buffer__to_int64(env, argv[2]);
 
   utf8_t *buf;
   err = bare_buffer__slice(env, argv[0], offset, len, (void **) &buf);
@@ -703,33 +829,7 @@ bare_buffer_typed_write_base64(
   err = bare_buffer__slice(env, handle, offset, len, (void **) &buf);
   if (err < 0) return 0;
 
-  js_string_encoding_t encoding;
-  const void *str;
-  size_t str_len;
-
-  js_string_view_t *str_view;
-  err = js_get_string_view(env, string, &encoding, &str, &str_len, &str_view);
-  assert(err == 0);
-
-  size_t written = len;
-
-  if (encoding == js_utf16le) {
-    err = base64_decode_utf16le(str, str_len, buf, &written);
-  } else {
-    err = base64_decode_utf8(str, str_len, buf, &written);
-  }
-
-  if (err != 0) {
-    err = js_release_string_view(env, str_view);
-    assert(err == 0);
-
-    return -1;
-  }
-
-  err = js_release_string_view(env, str_view);
-  assert(err == 0);
-
-  return written;
+  return bare_buffer__write_base64(env, string, buf, len);
 }
 
 static js_value_t *
@@ -742,40 +842,20 @@ bare_buffer_write_base64(js_env_t *env, js_callback_info_t *info) {
   err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
   assert(err == 0);
 
-  assert(argc == 4);
+  if (!bare_buffer__check_buffer(env, argv[0])) return NULL;
+  if (!bare_buffer__check_number(env, argv[1], "Offset must be a number")) return NULL;
+  if (!bare_buffer__check_number(env, argv[2], "Length must be a number")) return NULL;
+  if (!bare_buffer__check_string(env, argv[3], "String must be a string")) return NULL;
 
-  int64_t offset;
-  err = bare_buffer__get_int64(env, argv[1], &offset);
-  if (err < 0) return NULL;
+  int64_t offset = bare_buffer__to_int64(env, argv[1]);
+  int64_t len = bare_buffer__to_int64(env, argv[2]);
 
-  int64_t len;
-  err = bare_buffer__get_int64(env, argv[2], &len);
-  if (err < 0) return NULL;
+  int64_t decoded = 0;
 
   utf8_t *buf;
   err = bare_buffer__slice(env, argv[0], offset, len, (void **) &buf);
-  if (err < 0) return NULL;
 
-  js_string_encoding_t encoding;
-  const void *str;
-  size_t str_len;
-
-  js_string_view_t *str_view;
-  err = js_get_string_view(env, argv[3], &encoding, &str, &str_len, &str_view);
-  assert(err == 0);
-
-  size_t written = len;
-
-  if (encoding == js_utf16le) {
-    err = base64_decode_utf16le(str, str_len, buf, &written);
-  } else {
-    err = base64_decode_utf8(str, str_len, buf, &written);
-  }
-
-  int64_t decoded = err == 0 ? (int64_t) written : -1;
-
-  err = js_release_string_view(env, str_view);
-  assert(err == 0);
+  if (err == 0) decoded = bare_buffer__write_base64(env, argv[3], buf, len);
 
   js_value_t *result;
   err = js_create_int64(env, decoded, &result);
@@ -794,15 +874,12 @@ bare_buffer_to_string_hex(js_env_t *env, js_callback_info_t *info) {
   err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
   assert(err == 0);
 
-  assert(argc == 3);
+  if (!bare_buffer__check_buffer(env, argv[0])) return NULL;
+  if (!bare_buffer__check_number(env, argv[1], "Offset must be a number")) return NULL;
+  if (!bare_buffer__check_number(env, argv[2], "Length must be a number")) return NULL;
 
-  int64_t offset;
-  err = bare_buffer__get_int64(env, argv[1], &offset);
-  if (err < 0) return NULL;
-
-  int64_t len;
-  err = bare_buffer__get_int64(env, argv[2], &len);
-  if (err < 0) return NULL;
+  int64_t offset = bare_buffer__to_int64(env, argv[1]);
+  int64_t len = bare_buffer__to_int64(env, argv[2]);
 
   utf8_t *buf;
   err = bare_buffer__slice(env, argv[0], offset, len, (void **) &buf);
@@ -852,33 +929,7 @@ bare_buffer_typed_write_hex(
   err = bare_buffer__slice(env, handle, offset, len, (void **) &buf);
   if (err < 0) return 0;
 
-  js_string_encoding_t encoding;
-  const void *str;
-  size_t str_len;
-
-  js_string_view_t *str_view;
-  err = js_get_string_view(env, string, &encoding, &str, &str_len, &str_view);
-  assert(err == 0);
-
-  size_t written = len;
-
-  if (encoding == js_utf16le) {
-    err = hex_decode_utf16le(str, str_len, buf, &written);
-  } else {
-    err = hex_decode_utf8(str, str_len, buf, &written);
-  }
-
-  if (err != 0) {
-    err = js_release_string_view(env, str_view);
-    assert(err == 0);
-
-    return -1;
-  }
-
-  err = js_release_string_view(env, str_view);
-  assert(err == 0);
-
-  return written;
+  return bare_buffer__write_hex(env, string, buf, len);
 }
 
 static js_value_t *
@@ -891,40 +942,20 @@ bare_buffer_write_hex(js_env_t *env, js_callback_info_t *info) {
   err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
   assert(err == 0);
 
-  assert(argc == 4);
+  if (!bare_buffer__check_buffer(env, argv[0])) return NULL;
+  if (!bare_buffer__check_number(env, argv[1], "Offset must be a number")) return NULL;
+  if (!bare_buffer__check_number(env, argv[2], "Length must be a number")) return NULL;
+  if (!bare_buffer__check_string(env, argv[3], "String must be a string")) return NULL;
 
-  int64_t offset;
-  err = bare_buffer__get_int64(env, argv[1], &offset);
-  if (err < 0) return NULL;
+  int64_t offset = bare_buffer__to_int64(env, argv[1]);
+  int64_t len = bare_buffer__to_int64(env, argv[2]);
 
-  int64_t len;
-  err = bare_buffer__get_int64(env, argv[2], &len);
-  if (err < 0) return NULL;
+  int64_t decoded = 0;
 
   utf8_t *buf;
   err = bare_buffer__slice(env, argv[0], offset, len, (void **) &buf);
-  if (err < 0) return NULL;
 
-  js_string_encoding_t encoding;
-  const void *str;
-  size_t str_len;
-
-  js_string_view_t *str_view;
-  err = js_get_string_view(env, argv[3], &encoding, &str, &str_len, &str_view);
-  assert(err == 0);
-
-  size_t written = len;
-
-  if (encoding == js_utf16le) {
-    err = hex_decode_utf16le(str, str_len, buf, &written);
-  } else {
-    err = hex_decode_utf8(str, str_len, buf, &written);
-  }
-
-  int64_t decoded = err == 0 ? (int64_t) written : -1;
-
-  err = js_release_string_view(env, str_view);
-  assert(err == 0);
+  if (err == 0) decoded = bare_buffer__write_hex(env, argv[3], buf, len);
 
   js_value_t *result;
   err = js_create_int64(env, decoded, &result);
@@ -964,22 +995,22 @@ bare_buffer_validate_ascii(js_env_t *env, js_callback_info_t *info) {
   err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
   assert(err == 0);
 
-  assert(argc == 3);
+  if (!bare_buffer__check_buffer(env, argv[0])) return NULL;
+  if (!bare_buffer__check_number(env, argv[1], "Offset must be a number")) return NULL;
+  if (!bare_buffer__check_number(env, argv[2], "Length must be a number")) return NULL;
 
-  int64_t offset;
-  err = bare_buffer__get_int64(env, argv[1], &offset);
-  if (err < 0) return NULL;
+  int64_t offset = bare_buffer__to_int64(env, argv[1]);
+  int64_t len = bare_buffer__to_int64(env, argv[2]);
 
-  int64_t len;
-  err = bare_buffer__get_int64(env, argv[2], &len);
-  if (err < 0) return NULL;
+  bool valid = false;
 
   ascii_t *buf;
   err = bare_buffer__slice(env, argv[0], offset, len, (void **) &buf);
-  if (err < 0) return NULL;
+
+  if (err == 0) valid = ascii_validate(buf, len);
 
   js_value_t *result;
-  err = js_get_boolean(env, ascii_validate(buf, len), &result);
+  err = js_get_boolean(env, valid, &result);
   assert(err == 0);
 
   return result;
@@ -1192,11 +1223,11 @@ bare_buffer_typed_compare(
 
   uint8_t *a;
   err = bare_buffer__slice(env, a_handle, a_offset, a_len, (void **) &a);
-  if (err < 0) return 0;
+  if (err < 0) return BARE_BUFFER_COMPARE_OUT_OF_BOUNDS;
 
   uint8_t *b;
   err = bare_buffer__slice(env, b_handle, b_offset, b_len, (void **) &b);
-  if (err < 0) return 0;
+  if (err < 0) return BARE_BUFFER_COMPARE_OUT_OF_BOUNDS;
 
   return bare_buffer__memcmp(a, a_len, b, b_len);
 }
@@ -1211,34 +1242,32 @@ bare_buffer_compare(js_env_t *env, js_callback_info_t *info) {
   err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
   assert(err == 0);
 
-  assert(argc == 6);
+  if (!bare_buffer__check_buffer(env, argv[0])) return NULL;
+  if (!bare_buffer__check_number(env, argv[1], "Offset must be a number")) return NULL;
+  if (!bare_buffer__check_number(env, argv[2], "Length must be a number")) return NULL;
+  if (!bare_buffer__check_buffer(env, argv[3])) return NULL;
+  if (!bare_buffer__check_number(env, argv[4], "Offset must be a number")) return NULL;
+  if (!bare_buffer__check_number(env, argv[5], "Length must be a number")) return NULL;
 
-  int64_t a_offset;
-  err = bare_buffer__get_int64(env, argv[1], &a_offset);
-  if (err < 0) return NULL;
+  int64_t a_offset = bare_buffer__to_int64(env, argv[1]);
+  int64_t a_len = bare_buffer__to_int64(env, argv[2]);
+  int64_t b_offset = bare_buffer__to_int64(env, argv[4]);
+  int64_t b_len = bare_buffer__to_int64(env, argv[5]);
 
-  int64_t a_len;
-  err = bare_buffer__get_int64(env, argv[2], &a_len);
-  if (err < 0) return NULL;
+  int32_t comparison = BARE_BUFFER_COMPARE_OUT_OF_BOUNDS;
 
   uint8_t *a;
   err = bare_buffer__slice(env, argv[0], a_offset, a_len, (void **) &a);
-  if (err < 0) return NULL;
 
-  int64_t b_offset;
-  err = bare_buffer__get_int64(env, argv[4], &b_offset);
-  if (err < 0) return NULL;
+  if (err == 0) {
+    uint8_t *b;
+    err = bare_buffer__slice(env, argv[3], b_offset, b_len, (void **) &b);
 
-  int64_t b_len;
-  err = bare_buffer__get_int64(env, argv[5], &b_len);
-  if (err < 0) return NULL;
-
-  uint8_t *b;
-  err = bare_buffer__slice(env, argv[3], b_offset, b_len, (void **) &b);
-  if (err < 0) return NULL;
+    if (err == 0) comparison = bare_buffer__memcmp(a, a_len, b, b_len);
+  }
 
   js_value_t *result;
-  err = js_create_int32(env, bare_buffer__memcmp(a, a_len, b, b_len), &result);
+  err = js_create_int32(env, comparison, &result);
   assert(err == 0);
 
   return result;
@@ -1277,15 +1306,12 @@ bare_buffer_swap16(js_env_t *env, js_callback_info_t *info) {
   err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
   assert(err == 0);
 
-  assert(argc == 3);
+  if (!bare_buffer__check_buffer(env, argv[0])) return NULL;
+  if (!bare_buffer__check_number(env, argv[1], "Offset must be a number")) return NULL;
+  if (!bare_buffer__check_number(env, argv[2], "Length must be a number")) return NULL;
 
-  int64_t offset;
-  err = bare_buffer__get_int64(env, argv[1], &offset);
-  if (err < 0) return NULL;
-
-  int64_t len;
-  err = bare_buffer__get_int64(env, argv[2], &len);
-  if (err < 0) return NULL;
+  int64_t offset = bare_buffer__to_int64(env, argv[1]);
+  int64_t len = bare_buffer__to_int64(env, argv[2]);
 
   uint8_t *buf;
   err = bare_buffer__slice(env, argv[0], offset, len, (void **) &buf);
@@ -1329,15 +1355,12 @@ bare_buffer_swap32(js_env_t *env, js_callback_info_t *info) {
   err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
   assert(err == 0);
 
-  assert(argc == 3);
+  if (!bare_buffer__check_buffer(env, argv[0])) return NULL;
+  if (!bare_buffer__check_number(env, argv[1], "Offset must be a number")) return NULL;
+  if (!bare_buffer__check_number(env, argv[2], "Length must be a number")) return NULL;
 
-  int64_t offset;
-  err = bare_buffer__get_int64(env, argv[1], &offset);
-  if (err < 0) return NULL;
-
-  int64_t len;
-  err = bare_buffer__get_int64(env, argv[2], &len);
-  if (err < 0) return NULL;
+  int64_t offset = bare_buffer__to_int64(env, argv[1]);
+  int64_t len = bare_buffer__to_int64(env, argv[2]);
 
   uint8_t *buf;
   err = bare_buffer__slice(env, argv[0], offset, len, (void **) &buf);
@@ -1381,15 +1404,12 @@ bare_buffer_swap64(js_env_t *env, js_callback_info_t *info) {
   err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
   assert(err == 0);
 
-  assert(argc == 3);
+  if (!bare_buffer__check_buffer(env, argv[0])) return NULL;
+  if (!bare_buffer__check_number(env, argv[1], "Offset must be a number")) return NULL;
+  if (!bare_buffer__check_number(env, argv[2], "Length must be a number")) return NULL;
 
-  int64_t offset;
-  err = bare_buffer__get_int64(env, argv[1], &offset);
-  if (err < 0) return NULL;
-
-  int64_t len;
-  err = bare_buffer__get_int64(env, argv[2], &len);
-  if (err < 0) return NULL;
+  int64_t offset = bare_buffer__to_int64(env, argv[1]);
+  int64_t len = bare_buffer__to_int64(env, argv[2]);
 
   uint8_t *buf;
   err = bare_buffer__slice(env, argv[0], offset, len, (void **) &buf);
@@ -1439,38 +1459,36 @@ bare_buffer_index_of(js_env_t *env, js_callback_info_t *info) {
   err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
   assert(err == 0);
 
-  assert(argc == 7);
+  if (!bare_buffer__check_buffer(env, argv[0])) return NULL;
+  if (!bare_buffer__check_number(env, argv[1], "Offset must be a number")) return NULL;
+  if (!bare_buffer__check_number(env, argv[2], "Length must be a number")) return NULL;
 
-  int64_t offset;
-  err = bare_buffer__get_int64(env, argv[1], &offset);
-  if (err < 0) return NULL;
+  int64_t offset = bare_buffer__to_int64(env, argv[1]);
+  int64_t len = bare_buffer__to_int64(env, argv[2]);
 
-  int64_t len;
-  err = bare_buffer__get_int64(env, argv[2], &len);
-  if (err < 0) return NULL;
+  if (!bare_buffer__check_buffer(env, argv[3])) return NULL;
+  if (!bare_buffer__check_number(env, argv[4], "Offset must be a number")) return NULL;
+  if (!bare_buffer__check_number(env, argv[5], "Length must be a number")) return NULL;
+  if (!bare_buffer__check_number(env, argv[6], "Start must be a number")) return NULL;
+
+  int64_t needle_offset = bare_buffer__to_int64(env, argv[4]);
+  int64_t needle_len = bare_buffer__to_int64(env, argv[5]);
+  int64_t from = bare_buffer__to_int64(env, argv[6]);
+
+  int64_t at = -1;
 
   uint8_t *buf;
   err = bare_buffer__slice(env, argv[0], offset, len, (void **) &buf);
-  if (err < 0) return NULL;
 
-  int64_t needle_offset;
-  err = bare_buffer__get_int64(env, argv[4], &needle_offset);
-  if (err < 0) return NULL;
+  if (err == 0) {
+    uint8_t *needle;
+    err = bare_buffer__slice(env, argv[3], needle_offset, needle_len, (void **) &needle);
 
-  int64_t needle_len;
-  err = bare_buffer__get_int64(env, argv[5], &needle_len);
-  if (err < 0) return NULL;
-
-  uint8_t *needle;
-  err = bare_buffer__slice(env, argv[3], needle_offset, needle_len, (void **) &needle);
-  if (err < 0) return NULL;
-
-  int64_t from;
-  err = bare_buffer__get_int64(env, argv[6], &from);
-  if (err < 0) return NULL;
+    if (err == 0) at = bare_buffer__index_of(buf, len, needle, needle_len, from);
+  }
 
   js_value_t *result;
-  err = js_create_int64(env, bare_buffer__index_of(buf, len, needle, needle_len, from), &result);
+  err = js_create_int64(env, at, &result);
   assert(err == 0);
 
   return result;
@@ -1515,38 +1533,36 @@ bare_buffer_last_index_of(js_env_t *env, js_callback_info_t *info) {
   err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
   assert(err == 0);
 
-  assert(argc == 7);
+  if (!bare_buffer__check_buffer(env, argv[0])) return NULL;
+  if (!bare_buffer__check_number(env, argv[1], "Offset must be a number")) return NULL;
+  if (!bare_buffer__check_number(env, argv[2], "Length must be a number")) return NULL;
 
-  int64_t offset;
-  err = bare_buffer__get_int64(env, argv[1], &offset);
-  if (err < 0) return NULL;
+  int64_t offset = bare_buffer__to_int64(env, argv[1]);
+  int64_t len = bare_buffer__to_int64(env, argv[2]);
 
-  int64_t len;
-  err = bare_buffer__get_int64(env, argv[2], &len);
-  if (err < 0) return NULL;
+  if (!bare_buffer__check_buffer(env, argv[3])) return NULL;
+  if (!bare_buffer__check_number(env, argv[4], "Offset must be a number")) return NULL;
+  if (!bare_buffer__check_number(env, argv[5], "Length must be a number")) return NULL;
+  if (!bare_buffer__check_number(env, argv[6], "Start must be a number")) return NULL;
+
+  int64_t needle_offset = bare_buffer__to_int64(env, argv[4]);
+  int64_t needle_len = bare_buffer__to_int64(env, argv[5]);
+  int64_t from = bare_buffer__to_int64(env, argv[6]);
+
+  int64_t at = -1;
 
   uint8_t *buf;
   err = bare_buffer__slice(env, argv[0], offset, len, (void **) &buf);
-  if (err < 0) return NULL;
 
-  int64_t needle_offset;
-  err = bare_buffer__get_int64(env, argv[4], &needle_offset);
-  if (err < 0) return NULL;
+  if (err == 0) {
+    uint8_t *needle;
+    err = bare_buffer__slice(env, argv[3], needle_offset, needle_len, (void **) &needle);
 
-  int64_t needle_len;
-  err = bare_buffer__get_int64(env, argv[5], &needle_len);
-  if (err < 0) return NULL;
-
-  uint8_t *needle;
-  err = bare_buffer__slice(env, argv[3], needle_offset, needle_len, (void **) &needle);
-  if (err < 0) return NULL;
-
-  int64_t from;
-  err = bare_buffer__get_int64(env, argv[6], &from);
-  if (err < 0) return NULL;
+    if (err == 0) at = bare_buffer__last_index_of(buf, len, needle, needle_len, from);
+  }
 
   js_value_t *result;
-  err = js_create_int64(env, bare_buffer__last_index_of(buf, len, needle, needle_len, from), &result);
+  err = js_create_int64(env, at, &result);
   assert(err == 0);
 
   return result;
