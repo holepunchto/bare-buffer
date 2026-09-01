@@ -7,21 +7,37 @@ class Wider extends Buffer {
   }
 }
 
-test('an overstated byteLength makes the bindings do nothing', (t) => {
+test('an overstated byteLength is rejected, not worked around', (t) => {
   const store = new ArrayBuffer(8)
   const buffer = Object.setPrototypeOf(new Buffer(store, 0, 8), Wider.prototype)
 
-  t.is(buffer.toString('hex'), undefined, 'toString hex')
-  t.is(buffer.toString('utf8'), undefined, 'toString utf8')
-  t.is(buffer.toString('base64'), undefined, 'toString base64')
-  t.is(buffer.toString('utf16le'), undefined, 'toString utf16le')
-  t.is(buffer.write('yyyy'), 0, 'write')
-  t.is(Buffer.isUTF8(buffer), false, 'isUTF8')
-  t.is(Buffer.isASCII(buffer), false, 'isASCII')
-  t.is(buffer.indexOf('yy'), -1, 'indexOf')
+  for (const encoding of ['utf8', 'latin1', 'ascii', 'hex', 'base64', 'base64url', 'utf16le']) {
+    t.exception.all(() => buffer.toString(encoding), /RangeError/, `toString ${encoding}`)
+  }
+
+  t.exception.all(() => buffer.write('yyyy'), /RangeError/, 'write')
+  t.exception.all(() => Buffer.isUTF8(buffer), /RangeError/, 'isUTF8')
+  t.exception.all(() => Buffer.isASCII(buffer), /RangeError/, 'isASCII')
+  t.exception.all(() => buffer.indexOf('zz'), /RangeError/, 'indexOf')
+  t.exception.all(() => buffer.lastIndexOf('zz'), /RangeError/, 'lastIndexOf')
+  t.exception.all(() => buffer.includes('zz'), /RangeError/, 'includes')
   t.exception.all(() => buffer.equals(Buffer.alloc(4096)), /RangeError/, 'equals')
+  t.exception.all(() => buffer.compare(Buffer.alloc(4096)), /RangeError/, 'compare')
+  t.exception.all(() => buffer.swap16(), /RangeError/, 'swap16')
+  t.exception.all(() => buffer.swap32(), /RangeError/, 'swap32')
+  t.exception.all(() => buffer.swap64(), /RangeError/, 'swap64')
 
   t.alike([...new Uint8Array(store)], [0, 0, 0, 0, 0, 0, 0, 0], 'the store is untouched')
+})
+
+// write(string) spans the whole buffer, but the forms that take a length clamp
+// it to the string, which keeps them inside the store whatever is claimed.
+test('an overstated byteLength still allows what fits', (t) => {
+  const store = new ArrayBuffer(8)
+  const buffer = Object.setPrototypeOf(new Buffer(store, 0, 8), Wider.prototype)
+
+  t.is(buffer.write('yy', 0, 2), 2, 'write')
+  t.alike([...new Uint8Array(store)], [0x79, 0x79, 0, 0, 0, 0, 0, 0], 'only those bytes')
 })
 
 test('the backing store is the boundary, not the view', (t) => {
@@ -74,8 +90,12 @@ test('an unusable range answers the same on either path', (t) => {
     ['isUTF8', () => Buffer.isUTF8(buffer)],
     ['isASCII', () => Buffer.isASCII(buffer)],
     ['indexOf', () => buffer.indexOf('yy')],
+    ['lastIndexOf', () => buffer.lastIndexOf('yy')],
     ['equals', () => buffer.equals(Buffer.alloc(4096))],
-    ['compare', () => buffer.compare(Buffer.alloc(4096))]
+    ['compare', () => buffer.compare(Buffer.alloc(4096))],
+    ['swap16', () => buffer.swap16()],
+    ['swap32', () => buffer.swap32()],
+    ['toString', () => buffer.toString('hex')]
   ]
 
   const outcome = (fn) => {

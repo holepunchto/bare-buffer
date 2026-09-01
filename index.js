@@ -7,11 +7,11 @@ const utf8 = require('./lib/utf8')
 const utf16le = require('./lib/utf16le')
 const latin1 = require('./lib/latin1')
 const binding = require('./binding')
+const checked = require('./lib/checked')
 
 const kind = Symbol.for('bare.buffer.kind')
 
 const SWAP_MIN_LENGTH = 128
-const COMPARE_OUT_OF_BOUNDS = -2147483648
 
 let poolSize = 65536
 let pool = null
@@ -132,7 +132,7 @@ class Buffer extends Uint8Array {
     if (sourceLength !== targetLength) return false
 
     return (
-      comparisonOf(
+      checked(
         binding.compare(
           source.buffer,
           source.byteOffset,
@@ -185,7 +185,7 @@ class Buffer extends Uint8Array {
       if (sourceEnd > sourceLength) sourceEnd = sourceLength
     }
 
-    return comparisonOf(
+    return checked(
       binding.compare(
         source.buffer,
         source.byteOffset + sourceStart,
@@ -284,7 +284,7 @@ class Buffer extends Uint8Array {
     if (length < SWAP_MIN_LENGTH) {
       for (let i = 0; i < length; i += 2) swap(this, i, i + 1)
     } else {
-      binding.swap16(this.buffer, this.byteOffset, length)
+      checked(binding.swap16(this.buffer, this.byteOffset, length))
     }
 
     return this
@@ -303,7 +303,7 @@ class Buffer extends Uint8Array {
         swap(this, i + 1, i + 2)
       }
     } else {
-      binding.swap32(this.buffer, this.byteOffset, length)
+      checked(binding.swap32(this.buffer, this.byteOffset, length))
     }
 
     return this
@@ -324,7 +324,7 @@ class Buffer extends Uint8Array {
         swap(this, i + 3, i + 4)
       }
     } else {
-      binding.swap64(this.buffer, this.byteOffset, length)
+      checked(binding.swap64(this.buffer, this.byteOffset, length))
     }
 
     return this
@@ -818,14 +818,6 @@ exports.allocUnsafeSlow = function allocUnsafeSlow(size) {
   return new Buffer(size, { uninitialized: true })
 }
 
-function comparisonOf(result) {
-  if (result === COMPARE_OUT_OF_BOUNDS) {
-    throw new RangeError('View is out of bounds of its backing store')
-  }
-
-  return result
-}
-
 function assertInteger(value, name) {
   if (typeof value !== 'number') {
     throw new TypeError(`${name} must be a number, received type ${typeof value}`)
@@ -864,7 +856,7 @@ exports.compare = function compare(a, b) {
   assertView(a, 'First buffer')
   assertView(b, 'Second buffer')
 
-  return comparisonOf(
+  return checked(
     binding.compare(a.buffer, a.byteOffset, a.byteLength, b.buffer, b.byteOffset, b.byteLength)
   )
 }
@@ -1033,27 +1025,31 @@ function bidirectionalIndexOf(buffer, value, offset, encoding, first) {
   if (first) {
     if (offset === last) return -1
 
-    return binding.indexOf(
+    return checked(
+      binding.indexOf(
+        buffer.buffer,
+        buffer.byteOffset,
+        length,
+        value.buffer,
+        value.byteOffset,
+        needleLength,
+        offset + 1
+      )
+    )
+  }
+
+  if (offset === 0) return -1
+
+  return checked(
+    binding.lastIndexOf(
       buffer.buffer,
       buffer.byteOffset,
       length,
       value.buffer,
       value.byteOffset,
       needleLength,
-      offset + 1
+      offset - 1
     )
-  }
-
-  if (offset === 0) return -1
-
-  return binding.lastIndexOf(
-    buffer.buffer,
-    buffer.byteOffset,
-    length,
-    value.buffer,
-    value.byteOffset,
-    needleLength,
-    offset - 1
   )
 }
 
