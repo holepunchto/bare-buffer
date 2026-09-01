@@ -1,3 +1,4 @@
+require('./test/arguments')
 require('./test/ascii')
 require('./test/basic')
 require('./test/base64')

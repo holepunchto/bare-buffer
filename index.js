@@ -361,6 +361,8 @@ class Buffer extends Uint8Array {
   }
 
   write(string, offset = 0, length = this.byteLength - offset, encoding = 'utf8') {
+    assertString(string, 'String')
+
     // write(string)
     if (arguments.length === 1) return utf8.write(this, string)
 
@@ -759,8 +761,16 @@ const views = new WeakMap()
 function viewOf(buffer) {
   let view = views.get(buffer)
   if (view === undefined) {
-    view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength)
-    views.set(buffer, view)
+    const store = buffer.buffer
+
+    view = new DataView(store, buffer.byteOffset, buffer.byteLength)
+
+    // A view of a store that can still change size covers the wrong range as
+    // soon as it does, or falls out of bounds entirely, so it is only worth
+    // remembering one of a store that cannot.
+    if (store.resizable !== true && store.growable !== true) {
+      views.set(buffer, view)
+    }
   }
   return view
 }
@@ -825,6 +835,12 @@ function assertInteger(value, name) {
 
   if (Number.isInteger(value) === false) {
     throw new RangeError(`${name} must be an integer`)
+  }
+}
+
+function assertString(value, name) {
+  if (typeof value !== 'string') {
+    throw new TypeError(`${name} must be a string, received type ${typeof value}`)
   }
 }
 
