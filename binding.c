@@ -3,6 +3,7 @@
 #include <base64.h>
 #include <hex.h>
 #include <js.h>
+#include <stdatomic.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -29,6 +30,38 @@
 static inline bool
 bare_buffer__is_aligned(const void *data) {
   return ((uintptr_t) data & (sizeof(utf16_t) - 1)) == 0;
+}
+
+static _Atomic size_t bare_buffer__max_arraybuffer_length;
+static _Atomic size_t bare_buffer__max_string_length;
+
+static inline void
+bare_buffer__read_limits(js_env_t *env) {
+  int err;
+
+  js_platform_t *platform;
+  err = js_get_env_platform(env, &platform);
+  assert(err == 0);
+
+  js_platform_limits_t limits = {
+    .version = 0,
+  };
+
+  err = js_get_platform_limits(platform, &limits);
+  assert(err == 0);
+
+  atomic_store_explicit(&bare_buffer__max_arraybuffer_length, limits.arraybuffer_length, memory_order_relaxed);
+  atomic_store_explicit(&bare_buffer__max_string_length, limits.string_length, memory_order_relaxed);
+}
+
+static inline size_t
+bare_buffer__arraybuffer_limit(void) {
+  return atomic_load_explicit(&bare_buffer__max_arraybuffer_length, memory_order_relaxed);
+}
+
+static inline size_t
+bare_buffer__string_limit(void) {
+  return atomic_load_explicit(&bare_buffer__max_string_length, memory_order_relaxed);
 }
 
 // Nothing between here and the raising helpers below raises an error. A typed
@@ -112,6 +145,10 @@ bare_buffer__slice(js_env_t *env, js_value_t *buffer, int64_t offset, int64_t le
   // APIs read a null destination as a request for the length a write would need
   // rather than as a write of no bytes.
   static uint8_t nowhere;
+
+  // Only an empty store lacks an address, so the bounds check above has already
+  // narrowed the span to nothing and the single byte is never reached.
+  assert(base != NULL || len == 0);
 
   *data = base == NULL ? &nowhere : (uint8_t *) base + offset;
 
@@ -317,7 +354,7 @@ bare_buffer__check_string(js_env_t *env, js_value_t *value, const char *message)
 }
 
 static js_value_t *
-bare_buffer__range_error(js_env_t *env) {
+bare_buffer__view_out_of_bounds(js_env_t *env) {
   int err;
 
   err = js_throw_range_error(env, NULL, "View is out of bounds of its backing store");
@@ -331,6 +368,16 @@ bare_buffer__out_of_memory(js_env_t *env) {
   int err;
 
   err = js_throw_error(env, NULL, "Out of memory");
+  assert(err == 0);
+
+  return NULL;
+}
+
+static js_value_t *
+bare_buffer__invalid_string_length(js_env_t *env) {
+  int err;
+
+  err = js_throw_range_error(env, NULL, "Invalid string length");
   assert(err == 0);
 
   return NULL;
@@ -368,6 +415,13 @@ bare_buffer_alloc(js_env_t *env, js_callback_info_t *info) {
     return NULL;
   }
 
+  if ((uint64_t) len > bare_buffer__arraybuffer_limit()) {
+    err = js_throw_range_error(env, NULL, "Length must not exceed the maximum array buffer length");
+    assert(err == 0);
+
+    return NULL;
+  }
+
   js_value_t *result;
   err = js_create_arraybuffer(env, len, NULL, &result);
   if (err < 0) return NULL;
@@ -391,6 +445,13 @@ bare_buffer_alloc_unsafe(js_env_t *env, js_callback_info_t *info) {
 
   if (len < 0) {
     err = js_throw_range_error(env, NULL, "Length must not be negative");
+    assert(err == 0);
+
+    return NULL;
+  }
+
+  if ((uint64_t) len > bare_buffer__arraybuffer_limit()) {
+    err = js_throw_range_error(env, NULL, "Length must not exceed the maximum array buffer length");
     assert(err == 0);
 
     return NULL;
@@ -462,7 +523,7 @@ bare_buffer_to_string_utf8(js_env_t *env, js_callback_info_t *info) {
 
   utf8_t *buf;
   err = bare_buffer__slice(env, argv[0], offset, len, (void **) &buf);
-  if (err < 0) return bare_buffer__range_error(env);
+  if (err < 0) return bare_buffer__view_out_of_bounds(env);
 
   js_value_t *result;
   err = js_create_string_utf8(env, buf, len, &result);
@@ -595,9 +656,13 @@ bare_buffer_to_string_utf16le(js_env_t *env, js_callback_info_t *info) {
 
   uint8_t *bytes;
   err = bare_buffer__slice(env, argv[0], offset, len, (void **) &bytes);
-  if (err < 0) return bare_buffer__range_error(env);
+  if (err < 0) return bare_buffer__view_out_of_bounds(env);
 
   size_t str_len = (size_t) len / sizeof(utf16_t);
+
+  if (str_len > bare_buffer__string_limit()) {
+    return bare_buffer__invalid_string_length(env);
+  }
 
   js_value_t *result;
 
@@ -701,7 +766,7 @@ bare_buffer_to_string_latin1(js_env_t *env, js_callback_info_t *info) {
 
   latin1_t *buf;
   err = bare_buffer__slice(env, argv[0], offset, len, (void **) &buf);
-  if (err < 0) return bare_buffer__range_error(env);
+  if (err < 0) return bare_buffer__view_out_of_bounds(env);
 
   js_value_t *result;
   err = js_create_string_latin1(env, buf, len, &result);
@@ -784,11 +849,15 @@ bare_buffer_to_string_base64(js_env_t *env, js_callback_info_t *info) {
 
   utf8_t *buf;
   err = bare_buffer__slice(env, argv[0], offset, len, (void **) &buf);
-  if (err < 0) return bare_buffer__range_error(env);
+  if (err < 0) return bare_buffer__view_out_of_bounds(env);
 
   size_t str_len;
   err = base64_encode_utf8(buf, len, NULL, &str_len);
   assert(err == 0);
+
+  if (str_len > bare_buffer__string_limit()) {
+    return bare_buffer__invalid_string_length(env);
+  }
 
   utf8_t stack[BARE_BUFFER_STACK_STRING_MAX];
   utf8_t *str = stack;
@@ -830,11 +899,15 @@ bare_buffer_to_string_base64url(js_env_t *env, js_callback_info_t *info) {
 
   utf8_t *buf;
   err = bare_buffer__slice(env, argv[0], offset, len, (void **) &buf);
-  if (err < 0) return bare_buffer__range_error(env);
+  if (err < 0) return bare_buffer__view_out_of_bounds(env);
 
   size_t str_len;
   err = base64url_encode_utf8(buf, len, NULL, &str_len);
   assert(err == 0);
+
+  if (str_len > bare_buffer__string_limit()) {
+    return bare_buffer__invalid_string_length(env);
+  }
 
   utf8_t stack[BARE_BUFFER_STACK_STRING_MAX];
   utf8_t *str = stack;
@@ -931,11 +1004,15 @@ bare_buffer_to_string_hex(js_env_t *env, js_callback_info_t *info) {
 
   utf8_t *buf;
   err = bare_buffer__slice(env, argv[0], offset, len, (void **) &buf);
-  if (err < 0) return bare_buffer__range_error(env);
+  if (err < 0) return bare_buffer__view_out_of_bounds(env);
 
   size_t str_len;
   err = hex_encode_utf8(buf, len, NULL, &str_len);
   assert(err == 0);
+
+  if (str_len > bare_buffer__string_limit()) {
+    return bare_buffer__invalid_string_length(env);
+  }
 
   utf8_t stack[BARE_BUFFER_STACK_STRING_MAX];
   utf8_t *str = stack;
@@ -1661,16 +1738,7 @@ bare_buffer_exports(js_env_t *env, js_value_t *exports) {
   err = js_set_named_property(env, exports, "constants", constants);
   assert(err == 0);
 
-  js_platform_t *platform;
-  err = js_get_env_platform(env, &platform);
-  assert(err == 0);
-
-  js_platform_limits_t limits = {
-    .version = 0,
-  };
-
-  err = js_get_platform_limits(platform, &limits);
-  assert(err == 0);
+  bare_buffer__read_limits(env);
 
 #define V(name, value) \
   { \
@@ -1681,8 +1749,8 @@ bare_buffer_exports(js_env_t *env, js_value_t *exports) {
     assert(err == 0); \
   }
 
-  V("MAX_LENGTH", limits.arraybuffer_length);
-  V("MAX_STRING_LENGTH", limits.string_length);
+  V("MAX_LENGTH", bare_buffer__arraybuffer_limit());
+  V("MAX_STRING_LENGTH", bare_buffer__string_limit());
 #undef V
 
 #define V(name, untyped, signature, typed) \
