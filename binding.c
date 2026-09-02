@@ -36,6 +36,24 @@ bare_buffer__is_aligned(const void *data) {
 // errors from one, so raising there aborts the process. An argument that does
 // not check out is reported to the caller instead, and a condition that has to
 // reach JavaScript is returned as a negative count for the caller to raise.
+
+static inline bool
+bare_buffer__is_buffer(js_env_t *env, js_value_t *value) {
+  int err;
+
+  bool is_arraybuffer;
+  err = js_is_arraybuffer(env, value, &is_arraybuffer);
+  assert(err == 0);
+
+  if (is_arraybuffer) return true;
+
+  bool is_shared;
+  err = js_is_sharedarraybuffer(env, value, &is_shared);
+  assert(err == 0);
+
+  return is_shared;
+}
+
 static inline int
 bare_buffer__get_info(js_env_t *env, js_value_t *buffer, void **data, size_t *len) {
   int err;
@@ -262,17 +280,7 @@ static bool
 bare_buffer__check_buffer(js_env_t *env, js_value_t *value) {
   int err;
 
-  bool is_arraybuffer;
-  err = js_is_arraybuffer(env, value, &is_arraybuffer);
-  assert(err == 0);
-
-  if (is_arraybuffer) return true;
-
-  bool is_shared;
-  err = js_is_sharedarraybuffer(env, value, &is_shared);
-  assert(err == 0);
-
-  if (is_shared) return true;
+  if (bare_buffer__is_buffer(env, value)) return true;
 
   err = js_throw_type_error(env, NULL, "Buffer must be an array buffer");
   assert(err == 0);
@@ -528,6 +536,7 @@ bare_buffer_typed_write_utf8(
   err = js_get_typed_callback_info(info, &env, NULL);
   assert(err == 0);
 
+  if (!bare_buffer__is_buffer(env, handle)) return BARE_BUFFER_INVALID_BUFFER;
   if (!bare_buffer__is_string(env, string)) return BARE_BUFFER_INVALID_STRING;
 
   utf8_t *buf;
@@ -633,6 +642,7 @@ bare_buffer_typed_write_utf16le(
   err = js_get_typed_callback_info(info, &env, NULL);
   assert(err == 0);
 
+  if (!bare_buffer__is_buffer(env, handle)) return BARE_BUFFER_INVALID_BUFFER;
   if (!bare_buffer__is_string(env, string)) return BARE_BUFFER_INVALID_STRING;
 
   uint8_t *bytes;
@@ -715,6 +725,7 @@ bare_buffer_typed_write_latin1(
   err = js_get_typed_callback_info(info, &env, NULL);
   assert(err == 0);
 
+  if (!bare_buffer__is_buffer(env, handle)) return BARE_BUFFER_INVALID_BUFFER;
   if (!bare_buffer__is_string(env, string)) return BARE_BUFFER_INVALID_STRING;
 
   latin1_t *buf;
@@ -861,6 +872,7 @@ bare_buffer_typed_write_base64(
   err = js_get_typed_callback_info(info, &env, NULL);
   assert(err == 0);
 
+  if (!bare_buffer__is_buffer(env, handle)) return BARE_BUFFER_INVALID_BUFFER;
   if (!bare_buffer__is_string(env, string)) return BARE_BUFFER_INVALID_STRING;
 
   utf8_t *buf;
@@ -961,6 +973,7 @@ bare_buffer_typed_write_hex(
   err = js_get_typed_callback_info(info, &env, NULL);
   assert(err == 0);
 
+  if (!bare_buffer__is_buffer(env, handle)) return BARE_BUFFER_INVALID_BUFFER;
   if (!bare_buffer__is_string(env, string)) return BARE_BUFFER_INVALID_STRING;
 
   utf8_t *buf;
@@ -1120,8 +1133,14 @@ bare_buffer__memrchr(const uint8_t *data, uint8_t c, size_t len) {
 }
 
 static int64_t
-bare_buffer__index_of(const uint8_t *data, size_t len, const uint8_t *needle, size_t needle_len, size_t from) {
-  if (needle_len == 0 || needle_len > len || from > len - needle_len) return -1;
+bare_buffer__index_of(const uint8_t *data, size_t len, const uint8_t *needle, size_t needle_len, int64_t start) {
+  if (needle_len == 0 || needle_len > len) return -1;
+
+  // Compared before narrowing, so that a start past the end cannot wrap into a
+  // valid position on a target where size_t is narrower than int64_t.
+  if (start < 0 || (uint64_t) start > len - needle_len) return -1;
+
+  size_t from = (size_t) start;
 
   if (needle_len == 1) {
     const uint8_t *at = memchr(&data[from], needle[0], len - from);
@@ -1173,10 +1192,15 @@ bare_buffer__index_of(const uint8_t *data, size_t len, const uint8_t *needle, si
 }
 
 static int64_t
-bare_buffer__last_index_of(const uint8_t *data, size_t len, const uint8_t *needle, size_t needle_len, size_t from) {
+bare_buffer__last_index_of(const uint8_t *data, size_t len, const uint8_t *needle, size_t needle_len, int64_t start) {
   if (needle_len == 0 || needle_len > len) return -1;
 
-  if (from > len - needle_len) from = len - needle_len;
+  // A start before the first byte names no position, the same reading that has
+  // the forward search report no match for a start past the last one.
+  if (start < 0) return -1;
+
+  size_t last = len - needle_len;
+  size_t from = (uint64_t) start > last ? last : (size_t) start;
 
   if (needle_len == 1) {
     const uint8_t *at = bare_buffer__memrchr(data, needle[0], from + 1);
@@ -1254,6 +1278,9 @@ bare_buffer_typed_compare(
   js_env_t *env;
   err = js_get_typed_callback_info(info, &env, NULL);
   assert(err == 0);
+
+  if (!bare_buffer__is_buffer(env, a_handle)) return BARE_BUFFER_INVALID_BUFFER;
+  if (!bare_buffer__is_buffer(env, b_handle)) return BARE_BUFFER_INVALID_BUFFER;
 
   uint8_t *a;
   err = bare_buffer__slice(env, a_handle, a_offset, a_len, (void **) &a);
@@ -1487,6 +1514,9 @@ bare_buffer_typed_index_of(
   err = js_get_typed_callback_info(info, &env, NULL);
   assert(err == 0);
 
+  if (!bare_buffer__is_buffer(env, handle)) return BARE_BUFFER_INVALID_BUFFER;
+  if (!bare_buffer__is_buffer(env, needle_handle)) return BARE_BUFFER_INVALID_BUFFER;
+
   uint8_t *buf;
   err = bare_buffer__slice(env, handle, offset, len, (void **) &buf);
   if (err != 0) return err;
@@ -1560,6 +1590,9 @@ bare_buffer_typed_last_index_of(
   js_env_t *env;
   err = js_get_typed_callback_info(info, &env, NULL);
   assert(err == 0);
+
+  if (!bare_buffer__is_buffer(env, handle)) return BARE_BUFFER_INVALID_BUFFER;
+  if (!bare_buffer__is_buffer(env, needle_handle)) return BARE_BUFFER_INVALID_BUFFER;
 
   uint8_t *buf;
   err = bare_buffer__slice(env, handle, offset, len, (void **) &buf);

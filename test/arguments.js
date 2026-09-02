@@ -11,7 +11,7 @@ const checked = require('../lib/checked')
 // That is also the order it happens in outside a test.
 const ITERATIONS = 20000
 
-function settles(t, cases, good, bad, expected) {
+function settles(t, cases, good, bad, expected, describe = (err) => `threw ${err.name}`) {
   for (const [name, call] of cases) {
     for (let i = 0; i < ITERATIONS; i++) call(good)
 
@@ -21,7 +21,7 @@ function settles(t, cases, good, bad, expected) {
       try {
         seen.add(`returned ${checked(call(bad))}`)
       } catch (err) {
-        seen.add(`threw ${err.name}`)
+        seen.add(describe(err))
       }
     }
 
@@ -91,6 +91,74 @@ test('an out of bounds span is still a range error', (t) => {
   ]
 
   settles(t, cases, 8, 9, 'threw RangeError')
+})
+
+// The untyped callback checks the type of every argument before it looks at any
+// span, so a typed callback that sliced first would report a range error where
+// the untyped one reports a type error. Only a call that gets a type and a span
+// wrong at once can tell the two orders apart.
+test('the argument that comes first wins on either path', (t) => {
+  const store = new ArrayBuffer(8)
+  const wrong = { byteLength: 8 }
+
+  // A bad buffer alongside a span that is also out of bounds. The type error has
+  // to win, or the fast path reports a range error the untyped path never would.
+  settles(
+    t,
+    [
+      ['compare', ([n, b]) => binding.compare(store, 0, n, b, 0, 8)],
+      ['indexOf', ([n, b]) => binding.indexOf(store, 0, n, b, 0, 2, 0)],
+      ['lastIndexOf', ([n, b]) => binding.lastIndexOf(store, 0, n, b, 0, 2, 0)]
+    ],
+    [8, store],
+    [9, wrong],
+    'threw TypeError'
+  )
+
+  // A bad buffer alongside a bad string. Both are type errors, so only the
+  // message says which of the two arguments was reached first.
+  settles(
+    t,
+    [
+      ['writeUTF8', ([b, v]) => binding.writeUTF8(b, 0, 8, v)],
+      ['writeUTF16LE', ([b, v]) => binding.writeUTF16LE(b, 0, 8, v)],
+      ['writeLatin1', ([b, v]) => binding.writeLatin1(b, 0, 8, v)],
+      ['writeBase64', ([b, v]) => binding.writeBase64(b, 0, 8, v)],
+      ['writeHex', ([b, v]) => binding.writeHex(b, 0, 8, v)]
+    ],
+    [store, 'aabb'],
+    [wrong, 0],
+    'Buffer must be an array buffer',
+    (err) => err.message
+  )
+})
+
+// A start before the first byte names no position, and neither does one past the
+// last, so the forward search reports no match for either. The backward search
+// still has the whole buffer behind a start past the end, but nothing behind one
+// before the beginning. A start is compared as a signed 64 bit value so that it
+// cannot wrap into range where size_t is narrower.
+test('a start outside the buffer finds nothing forwards', (t) => {
+  const store = new ArrayBuffer(8)
+  new Uint8Array(store).fill(0x79)
+
+  const needle = new ArrayBuffer(1)
+  new Uint8Array(needle)[0] = 0x79
+
+  const before = [-1, -8, -4294967296, -9007199254740991]
+  const after = [8, 9, 4294967296, 9007199254740991]
+
+  for (const start of [...before, ...after]) {
+    t.is(binding.indexOf(store, 0, 8, needle, 0, 1, start), -1, `indexOf from ${start}`)
+  }
+
+  for (const start of before) {
+    t.is(binding.lastIndexOf(store, 0, 8, needle, 0, 1, start), -1, `lastIndexOf from ${start}`)
+  }
+
+  for (const start of after) {
+    t.is(binding.lastIndexOf(store, 0, 8, needle, 0, 1, start), 7, `lastIndexOf from ${start}`)
+  }
 })
 
 test('write rejects anything but a string', (t) => {
