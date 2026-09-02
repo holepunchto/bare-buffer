@@ -213,3 +213,44 @@ test('a resizable store is followed by the numeric accessors', (t) => {
   t.is(buffer.readDoubleBE(0), 0, 'what is left still reads')
   t.exception.all(() => buffer.readDoubleBE(56), /RangeError/, 'the rest does not')
 })
+
+// A length past the maximum reaches the allocator as a size_t, which on a 64 bit
+// target simply fails to allocate but on a 32 bit one wraps to a much shorter
+// buffer, so the binding has to turn it away before narrowing it.
+test('alloc rejects a length the platform cannot represent', (t) => {
+  const max = binding.constants.MAX_LENGTH
+
+  t.exception.all(() => binding.alloc(max + 1), /RangeError/, 'alloc')
+  t.exception.all(() => binding.allocUnsafe(max + 1), /RangeError/, 'allocUnsafe')
+
+  t.exception.all(() => binding.alloc(2 ** 60), /RangeError/, 'alloc past a size_t')
+  t.exception.all(() => binding.allocUnsafe(2 ** 60), /RangeError/, 'allocUnsafe past a size_t')
+})
+
+// The encoded length is known before any of it is written, so a result too long
+// to be a string is turned away without allocating or encoding it first. The
+// error is the one the string APIs raise for the same length, so this pins the
+// two paths together rather than the saving itself.
+test('a conversion too long to be a string is rejected up front', (t) => {
+  const max = binding.constants.MAX_STRING_LENGTH
+
+  const cases = [
+    ['toStringHex', binding.toStringHex, Math.floor(max / 2) + 1],
+    ['toStringBase64', binding.toStringBase64, Math.floor(max / 4) * 3 + 1],
+    ['toStringBase64URL', binding.toStringBase64URL, Math.ceil((max * 3) / 4) + 1]
+  ]
+
+  for (const [name, convert, size] of cases) {
+    let store
+
+    // Uninitialized, so the pages are only touched if the conversion runs.
+    try {
+      store = binding.allocUnsafe(size)
+    } catch {
+      t.comment(`${name} skipped, could not allocate ${size} bytes`)
+      continue
+    }
+
+    t.exception.all(() => convert(store, 0, size), /RangeError/, name)
+  }
+})
