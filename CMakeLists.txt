@@ -5,9 +5,9 @@ find_package(cmake-fetch REQUIRED PATHS node_modules/cmake-fetch)
 
 project(bare_buffer C)
 
-fetch_package("github:holepunchto/libutf#dca86e6")
-fetch_package("github:holepunchto/libbase64#078ad06")
-fetch_package("github:holepunchto/libhex#a4a2c84")
+fetch_package("github:holepunchto/libutf#a7f9f6b")
+fetch_package("github:holepunchto/libbase64#f466fb8")
+fetch_package("github:holepunchto/libhex#5611279")
 
 add_bare_module(bare_buffer)
 
